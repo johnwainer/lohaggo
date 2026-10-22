@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { createLogger } from '@/lib/logger'
 import { currentActor } from '@/lib/ops/actor'
 import { bookingsFor } from '@/lib/bookings/ops'
-import { followupOptions } from '@/lib/bookings/followups'
+import { followupViews } from '@/lib/bookings/followups'
+import { paymentView } from '@/lib/payments/receipt'
 import { BookingStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -23,12 +24,15 @@ export async function GET(request: Request) {
     const take = actor.role === 'ADMIN' && takeRaw > 0 ? Math.min(takeRaw, 1000) : undefined
 
     const bookings = await bookingsFor(actor, { status: statuses, take })
-    if (actor.role !== 'CLIENT') return NextResponse.json(bookings)
-    // The client's follow-up buttons (el socio no llegó, ya terminó, buscar otro socio) on recent live bookings
-    const recent = Date.now() - 8 * 24 * 3600_000
-    const ids = bookings.filter((b) => b.status !== 'COMPLETED' && b.updatedAt.getTime() >= recent).map((b) => b.id)
-    const options = await followupOptions(actor, ids).catch(() => ({} as Record<string, string[]>))
-    return NextResponse.json(bookings.map((b) => ({ ...b, followupActions: options[b.id] ?? [] })))
+    if (actor.role === 'ADMIN') return NextResponse.json(bookings)
+    // Follow-up buttons and what waits for an answer (el socio no llegó, ya terminó, otra fecha, precio final…)
+    const recent = Date.now() - 14 * 24 * 3600_000
+    const ids = bookings.filter((b) => b.updatedAt.getTime() >= recent && (b.status !== 'COMPLETED' || b.payment?.status !== 'APPROVED')).map((b) => b.id)
+    const views = await followupViews(actor, ids).catch(() => ({} as Awaited<ReturnType<typeof followupViews>>))
+    return NextResponse.json(bookings.map((b) => {
+      const { receiptUrl, ...payment } = paymentView(b.payment)
+      return { ...b, ...(b.payment ? { payment: { ...payment, receiptUrl } } : {}), followupActions: views[b.id]?.actions ?? [], followupInfo: views[b.id]?.info ?? {} }
+    }))
   } catch (error) {
     logger.error('Error fetching bookings:', error)
     return NextResponse.json({ error: "Error al obtener reservas" }, { status: 500 })

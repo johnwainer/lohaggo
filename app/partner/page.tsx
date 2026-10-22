@@ -25,6 +25,8 @@ import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
 import OriginBadge from '@/components/shared/OriginBadge'
 import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
+import PartnerBookingFollowup from '@/components/partner/PartnerBookingFollowup'
+import type { FollowupInfo } from '@/components/bookings/BookingFollowup'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
@@ -65,6 +67,9 @@ interface Booking {
   originChannel?: string | null
   city?: string
   serviceId?: string
+  /** Follow-up buttons and what waits for the client (voy en camino, cliente ausente, precio final…) */
+  followupActions?: string[]
+  followupInfo?: FollowupInfo
   service: {
     name: string
     slug: string
@@ -890,7 +895,7 @@ function PartnerDashboardContent() {
           onClose={() => setRescheduleFor(null)}
           onDone={() => {
             setRescheduleFor(null)
-            setModal({ isOpen: true, title: 'Reserva reprogramada', message: 'Le avisamos al cliente la nueva fecha y hora.', type: 'success' })
+            setModal({ isOpen: true, title: 'Cambio de fecha enviado', message: 'Le propusimos la nueva fecha al cliente: la reserva cambia cuando la acepte. Mientras tanto sigue en su fecha actual.', type: 'success' })
             refreshAfterAction()
           }}
         />
@@ -1648,6 +1653,7 @@ function PartnerDashboardContent() {
                             </span>
                           </p>
                         )}
+                        <PartnerBookingFollowup bookingId={booking.id} actions={booking.followupActions ?? []} info={booking.followupInfo} totalPrice={booking.totalPrice} onDone={refreshAfterAction} />
                         {['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status) && (
                           <WorkPhotosEditor key={`${booking.id}-${photosVersion}`} bookingId={booking.id} status={booking.status} />
                         )}

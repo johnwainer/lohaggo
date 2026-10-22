@@ -8,6 +8,7 @@ import { APP_ORIGIN, OpsError, originColumns, type Actor, type Origin } from '@/
 import { addBookingEvent, formatCOP } from '@/lib/bookings/ops'
 import { bookingRates, clientBreakdown, loadEffectiveRates, rateOrEffective } from '@/lib/payments/commission'
 import type { OfflinePaymentMethod, PaymentConfirmationStatus, PaymentStatus } from '@prisma/client'
+import { validReceiptUrl, withReceipt } from '@/lib/payments/receipt'
 
 /**
  * Payment operations shared by the routes, the admin and the inbox AI agents: offline payment report and
@@ -102,7 +103,7 @@ const offlineCreateBase = (booking: { id: string; userId: string; totalPrice: nu
  * (CLIENT_REPORTED). If the partner had already recorded a method, matching it confirms the payment and a
  * different one opens a dispute for the admins.
  */
-export async function reportClientPayment(actor: Actor, bookingId: string, input: { method: OfflineMethod; note?: string }, origin: Origin) {
+export async function reportClientPayment(actor: Actor, bookingId: string, input: { method: OfflineMethod; note?: string; receiptUrl?: string | null }, origin: Origin) {
   if (actor.role !== 'CLIENT') throw new OpsError('Solo el cliente puede reportar el pago', 403)
   await assertMethodEnabled(input.method)
 
@@ -120,6 +121,9 @@ export async function reportClientPayment(actor: Actor, bookingId: string, input
   }
   const now = new Date()
   const paidAt = paymentStatus === 'APPROVED' ? now : undefined
+  const receipt = validReceiptUrl(input.receiptUrl)
+  // A new report replaces the receipt: re-reporting in cash must not keep showing an old transfer
+  const metadata = booking.payment || receipt ? withReceipt(booking.payment?.metadata ?? null, receipt) : undefined
 
   const payment = await prisma.payment.upsert({
     where: { bookingId: booking.id },
@@ -131,6 +135,7 @@ export async function reportClientPayment(actor: Actor, bookingId: string, input
       clientReportedAt: now,
       clientReportNote: input.note,
       paidAt,
+      ...(metadata ? { metadata } : {}),
       ...originColumns(origin),
     },
     update: {
@@ -142,10 +147,11 @@ export async function reportClientPayment(actor: Actor, bookingId: string, input
       paidAt,
       partnerRejectedAt: null,
       rejectionReason: null,
+      ...(metadata !== undefined ? { metadata } : {}),
     },
   })
 
-  await addBookingEvent({ bookingId, type: 'payment', actor, origin, detail: `Cliente reportó pago en ${METHOD_LABEL[input.method]}` })
+  await addBookingEvent({ bookingId, type: 'payment', actor, origin, detail: `Cliente reportó pago en ${METHOD_LABEL[input.method]}${receipt ? ' con comprobante' : ''}` })
 
   // WhatsApp templates first (C20 to the partner, D5 to the team on a mismatch)
   const wa = await import('@/lib/messaging/wa-events')

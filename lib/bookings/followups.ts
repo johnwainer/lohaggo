@@ -22,8 +22,10 @@ import { createNotification, notifyBookingStatusChange } from '@/lib/notificatio
 import { APP_ORIGIN, OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 import { addBookingEvent, assertBookingAccess, reopenRequestAfterPartnerCancel, systemTransition, transitionBooking } from '@/lib/bookings/ops'
 import type { OfflineMethod } from '@/lib/payments/ops'
+import { recordOperationalStrike } from '@/lib/partners/strikes'
 
 const logger = createLogger('booking-followups')
+const APP_URL = 'https://www.lohaggo.com'
 const MIN = 60_000
 const H = 60 * MIN
 const DAY = 24 * H
@@ -46,6 +48,8 @@ export const FOLLOWUP_TIMING = {
   escalateReportedMs: 6 * DAY,
   escalateDisputedMs: 24 * H,
   rebookWindowMs: 7 * DAY,
+  clientAbsentGraceMs: 30 * MIN,
+  secondRatingReminderMs: 72 * H,
 } as const
 const T = FOLLOWUP_TIMING
 
@@ -70,6 +74,11 @@ export const FOLLOWUP_MARK = {
   paymentEscalated: 'Seguimiento: el pago pasó al equipo',
   rebookDeclined: 'El cliente no quiere buscar otro socio',
   rebooked: 'El cliente pidió otro socio: la solicitud se abrió de nuevo',
+  clientAbsentReported: 'El socio llegó y no encontró al cliente',
+  clientHere: 'El cliente dijo que ya está en el lugar',
+  clientNoShow: 'El cliente no estaba en el lugar ni respondió',
+  clientLateCancel: 'Cancelación tardía del cliente (menos de 24 horas)',
+  askedRatingAgain: 'Seguimiento: segundo recordatorio para calificar',
 } as const
 export type FollowupMark = keyof typeof FOLLOWUP_MARK
 const MARK_BY_TEXT = new Map<string, FollowupMark>(Object.entries(FOLLOWUP_MARK).map(([k, v]) => [v, k as FollowupMark]))
@@ -77,6 +86,7 @@ const MARK_BY_TEXT = new Map<string, FollowupMark>(Object.entries(FOLLOWUP_MARK)
 export const CANCEL_REASON = {
   unconfirmed: 'El socio no confirmó la reserva antes de la hora del servicio',
   no_show: 'El socio no llegó al servicio (reportado por el cliente)',
+  client_absent: 'El cliente no estaba en el lugar y no respondió',
 } as const
 type CancelKind = keyof typeof CANCEL_REASON
 
@@ -177,7 +187,10 @@ async function systemCancel(b: Row, kind: CancelKind) {
   if (!done) return false
   broadcast(b)
   const data = dataOf(b)
-  if (b.partner?.userId) {
+  if (b.partner?.userId && kind === 'client_absent') {
+    await sendWaToUser(b.partner.userId, WA.C41(data))
+    await createNotification({ userId: b.partner.userId, type: 'BOOKING_CANCELLED', title: 'Reserva cancelada: el cliente no estaba', message: `Cancelamos la reserva #${b.id.slice(-6)} de ${data.service} porque el cliente no estaba ni respondió. Gracias por avisar; quedó registrado.`, data: { bookingId: b.id, kind: 'AUTO_CANCEL_CLIENT_ABSENT' } }).catch(() => null)
+  } else if (b.partner?.userId) {
     await sendWaToUser(b.partner.userId, kind === 'no_show' ? WA.C38(data) : WA.C35(data))
     await createNotification({
       userId: b.partner.userId,
@@ -195,6 +208,13 @@ async function systemCancel(b: Row, kind: CancelKind) {
 /** Cancelled by the platform from the cron: the client hears it and is offered another partner (B31 / B33). */
 async function cancelAndOffer(b: Row, kind: CancelKind) {
   if (!(await systemCancel(b, kind))) return false
+  if (kind === 'client_absent') {
+    await mark(b, 'clientNoShow')
+    await sendWaToUser(b.userId, WA.B28({ ...dataOf(b), reason: 'el socio llegó, no te encontró y no respondiste a tiempo' }))
+    await createNotification({ userId: b.userId, type: 'BOOKING_CANCELLED', title: 'Cancelamos tu reserva', message: `El socio llegó a tu servicio de ${dataOf(b).service} y no te encontró, y no respondiste a tiempo. Si fue un error, escríbenos.`, data: { bookingId: b.id, kind: 'AUTO_CANCEL_CLIENT_ABSENT' } }).catch(() => null)
+    return true
+  }
+  if (kind === 'unconfirmed') await recordOperationalStrike({ id: b.id, partnerId: b.partnerId, partnerUserId: b.partner?.userId ?? null, service: b.service?.name ?? 'el servicio' }, 'unconfirmed')
   const data = dataOf(b)
   await sendWaToUser(b.userId, kind === 'no_show' ? WA.B33(data) : WA.B31(data))
   await createNotification({
@@ -279,6 +299,13 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
       const when = bookingWhen(b).getTime()
       if (at < when + T.askPartnerArrivalMs || when < at - 2 * DAY || !live(when)) continue
       const m = marks.get(b.id) ?? new Map<FollowupMark, Date>()
+      const absent = m.get('clientAbsentReported')
+      // The client's «no llegó» wins: the partner cannot turn it into a client no-show
+      if (absent && !m.has('noShowReported')) {
+        const here = m.get('clientHere')
+        if ((!here || here < absent) && at >= absent.getTime() + T.clientAbsentGraceMs && !paid(b) && cancels < MAX_CANCELS_PER_RUN && (await cancelAndOffer(b, 'client_absent'))) { cancels++; bump(t, 'cancelled_client_absent') }
+        continue
+      }
       const noShow = m.get('noShowReported')
       if (noShow) {
         const onWay = m.get('partnerOnWay')
@@ -383,13 +410,35 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
     }
   })
 
+  await step(t, 'rating', async () => {
+    const rows = await prisma.booking.findMany({
+      where: { status: 'COMPLETED', updatedAt: { gte: since(8) }, OR: [{ review: { is: null } }, { review: { is: { clientToPartnerRating: null } } }] },
+      select: bookingSelect, orderBy: { updatedAt: 'asc' }, take: 200,
+    }) as Row[]
+    const ids = rows.map((b) => b.id)
+    const [marks, completed] = await Promise.all([marksFor(ids), enteredAt(ids, 'COMPLETED')])
+    for (const b of rows) {
+      const doneAt = (completed.get(b.id) ?? b.updatedAt).getTime()
+      const age = at - doneAt
+      if (!live(doneAt) || age < T.secondRatingReminderMs || age > 7 * DAY || marks.get(b.id)?.has('askedRatingAgain')) continue
+      await mark(b, 'askedRatingAgain')
+      await sendWaToUser(b.userId, WA.B18({ ...dataOf(b), round: 2 }), now)
+      await createNotification({
+        userId: b.userId, type: 'RATING_REMINDER', title: '¿Cómo te fue con el servicio?',
+        message: `Califica a ${b.partner?.user?.name ?? 'tu socio'} por ${b.service?.name ?? 'el servicio'}: ayuda a otros clientes a elegir.`,
+        data: { bookingId: b.id, kind: 'RATING_REMINDER_2' },
+      }).catch(() => null)
+      bump(t, 'rating_reminder_2')
+    }
+  })
+
   return t
 }
 
 // ─── Answers of the client and the partner ──────────────────────────────────
 
-export const CLIENT_FOLLOWUP_ACTIONS = ['rebook', 'decline_rebook', 'wait', 'arrived', 'no_show', 'done', 'not_done'] as const
-export const PARTNER_FOLLOWUP_ACTIONS = ['partner_started', 'partner_on_way', 'partner_cant_go', 'partner_paid', 'partner_not_paid'] as const
+export const CLIENT_FOLLOWUP_ACTIONS = ['rebook', 'decline_rebook', 'wait', 'arrived', 'no_show', 'done', 'not_done', 'reschedule_ok', 'reschedule_no', 'price_ok', 'price_no', 'client_here', 'client_cancel'] as const
+export const PARTNER_FOLLOWUP_ACTIONS = ['partner_started', 'partner_on_way', 'partner_cant_go', 'partner_paid', 'partner_not_paid', 'client_absent', 'propose_price'] as const
 export type FollowupAction = (typeof CLIENT_FOLLOWUP_ACTIONS)[number] | (typeof PARTNER_FOLLOWUP_ACTIONS)[number]
 
 export type FollowupResult = { message: string }
@@ -407,7 +456,7 @@ export async function rebookAvailability(b: Pick<Row, 'id' | 'status' | 'proposa
  * The client or the partner answers a follow-up (a WhatsApp button or the app). Checks the role, ownership
  * and state; returns the sentence to show or send back.
  */
-export async function applyFollowup(actor: Actor, bookingId: string, action: FollowupAction, origin: Origin, opts: { method?: OfflineMethod } = {}, now = new Date()): Promise<FollowupResult> {
+export async function applyFollowup(actor: Actor, bookingId: string, action: FollowupAction, origin: Origin, opts: { method?: OfflineMethod; amount?: number; note?: string; sentAt?: Date } = {}, now = new Date()): Promise<FollowupResult> {
   const b = await loadRow(bookingId)
   assertBookingAccess(actor, b)
   const isClientAction = (CLIENT_FOLLOWUP_ACTIONS as readonly string[]).includes(action)
@@ -434,6 +483,8 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       const reopened = await reopenRequestAfterPartnerCancel(b, { asap: when < now.getTime() + 2 * H })
       if (!reopened) throw new OpsError('No pudimos abrir tu solicitud de nuevo. Crea una solicitud nueva y te ayudamos.')
       await mark(b, 'rebooked', actor, origin)
+      const waiting = b.proposal ? await prisma.proposal.count({ where: { serviceRequestId: b.proposal.serviceRequestId, status: 'PENDING' } }) : 0
+      if (waiting > 0) return { message: `Listo: abrimos tu solicitud de ${service} de nuevo. Ya tienes ${waiting === 1 ? 'una propuesta' : `${waiting} propuestas`} de otros socios: elige una en «Mis solicitudes» (${APP_URL}/dashboard?tab=requests) y queda reservado al instante.` }
       return { message: `Listo: abrimos tu solicitud de ${service} de nuevo y les avisamos a los socios. Te llegarán propuestas aquí y en tu panel.` }
     }
     case 'decline_rebook':
@@ -499,6 +550,42 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       const p = await confirmPartnerPayment(actor, b.id, { method: opts.method }, origin)
       return { message: p.confirmationStatus === 'DISPUTED' ? 'Registramos tu respuesta, pero no coincide con lo que reportó el cliente: el equipo lo revisa.' : 'Gracias, dejamos el pago registrado.' }
     }
+    case 'reschedule_ok':
+    case 'reschedule_no': {
+      const { answerReschedule } = await import('@/lib/bookings/agreements')
+      return answerReschedule(actor, b.id, action === 'reschedule_ok', origin, opts.sentAt)
+    }
+    case 'price_ok':
+    case 'price_no': {
+      const { answerPrice } = await import('@/lib/bookings/agreements')
+      return answerPrice(actor, b.id, action === 'price_ok', origin, opts.sentAt)
+    }
+    case 'client_here': {
+      if (b.status !== 'CONFIRMED') return { message: b.status === 'IN_PROGRESS' ? 'El servicio ya está en curso.' : 'Esta reserva ya no está activa.' }
+      if (!m.has('clientAbsentReported')) return { message: 'Perfecto, el socio te espera a la hora acordada.' }
+      await mark(b, 'clientHere', actor, origin)
+      if (b.partner?.userId) await createNotification({ userId: b.partner.userId, type: 'BOOKING_STARTING_SOON', title: 'El cliente ya está en el lugar', message: `${b.user?.name ?? 'El cliente'} dice que ya está en ${b.address}. Inicia el servicio al llegar.`, data: { bookingId: b.id, kind: 'CLIENT_HERE' } }).catch(() => null)
+      return { message: 'Gracias, le avisamos al socio que ya estás en el lugar.' }
+    }
+    case 'client_cancel':
+      if (b.status !== 'CONFIRMED' && b.status !== 'PENDING') return { message: 'Esta reserva ya no está activa.' }
+      await transitionBooking(actor, b.id, 'CANCELLED', origin, { reason: 'El cliente canceló cuando el socio no lo encontró en el lugar' })
+      return { message: 'Cancelamos tu reserva. Si necesitas el servicio otro día, crea una solicitud nueva cuando quieras.' }
+    case 'client_absent': {
+      if (b.status !== 'CONFIRMED') return { message: b.status === 'IN_PROGRESS' ? 'El servicio ya está en curso.' : 'Esta reserva ya no está confirmada.' }
+      if (now.getTime() < when) throw new OpsError(`El servicio es ${formatBookingWhen(b)}: aún no es la hora.`)
+      if (m.has('clientAbsentReported')) return { message: 'Ya le avisamos al cliente. Si no responde en 30 minutos, cancelamos la reserva y queda registrado.' }
+      if (m.has('noShowReported')) throw new OpsError('El cliente reportó que no llegaste: escríbele por el chat de la reserva o inicia el servicio si ya estás ahí.')
+      await mark(b, 'clientAbsentReported', actor, origin)
+      await sendWaToUser(b.userId, WA.B36(dataOf(b)), now)
+      await createNotification({ userId: b.userId, type: 'BOOKING_STARTING_SOON', title: 'El socio llegó y no te encontró', message: `${b.partner?.user?.name ?? 'El socio'} está en ${b.address} para ${service}. Avísale que ya estás o cancela; en 30 minutos sin respuesta la reserva se cancela.`, data: { bookingId: b.id, kind: 'CLIENT_ABSENT' } }).catch(() => null)
+      return { message: 'Le avisamos al cliente. Espéralo unos minutos: si no responde en 30 minutos, cancelamos la reserva y queda registrado a tu favor.' }
+    }
+    case 'propose_price': {
+      const { proposePrice } = await import('@/lib/bookings/agreements')
+      await proposePrice(actor, b.id, { amount: Number(opts.amount), note: String(opts.note ?? '') }, origin)
+      return { message: 'Le enviamos el nuevo precio al cliente. Te avisamos cuando lo acepte.' }
+    }
     case 'partner_not_paid': {
       if (b.status !== 'COMPLETED') throw new OpsError('El servicio aún no está terminado')
       if (paid(b)) return { message: 'El pago ya figura como recibido. Si no es así, escríbenos.' }
@@ -510,31 +597,65 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
   }
 }
 
-/** What the app shows on a booking card: the follow-up buttons that apply now. */
-export async function followupOptions(actor: Actor, bookingIds: string[], now = new Date()): Promise<Record<string, FollowupAction[]>> {
-  const out: Record<string, FollowupAction[]> = {}
+export type FollowupInfo = {
+  /** Date change waiting for the client (the partner proposed it) */
+  reschedule?: { date: string; time: string; when: string }
+  /** Final price waiting for the client */
+  price?: { amount: number; previous: number; note: string }
+  /** The partner reported they did not find the client (waiting for the client's answer) */
+  clientAbsent?: boolean
+}
+export type FollowupView = { actions: FollowupAction[]; info: FollowupInfo }
+
+/** What the app shows on a booking card: the follow-up buttons that apply now and what is waiting for an answer. */
+export async function followupViews(actor: Actor, bookingIds: string[], now = new Date()): Promise<Record<string, FollowupView>> {
+  const out: Record<string, FollowupView> = {}
   if (!bookingIds.length || actor.role === 'ADMIN') return out
   const rows = (await prisma.booking.findMany({
     where: { id: { in: bookingIds.slice(0, 100) }, ...(actor.role === 'CLIENT' ? { userId: actor.userId } : { partnerId: actor.partnerId ?? '__none__' }) },
     select: bookingSelect,
   })) as Row[]
   const ids = rows.map((b) => b.id)
-  const [marks, cancelled] = await Promise.all([marksFor(ids), enteredAt(ids, 'CANCELLED')])
+  const { openAgreements } = await import('@/lib/bookings/agreements')
+  const [marks, cancelled, agreements] = await Promise.all([marksFor(ids), enteredAt(ids, 'CANCELLED'), openAgreements(ids)])
   for (const b of rows) {
     const m = marks.get(b.id) ?? new Map<FollowupMark, Date>()
     const when = bookingWhen(b).getTime()
+    const open = agreements.get(b.id) ?? {}
+    const absent = m.get('clientAbsentReported')
+    const here = m.get('clientHere')
+    const absentOpen = Boolean(absent && (!here || here < absent) && b.status === 'CONFIRMED')
+    const info: FollowupInfo = {}
+    if (open.reschedule && (b.status === 'PENDING' || b.status === 'CONFIRMED')) {
+      info.reschedule = { date: open.reschedule.date, time: open.reschedule.time, when: formatBookingWhen({ scheduledDate: new Date(`${open.reschedule.date}T00:00:00.000Z`), scheduledTime: open.reschedule.time }) }
+    }
+    if (open.price && (b.status === 'IN_PROGRESS' || b.status === 'COMPLETED') && !paid(b)) info.price = { amount: open.price.amount, previous: open.price.previous, note: open.price.note }
+    if (absentOpen) info.clientAbsent = true
     const list: FollowupAction[] = []
     if (actor.role === 'CLIENT') {
+      if (info.reschedule) list.push('reschedule_ok', 'reschedule_no')
+      if (info.price) list.push('price_ok', 'price_no')
+      if (absentOpen) list.push('client_here', 'client_cancel')
       if (b.status === 'PENDING' && m.has('askedClientRebook') && !paid(b)) list.push('rebook')
-      if (b.status === 'CONFIRMED' && now.getTime() >= when + 10 * MIN && !m.has('noShowReported')) list.push('no_show', 'arrived')
+      if (b.status === 'CONFIRMED' && !absentOpen && now.getTime() >= when + 10 * MIN && !m.has('noShowReported')) list.push('no_show', 'arrived')
       if (b.status === 'CONFIRMED' && m.has('noShowReported') && !paid(b)) list.push('rebook')
-      if (b.status === 'IN_PROGRESS') list.push('done')
-      if (b.status === 'CANCELLED' && b.proposal?.serviceRequest.status === 'ACCEPTED' && !m.has('rebooked') && !m.has('rebookDeclined')) {
+      if (b.status === 'IN_PROGRESS' && !info.price) list.push('done')
+      if (b.status === 'CANCELLED' && b.proposal?.serviceRequest.status === 'ACCEPTED' && !m.has('rebooked') && !m.has('rebookDeclined') && !m.has('clientNoShow')) {
         const c = cancelled.get(b.id)
         if (c && c.getTime() >= now.getTime() - T.rebookWindowMs) list.push('rebook')
       }
+    } else {
+      if (b.status === 'CONFIRMED' && now.getTime() >= when - 2 * H && now.getTime() < when + 3 * H && !m.has('partnerOnWay') && !absentOpen) list.push('partner_on_way')
+      if (b.status === 'CONFIRMED' && now.getTime() >= when && !absent) list.push('client_absent')
+      if ((b.status === 'IN_PROGRESS' || b.status === 'COMPLETED') && !paid(b) && !info.price && ['NONE', 'REJECTED_BY_PARTNER'].includes(b.payment?.confirmationStatus ?? 'NONE')) list.push('propose_price')
     }
-    if (list.length) out[b.id] = list
+    if (list.length || Object.keys(info).length) out[b.id] = { actions: list, info }
   }
   return out
+}
+
+/** Only the buttons (kept for callers that need just them). */
+export async function followupOptions(actor: Actor, bookingIds: string[], now = new Date()): Promise<Record<string, FollowupAction[]>> {
+  const views = await followupViews(actor, bookingIds, now)
+  return Object.fromEntries(Object.entries(views).map(([id, v]) => [id, v.actions]))
 }

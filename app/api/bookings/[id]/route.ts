@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { paymentView } from '@/lib/payments/receipt'
 import { z } from 'zod'
 import { prisma } from "@/lib/prisma"
 import { createLogger } from '@/lib/logger'
@@ -33,7 +34,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     assertBookingAccess(actor, booking)
 
     // Follow-up marks carry each side's word (no llegó, no me pagó): only the team sees them
-    if (actor.role !== 'ADMIN') return NextResponse.json({ ...booking, events: booking.events.filter((e) => e.type !== 'followup') })
+    if (actor.role !== 'ADMIN') return NextResponse.json({ ...booking, payment: booking.payment ? paymentView(booking.payment) : null, events: booking.events.filter((e) => e.type !== 'followup') })
     return NextResponse.json(booking)
   } catch (error) {
     if (error instanceof OpsError) return opsErrorResponse(error)

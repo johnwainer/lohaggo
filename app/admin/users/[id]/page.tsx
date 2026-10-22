@@ -742,7 +742,7 @@ function TabReservas({ bookings, isPartner, partnerBookings, agentNames }: { boo
   )
 }
 
-const EVENT_TYPE_LABEL: Record<string, string> = { status: 'Estado', reschedule: 'Reprogramación', payment: 'Pago', guarantee: 'Garantía', followup: 'Seguimiento' }
+const EVENT_TYPE_LABEL: Record<string, string> = { status: 'Estado', reschedule: 'Reprogramación', payment: 'Pago', guarantee: 'Garantía', followup: 'Seguimiento', reschedule_request: 'Cambio de fecha propuesto', reschedule_answer: 'Respuesta al cambio de fecha', price_request: 'Precio final propuesto', price_answer: 'Respuesta al precio final' }
 
 function actorLabel(actorType: string, agentName?: string | null) {
   switch (actorType) {

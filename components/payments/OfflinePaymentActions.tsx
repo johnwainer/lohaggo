@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useState } from 'react'
-import { Banknote, ArrowRightLeft, CheckCircle, XCircle, Clock, AlertTriangle, Loader2, RotateCcw, X } from 'lucide-react'
+import { Banknote, ArrowRightLeft, CheckCircle, XCircle, Clock, AlertTriangle, Loader2, Receipt, RotateCcw, X } from 'lucide-react'
 import { useDialog } from '@/components/ui/use-dialog'
 
 const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2'
@@ -20,6 +20,8 @@ export interface OfflinePaymentInfo {
   partnerConfirmedAt?: string | null
   partnerRejectedAt?: string | null
   rejectionReason?: string | null
+  /** Photo of the transfer the client attached when reporting */
+  receiptUrl?: string | null
 }
 
 interface Props {
@@ -52,6 +54,7 @@ export default function OfflinePaymentActions({ bookingId, role, bookingStatus, 
   const [method, setMethod] = useState<OfflineMethod>('CASH')
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,6 +83,7 @@ export default function OfflinePaymentActions({ bookingId, role, bookingStatus, 
       setModal(null)
       setReason('')
       setNote('')
+      setReceiptUrl(null)
       onChange?.()
     } catch {
       setError('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.')
@@ -167,6 +171,12 @@ export default function OfflinePaymentActions({ bookingId, role, bookingStatus, 
         </button>
       )}
 
+      {payment?.receiptUrl && (status === 'CLIENT_REPORTED' || status === 'DISPUTED') && (
+        <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center gap-2 text-sm font-semibold text-primary-700 underline underline-offset-2">
+          <Receipt className="w-4 h-4" aria-hidden="true" /> Ver comprobante de la transferencia
+        </a>
+      )}
+
       {role === 'PARTNER' && status === 'CLIENT_REPORTED' && (
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -223,9 +233,11 @@ export default function OfflinePaymentActions({ bookingId, role, bookingStatus, 
               setMethod={setMethod}
               note={note}
               setNote={setNote}
+              receiptUrl={receiptUrl}
+              setReceiptUrl={setReceiptUrl}
               available={availableMethods}
               onCancel={closeModal}
-              onSubmit={() => submit(`/api/bookings/${bookingId}/payment/report-client`, { method, note: note || undefined })}
+              onSubmit={() => submit(`/api/bookings/${bookingId}/payment/report-client`, { method, note: note || undefined, receiptUrl: method === 'DIRECT_TRANSFER' && receiptUrl ? receiptUrl : undefined })}
               submitting={submitting}
               error={error}
             />
@@ -376,6 +388,8 @@ function ReportClientForm(props: {
   setMethod: (m: OfflineMethod) => void
   note: string
   setNote: (n: string) => void
+  receiptUrl: string | null
+  setReceiptUrl: (u: string | null) => void
   available: OfflineMethod[]
   onCancel: () => void
   onSubmit: () => void
@@ -383,6 +397,26 @@ function ReportClientForm(props: {
   error: string | null
 }) {
   const noteId = useId()
+  const receiptId = useId()
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const upload = async (file: File | undefined) => {
+    if (!file) return
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const form = new FormData()
+      form.append('photos', file)
+      const res = await fetch('/api/upload-photos', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !Array.isArray(data.urls) || !data.urls[0]) throw new Error(data.error || 'No se pudo subir la foto')
+      props.setReceiptUrl(String(data.urls[0]))
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'No se pudo subir la foto')
+    } finally {
+      setUploading(false)
+    }
+  }
   return (
     <form onSubmit={(e) => { e.preventDefault(); props.onSubmit() }} className="space-y-4">
       <p className="text-sm text-gray-600">Selecciona el método y reporta el pago. El socio recibirá una notificación para confirmar la recepción.</p>
@@ -407,8 +441,16 @@ function ReportClientForm(props: {
           placeholder="Ej.: pagué $50.000 al llegar"
         />
       </div>
+      {props.method === 'DIRECT_TRANSFER' && (
+        <div>
+          <label htmlFor={receiptId} className="block text-sm font-medium text-gray-700 mb-1">Comprobante (opcional, recomendado)</label>
+          <input id={receiptId} type="file" accept="image/*" onChange={(e) => upload(e.target.files?.[0])} disabled={uploading} className="block w-full text-sm text-gray-700 file:mr-3 file:min-h-[44px] file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:font-semibold file:text-primary-700" />
+          <p className="mt-1 text-xs text-gray-600" role="status">{uploading ? 'Subiendo…' : props.receiptUrl ? 'Comprobante adjunto: el socio lo verá al confirmar.' : 'Con la foto del comprobante el socio confirma más rápido.'}</p>
+          {uploadError && <p className="mt-1 text-xs text-red-700" role="alert">{uploadError}</p>}
+        </div>
+      )}
       <FormError error={props.error} />
-      <FormButtons onCancel={props.onCancel} submitting={props.submitting} label="Confirmar" busyLabel="Reportando…" tone="bg-primary-600 hover:bg-primary-700" />
+      <FormButtons onCancel={props.onCancel} submitting={props.submitting || uploading} label="Confirmar" busyLabel="Reportando…" tone="bg-primary-600 hover:bg-primary-700" />
     </form>
   )
 }

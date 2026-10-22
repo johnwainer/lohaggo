@@ -4,6 +4,7 @@ import { ADMIN_ORIGIN, OpsError, originColumns, type Actor, type Origin } from '
 import { addBookingEvent, bookingWhen, transitionBooking } from '@/lib/bookings/ops'
 import { createServiceRequest } from '@/lib/service-requests/ops'
 import { setPartnerAvailability } from '@/lib/ops/platform-ops'
+import { operationalStrikes } from '@/lib/partners/strikes'
 import {
   ACTIVE_STATUSES, claimPriority, eligibility, isActiveStatus, isGuaranteeRemedy, isGuaranteeType, isOnlinePayment, isOverdue,
   REDO_WINDOW_HOURS, REMEDY_LABEL, remedyAllowed, remedyOptions, slaDueAt, statusAfter, STRIKE_WINDOW_DAYS, strikeConsequence, STRIKES_TO_PAUSE,
@@ -40,9 +41,14 @@ async function notifyAdmins(title: string, message: string, data: Record<string,
   await Promise.all(admins.map((a) => createNotification({ userId: a.id, type: 'BOOKING_CONFIRMED', title, message, data }).catch(() => null)))
 }
 
-/** Strikes of a partner in the last STRIKE_WINDOW_DAYS days. */
+/** Strikes of a partner in the last STRIKE_WINDOW_DAYS days: guarantee claims plus operational ones (lib/partners/strikes). */
 export async function partnerStrikes(partnerId: string, now = new Date()) {
-  return prisma.guaranteeClaim.count({ where: { partnerId, partnerStrike: true, createdAt: { gte: new Date(now.getTime() - STRIKE_WINDOW_DAYS * DAY) } } })
+  const since = new Date(now.getTime() - STRIKE_WINDOW_DAYS * DAY)
+  const [claims, ops] = await Promise.all([
+    prisma.guaranteeClaim.count({ where: { partnerId, partnerStrike: true, createdAt: { gte: since } } }),
+    operationalStrikes([partnerId], since),
+  ])
+  return claims + (ops.get(partnerId) ?? 0)
 }
 
 /**
@@ -339,6 +345,8 @@ export async function listGuaranteeClaims(filter: ClaimFilter = {}, now = new Da
     ? await prisma.guaranteeClaim.groupBy({ by: ['partnerId'], where: { partnerId: { in: partnerIds }, partnerStrike: true, createdAt: { gte: new Date(now.getTime() - STRIKE_WINDOW_DAYS * DAY) } }, _count: { _all: true } })
     : []
   const strikes = new Map(strikeRows.map((s) => [s.partnerId, s._count._all]))
+  const ops = await operationalStrikes(partnerIds, new Date(now.getTime() - STRIKE_WINDOW_DAYS * DAY))
+  ops.forEach((n, id) => strikes.set(id, (strikes.get(id) ?? 0) + n))
   return rows.map((r) => ({ ...r, overdue: isOverdue(r, now), partnerStrikes: r.partnerId ? strikes.get(r.partnerId) ?? 0 : 0 }))
 }
 
@@ -384,10 +392,13 @@ export async function guaranteeStats(now = new Date()) {
     prisma.guaranteeClaim.count({ where: { status: { in: ACTIVE_STATUSES }, slaDueAt: { lt: now } } }),
     prisma.guaranteeClaim.groupBy({ by: ['partnerId'], where: { partnerStrike: true, partnerId: { not: null }, createdAt: { gte: since } }, _count: { _all: true } }),
   ])
+  const byPartner = new Map<string, number>(strikeRows.filter((r) => r.partnerId).map((r) => [r.partnerId as string, r._count._all]))
+  ;(await operationalStrikes(null, since)).forEach((n, id) => byPartner.set(id, (byPartner.get(id) ?? 0) + n))
+  const all = Array.from(byPartner.entries())
   return {
     open,
     overdue,
-    strikesLast90: strikeRows.reduce((a, r) => a + r._count._all, 0),
-    partnersAtLimit: strikeRows.filter((r) => r.partnerId && strikeConsequence(r._count._all) !== 'none').map((r) => ({ partnerId: r.partnerId as string, strikes: r._count._all })),
+    strikesLast90: all.reduce((a, [, n]) => a + n, 0),
+    partnersAtLimit: all.filter(([, n]) => strikeConsequence(n) !== 'none').map(([partnerId, strikes]) => ({ partnerId, strikes })),
   }
 }

@@ -27,12 +27,19 @@ export const FOLLOWUP_BUTTONS: Record<string, { action: FollowupAction; method?:
   partner_paid_cash: { action: 'partner_paid', method: 'CASH' },
   partner_paid_transfer: { action: 'partner_paid', method: 'DIRECT_TRANSFER' },
   partner_not_paid: { action: 'partner_not_paid' },
+  resched_ok: { action: 'reschedule_ok' },
+  resched_no: { action: 'reschedule_no' },
+  price_ok: { action: 'price_ok' },
+  price_no: { action: 'price_no' },
+  client_here: { action: 'client_here' },
+  client_cancel: { action: 'client_cancel' },
 }
 
 /** The templates whose buttons are applied here: the same id on another template («Cancelar»…) goes to the agent */
 export const FOLLOWUP_TEMPLATES = new Set([
   'lh_cliente_socio_sin_confirmar', 'lh_cliente_reserva_sin_confirmar', 'lh_cliente_llego_socio', 'lh_cliente_socio_no_llego',
   'lh_cliente_servicio_termino', 'lh_socio_llegada_pendiente', 'lh_socio_te_pagaron',
+  'lh_cliente_cambio_fecha_propuesto', 'lh_cliente_socio_no_te_encontro', 'lh_cliente_precio_final',
 ])
 
 export const isFollowupButton = (id: string) => Object.prototype.hasOwnProperty.call(FOLLOWUP_BUTTONS, id)
@@ -59,7 +66,9 @@ export async function handleFollowupButton(p: { conversationId: string; userId: 
   const { action, method } = FOLLOWUP_BUTTONS[btn.id]
   let reply: string
   try {
-    reply = (await applyFollowup(actor, tpl.entityId, action, origin, { method })).message
+    // The template's send time: a button answers the proposal of that message, never a newer one
+    const sentAt = tpl.at ? new Date(tpl.at) : undefined
+    reply = (await applyFollowup(actor, tpl.entityId, action, origin, { method, sentAt: sentAt && !Number.isNaN(sentAt.getTime()) ? sentAt : undefined })).message
   } catch (err) {
     if (!(err instanceof OpsError)) {
       logger.warn('Follow-up button failed', { conversationId: p.conversationId, button: btn.id, err: err instanceof Error ? err.message : err })

@@ -1726,6 +1726,51 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     "title": "Ver reserva",
     "url": "https://www.lohaggo.com/{{5}}"
   }
+},
+{
+  "code": "B35",
+  "name": "lh_cliente_cambio_fecha_propuesto",
+  "category": "UTILITY",
+  "body": "📅 Hola {{1}}, {{2}} propone mover tu servicio de *{{3}}* (reserva #{{4}}) para el {{5}}. ¿Te sirve la nueva fecha?",
+  "variables": { "1": "Ana", "2": "Carlos", "3": "Plomería", "4": "A1B2C3", "5": "sáb 25 oct, 10:00 a. m." },
+  "quickReplies": [
+    { "title": "Sí, me sirve", "id": "resched_ok" },
+    { "title": "No me sirve", "id": "resched_no" }
+  ],
+  "url": null
+},
+{
+  "code": "B36",
+  "name": "lh_cliente_socio_no_te_encontro",
+  "category": "UTILITY",
+  "body": "🚪 Hola {{1}}, {{2}} llegó a tu servicio de *{{3}}* (reserva #{{4}}) y no te encontró. ¿Ya estás en el lugar? Si no respondes en 30 minutos, cancelamos la reserva.",
+  "variables": { "1": "Ana", "2": "Carlos", "3": "Plomería", "4": "A1B2C3" },
+  "quickReplies": [
+    { "title": "Ya estoy aquí", "id": "client_here" },
+    { "title": "Cancelar servicio", "id": "client_cancel" }
+  ],
+  "url": null
+},
+{
+  "code": "B37",
+  "name": "lh_cliente_precio_final",
+  "category": "UTILITY",
+  "body": "💲 Hola {{1}}, {{2}} propone un precio final de {{3}} para *{{4}}* (reserva #{{5}}). El precio acordado era {{6}}. ¿Lo aceptas?",
+  "variables": { "1": "Ana", "2": "Carlos", "3": "$150.000", "4": "Plomería", "5": "A1B2C3", "6": "$120.000" },
+  "quickReplies": [
+    { "title": "Sí, acepto", "id": "price_ok" },
+    { "title": "No acepto", "id": "price_no" }
+  ],
+  "url": null
+},
+{
+  "code": "C41",
+  "name": "lh_socio_cliente_ausente_cancelada",
+  "category": "UTILITY",
+  "body": "ℹ️ Hola {{1}}, cancelamos la reserva #{{2}} de *{{3}}* porque el cliente no estaba en el lugar y no respondió. Gracias por avisar a tiempo; quedó registrado.",
+  "variables": { "1": "Carlos", "2": "A1B2C3", "3": "Plomería" },
+  "quickReplies": [],
+  "url": null
 }
 ]
 

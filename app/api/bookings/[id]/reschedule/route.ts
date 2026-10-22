@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { createLogger } from '@/lib/logger'
 import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
 import { APP_ORIGIN, ADMIN_ORIGIN, OpsError } from '@/lib/ops/origin'
-import { rescheduleBooking } from '@/lib/bookings/ops'
+import { rescheduleOrPropose } from '@/lib/bookings/agreements'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +23,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const parsed = schema.safeParse(await request.json())
     if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos', details: parsed.error.flatten() }, { status: 400 })
 
-    const result = await rescheduleBooking(
+    // The partner's change waits for the client; the client's and the team's apply at once
+    const result = await rescheduleOrPropose(
       actor,
       id,
       { scheduledDate: new Date(`${parsed.data.scheduledDate}T00:00:00.000Z`), scheduledTime: parsed.data.scheduledTime },

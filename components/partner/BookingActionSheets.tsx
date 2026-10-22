@@ -71,8 +71,8 @@ export function RescheduleSheet({ booking, onClose, onDone }: {
   }
 
   return (
-    <Sheet title="Reprogramar servicio" onClose={onClose} dismissible={!saving}>
-      <p className="mb-4 text-sm text-gray-600">Elige la nueva fecha y hora para «{booking.serviceName}». Le avisaremos al cliente.</p>
+    <Sheet title="Proponer otra fecha" onClose={onClose} dismissible={!saving}>
+      <p className="mb-4 text-sm text-gray-600">Elige la nueva fecha y hora para «{booking.serviceName}». El cliente debe aceptarla; mientras tanto la reserva sigue en su fecha actual.</p>
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-gray-700">Fecha</span>
@@ -92,7 +92,7 @@ export function RescheduleSheet({ booking, onClose, onDone }: {
         disabled={saving}
         className={`mt-5 flex min-h-[48px] w-full items-center justify-center rounded-full bg-primary-600 px-5 font-semibold text-white hover:bg-primary-700 disabled:opacity-60 ${focusRing}`}
       >
-        {saving ? 'Guardando…' : 'Reprogramar'}
+        {saving ? 'Enviando…' : 'Proponer al cliente'}
       </button>
     </Sheet>
   )

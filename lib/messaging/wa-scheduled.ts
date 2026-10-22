@@ -33,8 +33,20 @@ async function step(t: Tally, name: string, fn: () => Promise<void>) {
   }
 }
 
+/** When each booking last entered one of `statuses` (its BookingEvent), or was rescheduled when `reschedules`. */
+async function statusClock(ids: string[], statuses: string[], reschedules: boolean): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  if (!ids.length) return out
+  const rows = await prisma.bookingEvent.findMany({
+    where: { bookingId: { in: ids }, OR: [{ type: 'status', toStatus: { in: statuses } }, ...(reschedules ? [{ type: 'reschedule' }] : [])] },
+    select: { bookingId: true, createdAt: true },
+  })
+  for (const r of rows) out.set(r.bookingId, Math.max(out.get(r.bookingId) ?? 0, r.createdAt.getTime()))
+  return out
+}
+
 const bookingSelect = {
-  id: true, userId: true, status: true, scheduledDate: true, scheduledTime: true, totalPrice: true, address: true, city: true, updatedAt: true,
+  id: true, userId: true, status: true, createdAt: true, scheduledDate: true, scheduledTime: true, totalPrice: true, address: true, city: true, updatedAt: true,
   service: { select: { name: true } },
   user: { select: { name: true } },
   partner: { select: { id: true, userId: true, user: { select: { name: true } } } },
@@ -46,24 +58,34 @@ const dataOf = (b: BookingRow) => ({ id: b.id, when: bookingWhen(b), service: b.
 export async function runWaLifecycle(now = new Date()): Promise<Tally> {
   const t: Tally = {}
 
+  // The clock is the status change (or the reschedule), never updatedAt: any edit of the booking moves updatedAt
   await step(t, 'C14_D6', async () => {
     const pending = await prisma.booking.findMany({
-      where: { status: 'PENDING', partnerId: { not: null }, updatedAt: { lte: new Date(now.getTime() - 2 * H), gte: new Date(now.getTime() - 3 * DAY) } },
-      select: bookingSelect, take: 100, orderBy: { updatedAt: 'asc' },
+      where: { status: 'PENDING', partnerId: { not: null }, updatedAt: { gte: new Date(now.getTime() - 4 * DAY) } },
+      select: bookingSelect, take: 200, orderBy: { updatedAt: 'asc' },
     })
+    const since = await statusClock(pending.map((b) => b.id), ['PENDING'], true)
     for (const b of pending) {
       if (bookingWhen(b).getTime() < now.getTime()) continue
+      const from = Math.max(b.createdAt.getTime(), since.get(b.id) ?? 0)
+      const age = now.getTime() - from
+      if (age < 2 * H || age > 3 * DAY) continue
       if (b.partner?.userId) count(t, 'C14', await sendWaToUser(b.partner.userId, WA.C14(dataOf(b)), now))
-      if (b.updatedAt.getTime() <= now.getTime() - 6 * H) count(t, 'D6', await sendWaToAdmins((a) => WA.D6({ ...dataOf(b), adminName: a.name }), {}, now))
+      if (age >= 6 * H) count(t, 'D6', await sendWaToAdmins((a) => WA.D6({ ...dataOf(b), adminName: a.name }), {}, now))
     }
   })
 
   await step(t, 'C19', async () => {
     const running = await prisma.booking.findMany({
-      where: { status: 'IN_PROGRESS', updatedAt: { lte: new Date(now.getTime() - 3 * H), gte: new Date(now.getTime() - 2 * DAY) } },
-      select: bookingSelect, take: 100,
+      where: { status: 'IN_PROGRESS', updatedAt: { gte: new Date(now.getTime() - 3 * DAY) } },
+      select: bookingSelect, take: 200,
     })
-    for (const b of running) if (b.partner?.userId) count(t, 'C19', await sendWaToUser(b.partner.userId, WA.C19(dataOf(b)), now))
+    const since = await statusClock(running.map((b) => b.id), ['IN_PROGRESS'], false)
+    for (const b of running) {
+      const age = now.getTime() - (since.get(b.id) ?? b.updatedAt.getTime())
+      if (age < 3 * H || age > 2 * DAY) continue
+      if (b.partner?.userId) count(t, 'C19', await sendWaToUser(b.partner.userId, WA.C19(dataOf(b)), now))
+    }
   })
 
   await step(t, 'D7', async () => {

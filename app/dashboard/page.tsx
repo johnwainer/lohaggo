@@ -31,7 +31,7 @@ import { BottomSheet } from '@/components/ui/bottom-sheet'
 import Link from 'next/link'
 import { CancelBookingSheet, RescheduleBookingSheet } from '@/components/bookings/BookingSheets'
 import BookingPhotos from '@/components/bookings/BookingPhotos'
-import BookingFollowup from '@/components/bookings/BookingFollowup'
+import BookingFollowup, { type FollowupInfo } from '@/components/bookings/BookingFollowup'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 import { useClientNavCounts } from '@/hooks/useClientNavCounts'
 import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
@@ -56,6 +56,7 @@ interface Booking {
   originChannel?: string | null
   /** Follow-up answers available now (el socio no llegó, ya terminó, buscar otro socio) */
   followupActions?: string[]
+  followupInfo?: FollowupInfo
   service: {
     name: string
     slug: string
@@ -1666,7 +1667,7 @@ export default function DashboardPage() {
                           origin={booking.origin}
                           originChannel={booking.originChannel}
                         />
-                        <BookingFollowup bookingId={booking.id} status={booking.status} actions={booking.followupActions ?? []} onDone={() => fetchBookings(true)} />
+                        <BookingFollowup bookingId={booking.id} status={booking.status} actions={booking.followupActions ?? []} info={booking.followupInfo} onDone={() => fetchBookings(true)} />
                         {(booking.status === 'IN_PROGRESS' || booking.status === 'COMPLETED') && <BookingPhotos bookingId={booking.id} />}
                         {booking.status === 'COMPLETED' && (
                           <div id={`offline-pay-${booking.id}`} className="scroll-mt-40">

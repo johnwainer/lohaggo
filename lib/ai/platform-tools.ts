@@ -20,7 +20,7 @@ import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
 import { addRequestPhotos, cancelServiceRequest, createServiceRequest, isRequestExpired, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, reactivateServiceRequest, requestSummaryForChat } from '@/lib/service-requests/ops'
 import { acceptProposal, createProposal, listProposalsForClient, proposalSummaryForChat } from '@/lib/proposals/ops'
-import { bookingsFor, bookingSummaryForChat, bookingWhen, rescheduleBooking, transitionBooking } from '@/lib/bookings/ops'
+import { bookingsFor, bookingSummaryForChat, bookingWhen, transitionBooking } from '@/lib/bookings/ops'
 import { confirmPartnerPayment, mercadoPagoLinkFor, paymentSummaryForChat, rejectPartnerPayment, reportClientPayment } from '@/lib/payments/ops'
 import { leaveReview } from '@/lib/reviews/ops'
 import { addBankAccount, fetchAttachmentForDocument, partnerByUser, partnerStatusSummary, setAvailability, uploadDocument, upsertPartnerService } from '@/lib/partners/ops'
@@ -564,10 +564,12 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     if (!when) return { error: 'Fecha u hora inválidas: usa YYYY-MM-DD y HH:mm.' }
     if (when.scheduledDate.getTime() < Date.now() + 3600_000) return { error: 'La nueva fecha debe ser al menos una hora en el futuro.' }
     return {
-      summary: `Reprogramar la reserva de ${b.service?.name ?? 'servicio'} (ref ${shortId(b.id)}) para el ${s(input, 'fecha')} a las ${when.scheduledTime}`,
+      summary: `${actor.role === 'PARTNER' ? 'Proponerle al cliente mover' : 'Reprogramar'} la reserva de ${b.service?.name ?? 'servicio'} (ref ${shortId(b.id)}) para el ${s(input, 'fecha')} a las ${when.scheduledTime}`,
       wouldRecord: 'la nueva fecha en la reserva y su historial (BookingEvent)',
       run: async () => {
-        const r = await rescheduleBooking(actor, b.id, when, originFor(ctx))
+        const { rescheduleOrPropose } = await import('@/lib/bookings/agreements')
+        const r = await rescheduleOrPropose(actor, b.id, when, originFor(ctx))
+        if (r.proposed) return { text: `Le propusimos al cliente la nueva fecha (${s(input, 'fecha')} ${when.scheduledTime}): la reserva cambia cuando la acepte. Mientras tanto sigue en su fecha actual.`, entityType: 'Booking', entityId: b.id }
         const again = r.booking.status === 'PENDING' && b.status === 'CONFIRMED' ? ' Como estaba confirmada, el socio debe volver a confirmar la nueva fecha.' : ''
         return { text: `Reserva reprogramada: ${bookingSummaryForChat(r.booking)}.${again}`, entityType: 'Booking', entityId: b.id }
       },

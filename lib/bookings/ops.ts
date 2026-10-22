@@ -9,6 +9,7 @@ import { APP_ORIGIN, OpsError, actorTypeOf, originColumns, type Actor, type Orig
 import { runAfterResponse } from '@/lib/ops/after'
 import type { BookingStatus } from '@prisma/client'
 import { BOOKING_STATUS_LABEL, canTransition, transitionRoleOf, type TransitionRole } from '@/lib/bookings/transitions'
+import { LATE_CANCEL_HOURS } from '@/lib/partners/strikes'
 
 /**
  * Booking operations shared by the API routes, the admin and the inbox AI agents. They load, check
@@ -75,7 +76,7 @@ export async function loadBooking(bookingId: string) {
 
 export async function addBookingEvent(p: {
   bookingId: string
-  type: 'status' | 'reschedule' | 'payment' | 'guarantee' | 'followup'
+  type: 'status' | 'reschedule' | 'payment' | 'guarantee' | 'followup' | 'reschedule_request' | 'reschedule_answer' | 'price_request' | 'price_answer'
   actor: Actor
   origin: Origin
   fromStatus?: BookingStatus | null
@@ -218,6 +219,18 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   if (to === 'CANCELLED') await openRefundCaseIfPaid(actor, origin, booking)
   // The partner dropped it, or the team cancelled it to give it to other partners
   const reopened = to === 'CANCELLED' && (actor.role === 'PARTNER' || (actor.role === 'ADMIN' && opts.reopen)) ? await reopenRequestAfterPartnerCancel(booking) : false
+  // The client dropping a confirmed booking close to the service is kept for the team (repeat offenders)
+  if (to === 'CANCELLED' && actor.role === 'CLIENT' && booking.status === 'CONFIRMED' && (bookingWhen(booking).getTime() - Date.now()) / 3600_000 < LATE_CANCEL_HOURS) {
+    const { FOLLOWUP_MARK } = await import('@/lib/bookings/followups')
+    await prisma.bookingEvent.create({ data: { bookingId, type: 'followup', actorType: 'system', ...originColumns(APP_ORIGIN), detail: FOLLOWUP_MARK.clientLateCancel } }).catch(() => null)
+  }
+  // A confirmed booking dropped by the partner close to the service is a strike (same counter as the guarantee)
+  const hoursLeft = (bookingWhen(booking).getTime() - Date.now()) / 3600_000
+  // Old ones already past (closing out a booking that never happened) are the team's, not a late cancel
+  if (to === 'CANCELLED' && actor.role === 'PARTNER' && booking.status === 'CONFIRMED' && hoursLeft < LATE_CANCEL_HOURS && hoursLeft > -2) {
+    const { recordOperationalStrike } = await import('@/lib/partners/strikes')
+    await recordOperationalStrike({ id: booking.id, partnerId: booking.partnerId, partnerUserId: updated.partner?.user?.id ?? null, service: updated.service?.name ?? 'el servicio' }, 'late_cancel')
+  }
   // WhatsApp template first: the notifications' free-text WhatsApp is then skipped for that person
   const { waBookingStatus } = await import('@/lib/messaging/wa-events')
   await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened, reason: opts.reason ?? null })
@@ -256,7 +269,7 @@ export const REQUEST_REOPEN_ACTION = 'REQUEST_REOPEN'
 export async function reopenRequestAfterPartnerCancel(booking: { id: string; proposalId: string | null; partnerId: string | null }, opts: { asap?: boolean } = {}) {
   try {
     if (!booking.proposalId) return false
-    const proposal = await prisma.proposal.findUnique({ where: { id: booking.proposalId }, select: { id: true, serviceRequestId: true, serviceRequest: { select: { status: true, partnerId: true } } } })
+    const proposal = await prisma.proposal.findUnique({ where: { id: booking.proposalId }, select: { id: true, serviceRequestId: true, serviceRequest: { select: { status: true, partnerId: true, userId: true, service: { select: { name: true } } } } } })
     if (!proposal || proposal.serviceRequest.status !== 'ACCEPTED') return false
     const expiresAt = new Date(Date.now() + 24 * 3600_000)
     const res = await prisma.serviceRequest.updateMany({
@@ -282,6 +295,16 @@ export async function reopenRequestAfterPartnerCancel(booking: { id: string; pro
     })
     const { notifyNewServiceRequest } = await import('@/lib/notifications/notificationService')
     await notifyNewServiceRequest(proposal.serviceRequestId, { partnersOnly: true, round: 20 + previousReopens + 1 }).catch(() => 0)
+    // The proposals the client had not chosen are back: one tap away instead of waiting for new ones
+    if (restored.count > 0) {
+      await createNotification({
+        userId: proposal.serviceRequest.userId,
+        type: 'NEW_PROPOSAL',
+        title: restored.count === 1 ? 'Tienes otra propuesta lista' : `Tienes ${restored.count} propuestas listas`,
+        message: `Para ${proposal.serviceRequest.service?.name ?? 'tu servicio'} ya tienes ${restored.count === 1 ? 'una propuesta' : `${restored.count} propuestas`} de otros socios: elige una en «Mis solicitudes» y queda reservado al instante.`,
+        data: { serviceRequestId: proposal.serviceRequestId, kind: 'PROPOSALS_RESTORED' },
+      }).catch(() => null)
+    }
     return true
   } catch (err) {
     logger.warn('Request not reopened after the partner cancelled (the booking is cancelled anyway)', { bookingId: booking.id, err: err instanceof Error ? err.message : err })
@@ -322,7 +345,7 @@ export type RescheduleInput = { scheduledDate: Date; scheduledTime: string }
  * Moves the service to another date/time. Only PENDING or CONFIRMED bookings; at least one hour ahead.
  * When the client moves a CONFIRMED booking it goes back to PENDING so the partner confirms again.
  */
-export async function rescheduleBooking(actor: Actor, bookingId: string, when: RescheduleInput, origin: Origin) {
+export async function rescheduleBooking(actor: Actor, bookingId: string, when: RescheduleInput, origin: Origin, opts: { agreed?: boolean } = {}) {
   const booking = await loadBooking(bookingId)
   assertBookingAccess(actor, booking)
 
@@ -337,7 +360,8 @@ export async function rescheduleBooking(actor: Actor, bookingId: string, when: R
   const previous = { scheduledDate: booking.scheduledDate, scheduledTime: booking.scheduledTime }
   const before = formatBookingWhen(previous)
   const after = formatBookingWhen(when)
-  const backToPending = booking.status === 'CONFIRMED' && actor.role === 'CLIENT'
+  // The client accepting the partner's own date keeps it confirmed (both already agreed)
+  const backToPending = booking.status === 'CONFIRMED' && actor.role === 'CLIENT' && !opts.agreed
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
@@ -393,7 +417,7 @@ export const BOOKINGS_LIST_INCLUDE = {
   payment: {
     select: {
       id: true, status: true, totalAmount: true, confirmationStatus: true, clientReportedMethod: true, clientReportedAt: true,
-      partnerConfirmedMethod: true, partnerConfirmedAt: true, partnerRejectedAt: true, rejectionReason: true,
+      partnerConfirmedMethod: true, partnerConfirmedAt: true, partnerRejectedAt: true, rejectionReason: true, metadata: true,
     },
   },
 } as const

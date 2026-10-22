@@ -3,6 +3,7 @@
  * messages and images, the booking with its history, work photos, payment, review, guarantee, support
  * cases and where it came from), plus its attention flags. The admin page and Haggo read the same data.
  */
+import { paymentView } from '@/lib/payments/receipt'
 import { prisma } from '@/lib/prisma'
 import { bookingWhen } from '@/lib/bookings/when'
 import { ACTIVE_STATUSES } from '@/lib/guarantee/policy'
@@ -26,7 +27,7 @@ const requestInclude = {
         include: {
           events: { orderBy: { createdAt: 'asc' as const } },
           photos: { orderBy: { createdAt: 'asc' as const } },
-          payment: { select: { id: true, status: true, confirmationStatus: true, clientReportedMethod: true, clientReportedAt: true, partnerConfirmedMethod: true, partnerConfirmedAt: true, totalAmount: true, paidAt: true } },
+          payment: { select: { id: true, status: true, confirmationStatus: true, clientReportedMethod: true, clientReportedAt: true, partnerConfirmedMethod: true, partnerConfirmedAt: true, totalAmount: true, paidAt: true, metadata: true } },
           review: true,
           guaranteeClaims: { select: { id: true, type: true, status: true, createdAt: true, description: true, photoUrls: true } },
           refundCases: { select: { id: true, status: true, requestedAmount: true, approvedAmount: true, createdAt: true } },
@@ -164,7 +165,7 @@ export async function requestCase(id: string, now = new Date()) {
           partnerId: booking.partnerId,
           events: booking.events.map((e) => ({ id: e.id, type: e.type, from: e.fromStatus, to: e.toStatus, actorType: e.actorType, origin: e.origin, detail: e.detail, at: e.createdAt })),
           photos: booking.photos.map((ph) => ({ id: ph.id, url: ph.url, kind: ph.kind, at: ph.createdAt })),
-          payment: booking.payment,
+          payment: booking.payment ? paymentView(booking.payment) : null,
           review: booking.review,
           guaranteeClaims: booking.guaranteeClaims,
           refundCases: booking.refundCases,

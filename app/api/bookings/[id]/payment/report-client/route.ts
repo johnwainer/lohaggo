@@ -12,6 +12,7 @@ const logger = createLogger('payment-report-client')
 const reportSchema = z.object({
   method: z.enum(['CASH', 'DIRECT_TRANSFER']),
   note: z.string().max(500).optional(),
+  receiptUrl: z.string().max(500).optional(),
 })
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

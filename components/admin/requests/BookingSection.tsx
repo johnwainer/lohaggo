@@ -10,9 +10,24 @@ import { BOOKING_STATUS, Chip, Field, Thumbs, btn, cop, day, statusChip, when } 
 
 const PAY_STATUS: Record<string, string> = { PENDING: 'Pendiente', APPROVED: 'Aprobado', REJECTED: 'Rechazado', CANCELLED: 'Cancelado', REFUNDED: 'Reembolsado' }
 const CONFIRMATION: Record<string, string> = { NONE: 'Sin reportes', CLIENT_REPORTED: 'El cliente reportó el pago', PARTNER_REPORTED: 'El socio reportó el pago', CONFIRMED: 'Confirmado por ambos', DISPUTED: 'En disputa' }
-const METHOD: Record<string, string> = { CASH: 'Efectivo', TRANSFER: 'Transferencia', NEQUI: 'Nequi', DAVIPLATA: 'Daviplata' }
+const METHOD: Record<string, string> = { CASH: 'Efectivo', TRANSFER: 'Transferencia', DIRECT_TRANSFER: 'Transferencia', NEQUI: 'Nequi', DAVIPLATA: 'Daviplata' }
 const ACTOR: Record<string, string> = { client: 'Cliente', partner: 'Socio', admin: 'Admin', system: 'Sistema', CLIENT: 'Cliente', PARTNER: 'Socio', ADMIN: 'Admin', SYSTEM: 'Sistema' }
-const EVENT: Record<string, string> = { status: 'Cambio de estado', reschedule: 'Reprogramación', payment: 'Pago', created: 'Creada', guarantee: 'Garantía', followup: 'Seguimiento' }
+const EVENT: Record<string, string> = {
+  status: 'Cambio de estado', reschedule: 'Reprogramación', payment: 'Pago', created: 'Creada', guarantee: 'Garantía', followup: 'Seguimiento',
+  reschedule_request: 'El socio propuso otra fecha', reschedule_answer: 'Respuesta al cambio de fecha', price_request: 'El socio propuso un precio final', price_answer: 'Respuesta al precio final',
+}
+
+/** Proposals are stored as JSON: shown as a sentence */
+function eventDetail(type: string, detail: string | null) {
+  if (!detail || (type !== 'reschedule_request' && type !== 'price_request')) return detail
+  try {
+    const d = JSON.parse(detail) as { date?: string; time?: string; amount?: number; previous?: number; note?: string }
+    if (type === 'reschedule_request') return `Nueva fecha: ${d.date ?? '—'} ${d.time ?? ''}`
+    return `${cop(d.amount ?? 0)} (antes ${cop(d.previous ?? 0)})${d.note ? ` · «${d.note}»` : ''}`
+  } catch {
+    return detail
+  }
+}
 
 const label = (map: Record<string, string>, v: string | null | undefined) => (v ? map[v] ?? v : '—')
 
@@ -72,7 +87,7 @@ export function BookingSection({ booking: b, busy, actions, onOpenImage }: { boo
                   {label(EVENT, e.type)}{e.to ? `: ${e.from ? `${BOOKING_STATUS_LABEL[e.from as BookingStatus] ?? e.from} → ` : ''}${BOOKING_STATUS_LABEL[e.to as BookingStatus] ?? e.to}` : ''}
                 </p>
                 <p className="text-xs text-gray-500">{when(e.at)} · {label(ACTOR, e.actorType)}{e.origin && e.origin !== 'app' ? ` · ${e.origin}` : ''}</p>
-                {e.detail && <p className="mt-0.5 break-words text-sm text-gray-700">{e.detail}</p>}
+                {e.detail && <p className="mt-0.5 break-words text-sm text-gray-700">{eventDetail(e.type, e.detail)}</p>}
               </li>
             ))}
           </ol>
@@ -105,6 +120,7 @@ export function BookingSection({ booking: b, busy, actions, onOpenImage }: { boo
             </Field>
             <Field label="Reportado por el cliente">{pay.clientReportedMethod ? `${label(METHOD, pay.clientReportedMethod)}${pay.clientReportedAt ? ` · ${when(pay.clientReportedAt)}` : ''}` : '—'}</Field>
             <Field label="Confirmado por el socio">{pay.partnerConfirmedMethod ? `${label(METHOD, pay.partnerConfirmedMethod)}${pay.partnerConfirmedAt ? ` · ${when(pay.partnerConfirmedAt)}` : ''}` : '—'}</Field>
+            {pay.receiptUrl && <Field label="Comprobante del cliente"><a href={pay.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:underline">Ver comprobante <ExternalLink className="h-3 w-3" /></a></Field>}
           </div>
         )}
       </div>
