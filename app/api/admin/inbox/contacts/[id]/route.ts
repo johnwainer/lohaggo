@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 import { ensureWhatsAppConversation, getContactDetail, updateContact } from '@/lib/inbox/contacts'
+import { assertLinkableUser } from '@/lib/inbox/link'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -31,6 +32,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const body = await request.json().catch(() => ({}))
   const str = (k: string) => (body[k] === undefined ? undefined : body[k] === null ? null : String(body[k]))
   try {
+    // Linking by hand: never an admin account, never through a phone several accounts share
+    if (typeof body.userId === 'string' && body.userId) {
+      const contact = await prisma.contact.findUnique({ where: { id }, select: { phone: true } })
+      await assertLinkableUser(body.userId, contact?.phone)
+    }
     const updated = await updateContact(id, { name: str('name'), phone: str('phone'), email: str('email'), notes: str('notes'), userId: str('userId') })
     await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'INBOX_CONTACT_UPDATE', entityType: 'Contact', entityId: updated.id, details: JSON.stringify(Object.keys(body)), request })
     return NextResponse.json({ contact: await getContactDetail(updated.id) })

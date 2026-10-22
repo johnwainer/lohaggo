@@ -14,10 +14,11 @@ import { checkWorkspaceBudget } from '@/lib/ai/limits'
 import { getProviderStates, providerIsDown } from '@/lib/ai/providers/state'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { isTrustedAttachmentUrl } from '@/lib/messaging/attachments'
+import { TRANSCRIBED_PREFIX } from '@/lib/inbox/audio'
 
 const logger = createLogger('ai-transcribe')
 
-export const TRANSCRIBED_PREFIX = '🎤 Nota de voz (transcrita):'
+export { TRANSCRIBED_PREFIX }
 export const AUDIO_NOTICE_TEXT = 'No logré escuchar tu nota de voz. ¿Me lo puedes escribir, por favor?'
 const MODEL = 'gpt-4o-mini-transcribe'
 const FALLBACK_MODEL = 'whisper-1'

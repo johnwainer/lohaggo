@@ -473,6 +473,8 @@ export const AgentRuntimeService = {
       if (agent.goalDoneAction === 'close') {
         await prisma.conversation.update({ where: { id: conversation.id }, data: { status: 'RESOLVED', aiHandled: false } })
         await prisma.conversationEvent.create({ data: { conversationId: conversation.id, type: 'status', ...actor, detail: 'RESOLVED' } })
+        const { askCsatOnClose } = await import('@/lib/inbox/csat')
+        await askCsatOnClose(conversation.id, 'gestionada')
       } else if (agent.goalDoneAction === 'tag' && agent.goalDoneTag?.trim()) {
         const tag = agent.goalDoneTag.trim().toLowerCase()
         const fresh = await prisma.conversation.findUnique({ where: { id: conversation.id }, select: { tags: true } })

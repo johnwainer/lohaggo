@@ -13,7 +13,9 @@ import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { normalizeContactAddress } from '@/lib/messaging/contact-address'
 import { attachmentLabel, kindFromMime } from '@/lib/messaging/attachments'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
-import { markInbound } from '@/lib/inbox/state'
+import { markInbound, readInboxState } from '@/lib/inbox/state'
+import { csatReplyScore } from '@/lib/inbox/csat-core'
+import { recordCsatReply } from '@/lib/inbox/csat'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 import { parseButtonReply, withButtonMark, type ButtonMark } from '@/lib/messaging/wa-format'
@@ -136,6 +138,8 @@ export async function POST(request: NextRequest) {
   // A conversation an AI autopilot will take must not get a human owner
   if (await autopilotCovers(workspaceId, channel, null)) autoAssignId = null
 
+  let csatScore: number | null = null
+
   // Upsert conversation
   let conversation = await prisma.conversation.findUnique({
     where: { channel_contactPhone: { channel, contactPhone } },
@@ -164,13 +168,15 @@ export async function POST(request: NextRequest) {
     })
     logger.info('New conversation', { id: conversation.id, channel, contactPhone })
   } else {
+    // The answer to the satisfaction survey: recorded and thanked, the conversation stays closed
+    csatScore = !button && !media.length && !optingOut ? csatReplyScore(readInboxState(conversation.customFields), body) : null
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: {
-        status: conversation.status === 'CLOSED' || conversation.status === 'RESOLVED' ? 'OPEN' : conversation.status,
+        status: !csatScore && (conversation.status === 'CLOSED' || conversation.status === 'RESOLVED') ? 'OPEN' : conversation.status,
         lastMessageAt: new Date(),
         lastMessageBody: (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200),
-        unreadCount: { increment: 1 },
+        ...(csatScore ? {} : { unreadCount: { increment: 1 } }),
         userId: user?.id ?? conversation.userId,
         contactName: conversation.contactName || contact.name || user?.name || null,
         ...(conversation.contactId ? {} : { contactId: contact.id }),
@@ -217,6 +223,10 @@ export async function POST(request: NextRequest) {
   }
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
+  if (csatScore) {
+    await recordCsatReply(conversation.id, csatScore, inbound.sentAt)
+    return twiml()
+  }
   // The contact wrote: «Por responder» in the inbox (also wakes a snoozed conversation)
   await markInbound(conversation.id, inbound.sentAt)
   const buttonMark = button ? await recordButtonPress(conversation.id, button, String(formData.get('OriginalRepliedMessageSid') || '') || null, user?.id ?? null) : null
