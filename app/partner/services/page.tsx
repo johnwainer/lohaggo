@@ -7,7 +7,8 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle,
-  Settings
+  Settings,
+  MapPin
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
@@ -17,6 +18,7 @@ import CoverageEditor from '@/components/partner/CoverageEditor'
 import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 import ConfirmModal from '@/components/ConfirmModal'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { cityName } from '@/lib/proposals/city-match'
 
 interface ApprovedDoc {
   id: string
@@ -72,6 +74,9 @@ export default function ServicesManagementPage() {
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
   const [toRemove, setToRemove] = useState<{ partnerServiceId: string; name: string } | null>(null)
+  const [partnerCity, setPartnerCity] = useState<string | null>(null)
+  /** City saved on the server per service (the select may hold an unsaved change) */
+  const [savedCity, setSavedCity] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -124,6 +129,8 @@ export default function ServicesManagementPage() {
 
         const activeOnes = servicesData.services.filter((service: Service) => service.isActive)
         setActiveServices(activeOnes)
+        setSavedCity(Object.fromEntries(activeOnes.map((s: Service) => [s.id, s.city || 'MEDELLIN'])))
+        setPartnerCity(typeof servicesData.partnerCity === 'string' ? servicesData.partnerCity : null)
       } else {
         showMessage('error', 'Formato de datos incorrecto')
       }
@@ -211,7 +218,7 @@ export default function ServicesManagementPage() {
       })
 
       if (res.ok) {
-        showMessage('success', 'Servicio actualizado correctamente')
+        showMessage('success', `Servicio actualizado: lo ofreces en ${cityName(city)}`)
         fetchServices()
       } else {
         const errorData = await res.json()
@@ -329,6 +336,10 @@ export default function ServicesManagementPage() {
                                   {service.duration} min
                                 </span>
                               </div>
+                              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary-50 border border-primary-200 px-3 py-1.5 text-sm text-primary-900">
+                                <MapPin size={16} className="text-primary-700 shrink-0" aria-hidden="true" />
+                                <span>Ofreces este servicio en: <strong>{cityName(savedCity[service.id] || service.city || 'MEDELLIN')}</strong></span>
+                              </p>
                               {service.approvedDocuments && service.approvedDocuments.filter(d => EDUCATION_TYPES.includes(d.type)).length > 0 && (
                                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                                   {service.approvedDocuments.filter(d => EDUCATION_TYPES.includes(d.type)).map(d => (
@@ -364,6 +375,25 @@ export default function ServicesManagementPage() {
                         </div>
                       </div>
 
+                      {partnerCity && (savedCity[service.id] || service.city || 'MEDELLIN') !== partnerCity && (
+                        <div role="note" className="mx-4 mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                          <p className="flex items-start gap-2">
+                            <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" />
+                            <span>
+                              Tu perfil está en <strong>{cityName(partnerCity)}</strong> pero este servicio está en <strong>{cityName(savedCity[service.id] || service.city)}</strong>.
+                              Solo recibes solicitudes de {service.name} en {cityName(savedCity[service.id] || service.city)}.
+                            </span>
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePrice(service.partnerServiceId!, service.id, service.price, partnerCity)}
+                            className="mt-2 w-full sm:w-auto min-h-[44px] px-4 rounded-full bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2"
+                          >
+                            Ofrecerlo en {cityName(partnerCity)}
+                          </button>
+                        </div>
+                      )}
+
                       <div className="border-t border-gray-100 px-4 py-4 bg-gray-50">
                         <div className="flex flex-col sm:flex-row gap-3">
                           <div className="flex-1">
@@ -385,7 +415,7 @@ export default function ServicesManagementPage() {
                             />
                           </div>
                           <div className="flex-1">
-                            <label htmlFor={`city-${service.id}`} className="block text-xs font-medium text-gray-600 mb-1.5"><span aria-hidden="true">📍 </span>Ciudad</label>
+                            <label htmlFor={`city-${service.id}`} className="block text-xs font-medium text-gray-600 mb-1.5"><span aria-hidden="true">📍 </span>Ciudad donde lo ofreces</label>
                             <select
                               id={`city-${service.id}`}
                               value={service.city || 'MEDELLIN'}

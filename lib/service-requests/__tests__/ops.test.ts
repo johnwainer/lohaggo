@@ -81,11 +81,27 @@ describe('crear solicitud', () => {
   it('con socio directo exige que lo ofrezca activo y verificado', async () => {
     m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: true, services: [] })
     await expect(createServiceRequest(client, { ...input, partnerId: 'p1' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'Ese socio no ofrece este servicio' })
-    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: false, services: [{ price: 60000 }] })
+    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: false, services: [{ price: 60000, city: 'MEDELLIN' }] })
     await expect(createServiceRequest(client, { ...input, partnerId: 'p1' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'Este socio no está disponible ahora; tu solicitud puede ir a otros socios' })
-    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: true, services: [{ price: 60000 }] })
+    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: true, services: [{ price: 60000, city: 'MEDELLIN' }] })
     const r = await createServiceRequest(client, { ...input, partnerId: 'p1' }, APP_ORIGIN)
     expect(r.partnerId).toBe('p1')
+  })
+
+  it('con socio directo que tiene el servicio en otra ciudad → 400 y no se crea', async () => {
+    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: true, services: [{ price: 60000, city: 'BOGOTA' }] })
+    await expect(createServiceRequest(client, { ...input, partnerId: 'p1' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: expect.stringContaining('ofrece el servicio en Bogotá, no en Medellín') })
+    expect(m.srCreate).not.toHaveBeenCalled()
+  })
+
+  it('sin fecha fija (ni fecha ni urgente) se crea sin preferredDate ni isUrgent', async () => {
+    await createServiceRequest(client, { ...input, preferredDate: null, preferredTime: null, isUrgent: false }, APP_ORIGIN)
+    expect(m.srCreate.mock.calls[0][0].data).toMatchObject({ preferredDate: null, preferredTime: null, isUrgent: false })
+    vi.clearAllMocks()
+    m.userFindUnique.mockResolvedValue({ isActive: true })
+    const { preferredDate: _d, preferredTime: _t, ...noWhen } = input
+    await createServiceRequest(client, noWhen, APP_ORIGIN)
+    expect(m.srCreate.mock.calls[0][0].data).toMatchObject({ preferredDate: null, isUrgent: false })
   })
 
   it('aplica el mínimo y máximo de PlatformConfig', async () => {

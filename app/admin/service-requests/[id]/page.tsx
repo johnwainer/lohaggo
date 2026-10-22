@@ -228,7 +228,7 @@ export default function RequestCasePage() {
           <Field label="Cuándo">
             {c.isUrgent ? <span className="font-semibold text-orange-600">Urgente</span> : c.preferredDate ? (
               <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5 text-gray-400" /> {day(c.preferredDate)}{c.preferredTime ? ` · ${c.preferredTime}` : ''}</span>
-            ) : <span className="text-gray-400">Sin fecha</span>}
+            ) : <span className="text-gray-600">Sin fecha fija, lo antes posible</span>}
           </Field>
           <Field label="Presupuesto">{c.budget != null ? cop(c.budget) : <span className="text-gray-400">—</span>}</Field>
           {c.notes && <div className="sm:col-span-2 lg:col-span-3"><Field label="Notas"><p className="whitespace-pre-wrap">{c.notes}</p></Field></div>}

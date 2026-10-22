@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { listOpenRequestsForPartner } from '@/lib/service-requests/ops'
 import { toPartnerOpportunity } from '@/lib/partners/opportunities'
+import { serviceCityMismatch } from '@/lib/proposals/city-match'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +41,7 @@ export async function GET() {
       return NextResponse.json({ requests: [], requiresVerification: true })
     }
 
-    const [open, alreadyProposed] = await Promise.all([
+    const [open, alreadyProposed, myServices] = await Promise.all([
       listOpenRequestsForPartner(partner.id),
       prisma.serviceRequest.findMany({
         where: {
@@ -57,13 +58,19 @@ export async function GET() {
         },
         orderBy: { createdAt: 'desc' },
       }),
+      prisma.partnerService.findMany({ where: { partnerId: partner.id }, select: { serviceId: true, city: true } }),
     ])
+    const cityOf = new Map(myServices.map((s) => [s.serviceId, s.city as string]))
 
     const seen = new Set<string>()
     const requests = [...open, ...alreadyProposed]
       .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .map((r) => toPartnerOpportunity(r, partner.id))
+      .map((r) => {
+        // Where the partner has this service registered: a different city blocks the proposal (lib/proposals/ops.ts)
+        const serviceCity = cityOf.get(r.serviceId) ?? null
+        return { ...toPartnerOpportunity(r, partner.id), serviceCity, cityMismatch: serviceCityMismatch(serviceCity, r.city) }
+      })
 
     const hasRecentLead = open.some((item) => item.createdAt.getTime() >= Date.now() - 2 * 60 * 60 * 1000)
     if (hasRecentLead) {

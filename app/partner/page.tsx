@@ -41,6 +41,9 @@ import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 import WorkPhotosEditor from '@/components/bookings/WorkPhotosEditor'
 import { RescheduleSheet, CancelReasonSheet } from '@/components/partner/BookingActionSheets'
 import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
+import { ReportClientButton, ReportClientSheet, type ReportTarget } from '@/components/partner/ReportClientSheet'
+import { cityMismatches, cityName } from '@/lib/proposals/city-match'
+import { noDateLabel } from '@/lib/service-requests/draft'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -60,6 +63,8 @@ interface Booking {
   partnerCommissionRate?: number | null
   origin?: string | null
   originChannel?: string | null
+  city?: string
+  serviceId?: string
   service: {
     name: string
     slug: string
@@ -127,6 +132,9 @@ interface ServiceRequest {
   }
   /** Other partners' proposals (own one excluded) */
   competitors?: number
+  /** City where the partner has this service registered; a different one blocks proposing */
+  serviceCity?: string | null
+  cityMismatch?: boolean
 }
 
 const VERIFICATION_LATER_KEY = 'partner-verification-later-until'
@@ -295,6 +303,10 @@ function PartnerDashboardContent() {
     scheduledAt: ''
   })
 
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
+  const [reported, setReported] = useState<{ requestIds: Set<string>; bookingIds: Set<string> }>({ requestIds: new Set(), bookingIds: new Set() })
+  const [myServiceCities, setMyServiceCities] = useState<Array<{ serviceId: string; city: string; name: string }>>([])
+
   const proposalDialog = useDialog(showProposalModal && !!selectedRequest, () => setShowProposalModal(false), { dismissible: !submittingProposal })
 
   const [verificationAlert, setVerificationAlert] = useState<{
@@ -421,6 +433,31 @@ function PartnerDashboardContent() {
     }
   }
 
+  const fetchReports = async () => {
+    try {
+      const res = await fetch('/api/partner/client-reports')
+      if (!res.ok) return
+      const data = await res.json()
+      setReported({ requestIds: new Set(data.requestIds || []), bookingIds: new Set(data.bookingIds || []) })
+    } catch {}
+  }
+
+  const fetchServiceCities = async () => {
+    try {
+      const res = await fetch('/api/partner/service-cities')
+      if (!res.ok) return
+      const data = await res.json()
+      setMyServiceCities(Array.isArray(data.services) ? data.services : [])
+    } catch {}
+  }
+
+  const markReported = (t: ReportTarget) => {
+    setReported((prev) => ({
+      requestIds: t.requestId ? new Set([...Array.from(prev.requestIds), t.requestId]) : prev.requestIds,
+      bookingIds: t.bookingId ? new Set([...Array.from(prev.bookingIds), t.bookingId]) : prev.bookingIds,
+    }))
+  }
+
   useEffect(() => {
     if (status === 'authenticated') {
       if (session?.user?.role !== 'PARTNER') {
@@ -428,6 +465,8 @@ function PartnerDashboardContent() {
       } else {
         fetchBookings()
         fetchServiceRequests()
+        fetchReports()
+        fetchServiceCities()
         fetchVerificationStatus()
         fetchAvailability()
         fetchCommissionRate()
@@ -809,6 +848,15 @@ function PartnerDashboardContent() {
   const bookingFilterStates = BOOKING_FILTER_ORDER.concat(bookingFilterCounts.REFUNDED ? ['REFUNDED'] : [])
   const filterLabel = (state: string) => getBookingVisualLabel(state as BookingVisualState, 'PARTNER')
 
+  // Bookings still open (and proposals waiting) in a city other than where the partner offers the service
+  const openBookingMismatches = cityMismatches(bookings.filter((b) => ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(b.status)), myServiceCities)
+  const bookingMismatchCity = new Map(cityMismatches(bookings, myServiceCities).map((m) => [m.item.id, m]))
+  const proposalMismatches = serviceRequests.filter((r) => r.cityMismatch && r.proposals[0]?.status === 'PENDING')
+  const cityWarnings = [
+    ...openBookingMismatches.map((m) => ({ key: `b-${m.item.id}`, text: `Reserva de ${m.item.service.name} en ${cityName(m.itemCity)}`, serviceCity: m.serviceCity })),
+    ...proposalMismatches.map((r) => ({ key: `r-${r.id}`, text: `Propuesta de ${r.service.name} en ${cityName(r.city)}`, serviceCity: r.serviceCity ?? null })),
+  ]
+
   const filteredRequests = serviceRequests.filter(request =>
     request.service.name.toLowerCase().includes(searchLower) ||
     request.address.toLowerCase().includes(searchLower)
@@ -816,6 +864,8 @@ function PartnerDashboardContent() {
 
   return (
     <div className="account-shell">
+      <ReportClientSheet target={reportTarget} onClose={() => setReportTarget(null)} onDone={markReported} />
+
       <Modal
         isOpen={modal.isOpen}
         onClose={() => setModal({ ...modal, isOpen: false })}
@@ -932,6 +982,30 @@ function PartnerDashboardContent() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-4 mt-4">
+
+              {cityWarnings.length > 0 && (
+                <div role="alert" className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-amber-950">Revisa la ciudad de tus servicios</p>
+                      <p className="mt-1 text-sm text-amber-900">Tienes trabajo en una ciudad distinta a la de tu servicio:</p>
+                      <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                        {cityWarnings.slice(0, 5).map((w) => (
+                          <li key={w.key}>• {w.text}{w.serviceCity ? ` (tu servicio está en ${cityName(w.serviceCity)})` : ''}</li>
+                        ))}
+                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/partner/services')}
+                        className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-amber-600 px-5 text-sm font-semibold text-white hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2"
+                      >
+                        Corregir ciudad en Mis servicios <ArrowRight size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <InProgressPanel
                 items={inProgressItems}
@@ -1565,6 +1639,15 @@ function PartnerDashboardContent() {
                           origin={booking.origin}
                           originChannel={booking.originChannel}
                         />
+                        {bookingMismatchCity.has(booking.id) && (
+                          <p role="note" className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            <MapPin size={16} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" />
+                            <span>
+                              Esta reserva es en <strong>{cityName(bookingMismatchCity.get(booking.id)!.itemCity)}</strong> y tu servicio está registrado en <strong>{cityName(bookingMismatchCity.get(booking.id)!.serviceCity)}</strong>.{' '}
+                              <a href="/partner/services" className="font-semibold underline underline-offset-2">Corrige la ciudad</a>
+                            </span>
+                          </p>
+                        )}
                         {['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status) && (
                           <WorkPhotosEditor key={`${booking.id}-${photosVersion}`} bookingId={booking.id} status={booking.status} />
                         )}
@@ -1577,6 +1660,12 @@ function PartnerDashboardContent() {
                             onChange={refreshAfterAction}
                           />
                         )}
+                        <div className="flex justify-end">
+                          <ReportClientButton
+                            reported={reported.bookingIds.has(booking.id)}
+                            onClick={() => setReportTarget({ bookingId: booking.id, clientName: booking.user.name, serviceName: booking.service.name })}
+                          />
+                        </div>
                       </div>
                     )
                   })}
@@ -1679,6 +1768,18 @@ function PartnerDashboardContent() {
                               <span className="text-sm font-medium text-gray-900">{[request.address, request.city].filter(Boolean).join(', ')}</span>
                             </div>
                           </div>
+                          {!request.preferredDate && (
+                            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
+                              <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
+                                <Calendar size={18} className="text-gray-600" aria-hidden="true" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-600 font-semibold mb-1">Fecha</p>
+                                <span className="text-sm font-medium text-gray-900">{noDateLabel(request)}</span>
+                                {!request.isUrgent && <p className="text-xs text-gray-600 mt-0.5">Propón tú el día y la hora en tu propuesta</p>}
+                              </div>
+                            </div>
+                          )}
                           {request.preferredDate && (
                             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
                               <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
@@ -1775,6 +1876,22 @@ function PartnerDashboardContent() {
                               </button>
                             )}
                           </div>
+                        ) : request.cityMismatch ? (
+                          <div className="space-y-3">
+                            <p role="note" className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                              <MapPin size={16} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" />
+                              <span>
+                                Esta solicitud es en <strong>{cityName(request.city)}</strong> y {request.serviceCity ? <>tu servicio está registrado en <strong>{cityName(request.serviceCity)}</strong></> : 'no tienes este servicio en tu perfil'}. Para enviar propuesta, corrige la ciudad de tu servicio.
+                              </span>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => router.push('/partner/services')}
+                              className="w-full min-h-[44px] rounded-full border-2 border-amber-500 bg-white px-4 py-3 font-semibold text-amber-800 hover:bg-amber-50 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2"
+                            >
+                              Corregir ciudad en Mis servicios <ArrowRight size={18} aria-hidden="true" />
+                            </button>
+                          </div>
                         ) : (
                           <button
                             onClick={() => openProposalModal(request)}
@@ -1785,6 +1902,12 @@ function PartnerDashboardContent() {
                             Enviar propuesta
                           </button>
                         )}
+                        <div className="mt-2 flex justify-end">
+                          <ReportClientButton
+                            reported={reported.requestIds.has(request.id)}
+                            onClick={() => setReportTarget({ requestId: request.id, clientName: request.user.name, serviceName: request.service.name })}
+                          />
+                        </div>
                       </div>
                     </div>
                     )
@@ -1848,6 +1971,9 @@ function PartnerDashboardContent() {
                     <p><strong>Presupuesto del cliente:</strong> {formatCurrency(req.budget)}</p>
                   ) : null}
                   <p><strong>Competencia:</strong> {competitionText(competitors)}</p>
+                  {!req.preferredDate && (
+                    <p><strong>Fecha:</strong> {noDateLabel(req)}</p>
+                  )}
                   {req.preferredDate && (
                     <p>
                       <strong>Fecha preferida:</strong> {formatCalendarDay(req.preferredDate, { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -1926,7 +2052,10 @@ function PartnerDashboardContent() {
                 <p id="proposal-when-label" className={`${DESIGN_SYSTEM.typography.label} mb-1 block`}>
                   ¿Cuándo puedes ir? (opcional)
                 </p>
-                <p className="mb-2 text-xs text-gray-600">Si propones fecha y hora, al aceptar tu propuesta la reserva queda para ese momento.</p>
+                <p className="mb-2 text-xs text-gray-600">
+                  {!req.preferredDate && !req.isUrgent && <><strong>El cliente no tiene fecha fija: propón tú el día y la hora.</strong> </>}
+                  Si propones fecha y hora, al aceptar tu propuesta la reserva queda para ese momento.
+                </p>
                 <div className="grid grid-cols-2 gap-2" role="group" aria-labelledby="proposal-when-label">
                   <div>
                     <label htmlFor="proposal-date" className="mb-1 block text-xs font-medium text-gray-700">Fecha</label>

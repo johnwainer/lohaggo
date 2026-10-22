@@ -27,7 +27,6 @@ export type RequestDraft = {
 export const DRAFT_KEY = 'lohaggo:request-draft'
 export const DRAFT_PHOTOS_KEY = 'lohaggo:request-draft-photos'
 export const DRAFT_TTL_MS = 7 * 24 * 3600_000
-export const FLEXIBLE_NOTE = 'Horario flexible esta semana'
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -86,11 +85,27 @@ export function bogotaDatePlus(days: number, now = new Date()): string {
   return bogota.toISOString().slice(0, 10)
 }
 
-/** What the API receives for each "Cuándo" option (no schema change: flexible = today+2, no time, a note). */
-export function timingPayload(when: WhenMode, preferredDate: string, preferredTime: string, now = new Date()) {
+/** «Cuándo» options as the client reads them (the form, the summary step). */
+export const WHEN_LABEL: Record<WhenMode, string> = {
+  asap: 'Urgente, hoy',
+  flexible: 'Sin fecha fija, lo antes posible',
+  scheduled: 'Elegir fecha y hora',
+}
+
+/**
+ * What the API receives for each "Cuándo" option. «Sin fecha fija» (flexible) sends no date and is not
+ * urgent: the partners propose day and time and the panels read «Sin fecha fija».
+ */
+export function timingPayload(when: WhenMode, preferredDate: string, preferredTime: string, _now = new Date()) {
   if (when === 'asap') return { isUrgent: true, preferredDate: null, preferredTime: null, note: null as string | null }
-  if (when === 'flexible') return { isUrgent: false, preferredDate: bogotaDatePlus(2, now), preferredTime: null, note: FLEXIBLE_NOTE as string | null }
+  if (when === 'flexible') return { isUrgent: false, preferredDate: null, preferredTime: null, note: null as string | null }
   return { isUrgent: false, preferredDate: preferredDate || null, preferredTime: preferredTime || null, note: null as string | null }
+}
+
+/** How a request's «cuándo» reads in the panels: urgent, «Sin fecha fija», or null when it has a date. */
+export function noDateLabel(r: { isUrgent?: boolean | null; preferredDate?: unknown }): string | null {
+  if (r.preferredDate) return null
+  return r.isUrgent ? 'Urgente, lo antes posible' : 'Sin fecha fija'
 }
 
 /** Notes sent with the request: what the client wrote, plus the flexible-time note and arrival directions. */

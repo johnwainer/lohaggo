@@ -11,6 +11,7 @@ import { OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@
 import { loadPlatformConfig, preferredDateOnly } from '@/lib/service-requests/ops'
 import { DEFAULT_BOOKING_TIME, bogotaClockTime, bookingWhen, dateOnlyUtc } from '@/lib/bookings/when'
 import { effectiveRates } from '@/lib/payments/commission'
+import { clientCityMismatchMessage, partnerCityMismatchMessage, serviceCityMismatch } from '@/lib/proposals/city-match'
 
 /**
  * Proposal operations shared by the app routes and the inbox AI agents. Same contract as the other
@@ -65,10 +66,11 @@ export async function createProposal(actor: Actor, input: ProposalInput, origin:
     if (data.price > config.maxServicePrice) throw new OpsError(`El precio máximo en la plataforma es ${money(config.maxServicePrice)}`, 400)
   }
 
-  if (sr.partnerId !== partner.id) {
-    const offers = await prisma.partnerService.findFirst({ where: { partnerId: partner.id, serviceId: sr.serviceId, city: sr.city, active: true }, select: { id: true } })
-    if (!offers) throw new OpsError('No ofreces este servicio en la ciudad solicitada', 400)
-  }
+  // The service must be registered in the request's city, also for a direct request (a partner registered in
+  // the wrong city otherwise ends up with a booking where they do not work)
+  const offer = await prisma.partnerService.findUnique({ where: { partnerId_serviceId: { partnerId: partner.id, serviceId: sr.serviceId } }, select: { city: true, active: true } })
+  if (!offer || serviceCityMismatch(offer.city, sr.city)) throw new OpsError(partnerCityMismatchMessage(sr.service.name, offer?.city, sr.city), 400)
+  if (sr.partnerId !== partner.id && !offer.active) throw new OpsError('No ofreces este servicio en la ciudad solicitada', 400)
 
   // Stored as the date-only day (00:00 UTC) plus proposedTime; the checks use the real Bogotá moment
   const proposedDay = data.proposedDate ? preferredDateOnly(data.proposedDate) : null
@@ -135,6 +137,11 @@ export function resolveSchedule(
   if (sr.preferredDate) {
     return { scheduledDate: dateOnlyUtc(sr.preferredDate), scheduledTime: opts?.scheduledTime || sr.preferredTime || clockOf(sr.preferredDate) || DEFAULT_BOOKING_TIME }
   }
+  // «Sin fecha fija» (no date, not urgent) and the partner proposed none: tomorrow (Bogotá) at 09:00, never «in an hour»
+  if (!sr.isUrgent) {
+    const tomorrow = new Date(dateOnlyUtc(now).getTime() + 24 * 3600_000)
+    return { scheduledDate: tomorrow, scheduledTime: opts?.scheduledTime || DEFAULT_BOOKING_TIME }
+  }
   const next = nextFullHour(now)
   return { scheduledDate: dateOnlyUtc(next), scheduledTime: opts?.scheduledTime || bogotaTime(next) }
 }
@@ -146,7 +153,7 @@ export const PROPOSALS_CLOSED_BY_ACCEPT = 'PROPOSALS_CLOSED_BY_ACCEPT'
 export async function acceptProposal(actor: Actor, proposalId: string, origin: Origin, opts?: { scheduledDate?: Date; scheduledTime?: string }) {
   const proposal = await prisma.proposal.findUnique({
     where: { id: proposalId },
-    include: { serviceRequest: { include: { user: true, service: true } }, partner: { include: { user: true } } },
+    include: { serviceRequest: { include: { service: true } } },
   })
   if (!proposal) throw new OpsError('Propuesta no encontrada', 404)
   if (proposal.serviceRequest.userId !== actor.userId) throw new OpsError('No tienes permiso para aceptar esta propuesta', 403)
@@ -155,6 +162,13 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   if (proposal.serviceRequest.expiresAt && proposal.serviceRequest.expiresAt.getTime() < Date.now()) {
     throw new OpsError('Esta solicitud venció: reactívala para aceptar propuestas', 400)
   }
+  // The partner may have changed their service's city after proposing
+  const offer = await prisma.partnerService.findUnique({
+    where: { partnerId_serviceId: { partnerId: proposal.partnerId, serviceId: proposal.serviceRequest.serviceId } },
+    select: { city: true },
+  })
+  // Only a service now registered in another city blocks it; one removed after proposing does not
+  if (offer && serviceCityMismatch(offer.city, proposal.serviceRequest.city)) throw new OpsError(clientCityMismatchMessage(proposal.serviceRequest.city), 409)
 
   const rates = effectiveRates(await loadPlatformConfig())
   const sr = proposal.serviceRequest

@@ -55,7 +55,7 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json({ services: servicesWithStatus, partnerId: partnerProfile.id })
+    return NextResponse.json({ services: servicesWithStatus, partnerId: partnerProfile.id, partnerCity: partnerProfile.city })
   } catch (error) {
     return fail(error, 'Error al obtener servicios')
   }

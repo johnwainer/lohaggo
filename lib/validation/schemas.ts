@@ -14,10 +14,8 @@ export const serviceRequestSchema = z.object({
   partnerId: z.string().nullable().optional(),
   /** Coverage zone (lib/geo/zones.ts); inferred from the address when missing */
   zone: z.string().max(40).nullable().optional()
-}).refine(
-  (data) => data.isUrgent || (data.preferredDate !== null && data.preferredDate !== undefined),
-  { message: 'Indica si es urgente o elige una fecha' }
-)
+})
+// No date and not urgent is valid: «sin fecha fija», the partners propose day and time
 
 export const proposalSchema = z.object({
   serviceRequestId: z.string().min(1, 'La solicitud de servicio es requerida'),

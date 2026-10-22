@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bogotaDatePlus, clearDraft, composeNotes, DRAFT_KEY, DRAFT_TTL_MS, emptyDraft, loadDraft, saveDraft, timingPayload } from '@/lib/service-requests/draft'
+import { bogotaDatePlus, clearDraft, composeNotes, DRAFT_KEY, DRAFT_TTL_MS, emptyDraft, loadDraft, noDateLabel, saveDraft, timingPayload } from '@/lib/service-requests/draft'
 
 function memory() {
   const m = new Map<string, string>()
@@ -44,8 +44,14 @@ describe('cuándo', () => {
   it('lo antes posible es urgente sin fecha', () => {
     expect(timingPayload('asap', '2026-10-01', '10:00', now)).toEqual({ isUrgent: true, preferredDate: null, preferredTime: null, note: null })
   })
-  it('flexible es hoy+2 en Bogotá, sin hora y con nota', () => {
-    expect(timingPayload('flexible', '', '', now)).toEqual({ isUrgent: false, preferredDate: '2026-09-29', preferredTime: null, note: 'Horario flexible esta semana' })
+  it('sin fecha fija: sin fecha, sin hora, no urgente y sin nota inventada', () => {
+    expect(timingPayload('flexible', '2026-10-01', '10:00', now)).toEqual({ isUrgent: false, preferredDate: null, preferredTime: null, note: null })
+  })
+
+  it('las vistas leen «Sin fecha fija» o urgente cuando no hay fecha', () => {
+    expect(noDateLabel({ isUrgent: false, preferredDate: null })).toBe('Sin fecha fija')
+    expect(noDateLabel({ isUrgent: true, preferredDate: null })).toBe('Urgente, lo antes posible')
+    expect(noDateLabel({ isUrgent: false, preferredDate: '2026-10-01T00:00:00.000Z' })).toBeNull()
     expect(bogotaDatePlus(0, now)).toBe('2026-09-27')
   })
   it('programado pasa fecha y hora', () => {

@@ -34,6 +34,7 @@ import BookingPhotos from '@/components/bookings/BookingPhotos'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 import { useClientNavCounts } from '@/hooks/useClientNavCounts'
 import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
+import { noDateLabel } from '@/lib/service-requests/draft'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -2072,7 +2073,7 @@ export default function DashboardPage() {
                             <span className="text-gray-700 truncate">
                               {request.preferredDate
                                 ? `${formatCalendarDay(request.preferredDate, { day: 'numeric', month: 'short', year: 'numeric' })}${request.preferredTime ? ` · ${request.preferredTime}` : ''}`
-                                : 'Sin fecha preferida'}
+                                : noDateLabel(request)}
                             </span>
                           </div>
                           {!(request.status === 'ACTIVE' && !isExpired && request.proposals.some((p) => p.status === 'PENDING')) && (

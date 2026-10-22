@@ -5,7 +5,7 @@ const m = vi.hoisted(() => ({
   srFindUnique: vi.fn(),
   srUpdate: vi.fn(),
   srUpdateMany: vi.fn(),
-  psFindFirst: vi.fn(),
+  psFindUnique: vi.fn(),
   configFindFirst: vi.fn(),
   proposalFindUnique: vi.fn(),
   proposalFindMany: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/lib/prisma', () => {
   const prisma: Record<string, unknown> = {
     partnerProfile: { findUnique: m.partnerFindUnique },
     serviceRequest: { findUnique: m.srFindUnique, update: m.srUpdate, updateMany: m.srUpdateMany },
-    partnerService: { findFirst: m.psFindFirst },
+    partnerService: { findUnique: m.psFindUnique },
     platformConfig: { findFirst: m.configFindFirst },
     proposal: { findUnique: m.proposalFindUnique, findMany: m.proposalFindMany, create: m.proposalCreate, update: m.proposalUpdate, updateMany: m.proposalUpdateMany },
     booking: { create: m.bookingCreate },
@@ -66,7 +66,7 @@ describe('crear propuesta', () => {
     vi.clearAllMocks()
     m.partnerFindUnique.mockResolvedValue({ id: 'p1', isActive: true, verified: true })
     m.srFindUnique.mockResolvedValue({ id: 'r1', userId: 'u1', serviceId: 's1', city: 'MEDELLIN', status: 'ACTIVE', expiresAt: future, partnerId: null, service: { basePrice: 50000 } })
-    m.psFindFirst.mockResolvedValue({ id: 'ps1' })
+    m.psFindUnique.mockResolvedValue({ city: 'MEDELLIN', active: true })
     m.configFindFirst.mockResolvedValue({ minServicePrice: 10000, maxServicePrice: 10000000 })
     m.proposalFindUnique.mockResolvedValue(null)
     m.proposalCreate.mockImplementation(async (a: { data: Record<string, unknown> }) => ({ id: 'pr1', ...a.data }))
@@ -81,9 +81,23 @@ describe('crear propuesta', () => {
     await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 40000 }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: expect.stringContaining('precio base') })
   })
 
-  it('sin PartnerService activo en la ciudad → 400', async () => {
-    m.psFindFirst.mockResolvedValue(null)
+  it('con el servicio pausado → 400', async () => {
+    m.psFindUnique.mockResolvedValue({ city: 'MEDELLIN', active: false })
     await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000 }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'No ofreces este servicio en la ciudad solicitada' })
+  })
+
+  it('servicio registrado en otra ciudad → 400 con la ciudad de cada uno y sin crear nada', async () => {
+    m.psFindUnique.mockResolvedValue({ city: 'BOGOTA', active: true })
+    await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000 }, APP_ORIGIN)).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringMatching(/registrado en Bogotá y esta solicitud es en Medellín/),
+    })
+    expect(m.proposalCreate).not.toHaveBeenCalled()
+  })
+
+  it('sin el servicio en su perfil → 400 pidiendo agregarlo', async () => {
+    m.psFindUnique.mockResolvedValue(null)
+    await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000 }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: expect.stringContaining('Agrégalo en Mis servicios') })
   })
 
   it('solicitud vencida → 400', async () => {
@@ -109,10 +123,12 @@ describe('crear propuesta', () => {
     await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000, proposedDate: far }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'Propón una fecha dentro de los próximos 60 días' })
   })
 
-  it('solicitud directa al socio no exige PartnerService en la ciudad', async () => {
-    m.srFindUnique.mockResolvedValue({ id: 'r1', userId: 'u1', serviceId: 's1', city: 'BOGOTA', status: 'ACTIVE', expiresAt: future, partnerId: 'p1', service: { basePrice: 50000 } })
-    m.psFindFirst.mockResolvedValue(null)
+  it('solicitud directa: vale con el servicio pausado, pero no en otra ciudad', async () => {
+    m.srFindUnique.mockResolvedValue({ id: 'r1', userId: 'u1', serviceId: 's1', city: 'MEDELLIN', status: 'ACTIVE', expiresAt: future, partnerId: 'p1', service: { name: 'Plomería', basePrice: 50000 } })
+    m.psFindUnique.mockResolvedValue({ city: 'MEDELLIN', active: false })
     await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000 }, APP_ORIGIN)).resolves.toMatchObject({ id: 'pr1' })
+    m.psFindUnique.mockResolvedValue({ city: 'BOGOTA', active: true })
+    await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000 }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: expect.stringContaining('Plomería está registrado en Bogotá') })
   })
 })
 
@@ -120,6 +136,7 @@ describe('aceptar propuesta', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     m.proposalFindUnique.mockResolvedValue(pendingProposal())
+    m.psFindUnique.mockResolvedValue({ city: 'MEDELLIN' })
     m.configFindFirst.mockResolvedValue({ commissionEnabled: true, clientCommissionRate: 5, partnerCommissionRate: 10 })
     m.proposalFindMany.mockResolvedValue([{ id: 'pr2' }])
     m.bookingCreate.mockImplementation(async (a: { data: Record<string, unknown> }) => ({ id: 'b1', ...a.data, partner: { user: { id: 'pu1' } } }))
@@ -192,6 +209,11 @@ describe('aceptar propuesta', () => {
     expect(data.scheduledTime).toMatch(/^\d{2}:00$/)
   })
 
+  it('sin fecha fija (ni fecha ni urgente) y sin fecha del socio → mañana a las 09:00 (Bogotá)', () => {
+    const now = new Date('2026-10-02T03:30:00.000Z') // 1 oct 22:30 en Bogotá
+    expect(resolveSchedule({ preferredDate: null, preferredTime: null, isUrgent: false }, undefined, now)).toEqual({ scheduledDate: new Date('2026-10-02T00:00:00.000Z'), scheduledTime: '09:00' })
+  })
+
   it('crea el BookingEvent con la marca de origen y rechaza solo las pendientes, avisando después', async () => {
     await acceptProposal(client, 'pr1', chatOrigin({ channel: 'WHATSAPP', conversationId: 'c1', agentId: 'a1' }))
     expect(m.bookingCreate.mock.calls[0][0].data).toMatchObject({ origin: 'chat', originChannel: 'WHATSAPP', originConversationId: 'c1', originAgentId: 'a1' })
@@ -232,6 +254,13 @@ describe('aceptar propuesta', () => {
     m.proposalFindUnique.mockResolvedValue(null)
     await expect(acceptProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 404 })
     expect(m.bookingCreate).not.toHaveBeenCalled()
+  })
+
+  it('el socio tiene ahora el servicio en otra ciudad → 409 sin crear la reserva', async () => {
+    m.psFindUnique.mockResolvedValue({ city: 'BOGOTA' })
+    await expect(acceptProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 409, message: expect.stringContaining('no tiene el servicio registrado en Medellín') })
+    expect(m.bookingCreate).not.toHaveBeenCalled()
+    expect(m.proposalUpdateMany).not.toHaveBeenCalled()
   })
 
   it('solicitud vencida → 400 pidiendo reactivarla', async () => {

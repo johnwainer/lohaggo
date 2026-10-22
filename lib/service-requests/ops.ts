@@ -13,6 +13,7 @@ import { isZoneKey, zoneFromText } from '@/lib/geo/zones'
 import { conversationAttribution, type RequestAttribution } from '@/lib/analytics/touches'
 import { runAfterResponse } from '@/lib/ops/after'
 import { dateOnlyUtc, formatCalendarDay } from '@/lib/bookings/when'
+import { cityName, serviceCityMismatch } from '@/lib/proposals/city-match'
 
 /**
  * Service-request operations shared by the app routes and the inbox AI agents. They load, validate state
@@ -93,10 +94,14 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   if (data.partnerId) {
     const partner = await prisma.partnerProfile.findUnique({
       where: { id: data.partnerId },
-      select: { id: true, verified: true, isActive: true, isAvailable: true, services: { where: { serviceId: data.serviceId, active: true }, select: { price: true } } },
+      select: { id: true, verified: true, isActive: true, isAvailable: true, services: { where: { serviceId: data.serviceId, active: true }, select: { price: true, city: true } } },
     })
     if (!partner || !partner.verified || !partner.isActive || partner.services.length === 0) throw new OpsError('Ese socio no ofrece este servicio', 400)
     if (!partner.isAvailable) throw new OpsError('Este socio no está disponible ahora; tu solicitud puede ir a otros socios', 400)
+    const requestCity = (data.city as City) || City.MEDELLIN
+    if (serviceCityMismatch(partner.services[0].city, requestCity)) {
+      throw new OpsError(`Este socio ofrece el servicio en ${cityName(partner.services[0].city)}, no en ${cityName(requestCity)}. Envía la solicitud sin elegir socio y le llega a los de tu ciudad.`, 400)
+    }
     partnerPrice = partner.services[0].price
   }
 
@@ -310,7 +315,7 @@ export async function requestSummaryForChat(requestId: string) {
     ? 'urgente'
     : r.preferredDate
       ? (r.preferredTime ? `${formatCalendarDay(r.preferredDate, { day: 'numeric', month: 'short' })} ${r.preferredTime}` : formatCalendarDay(r.preferredDate, { day: 'numeric', month: 'short' }))
-      : 'sin fecha'
+      : 'sin fecha fija (el socio propone día y hora)'
   const parts = [
     `Solicitud #${r.id.slice(-6)} · ${r.service.name}`,
     r.address,

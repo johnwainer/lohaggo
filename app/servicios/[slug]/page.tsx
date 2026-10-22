@@ -23,7 +23,7 @@ import { ga4Loaded, track } from '@/lib/analytics/track'
 import { withRedirect } from '@/lib/navigation/safe-redirect'
 import { cityEnumFromName, splitAddressText } from '@/lib/geo/address'
 import {
-  clearDraft, composeNotes, DRAFT_PHOTOS_KEY, loadDraft, saveDraft, timingPayload,
+  clearDraft, composeNotes, DRAFT_PHOTOS_KEY, loadDraft, saveDraft, timingPayload, WHEN_LABEL,
   type AddressMode, type NewAddressDraft, type WhenMode,
 } from '@/lib/service-requests/draft'
 
@@ -1325,9 +1325,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 <div className="space-y-3 animate-fadeIn">
                   <h3 className="text-lg md:text-xl font-bold text-gray-900">¿Cuándo lo necesitas?</h3>
                   {([
-                    { id: 'asap', icon: '⚡', title: 'Lo antes posible', desc: 'Hoy o en cuanto un socio pueda', on: 'border-red-500 bg-red-50' },
-                    { id: 'flexible', icon: '🗓️', title: 'Esta semana, horario flexible', desc: 'Los socios te proponen día y hora', on: 'border-secondary-500 bg-primary-50' },
-                    { id: 'scheduled', icon: '📅', title: 'Elegir fecha y hora', desc: 'Tú decides cuándo', on: 'border-secondary-500 bg-primary-50' },
+                    { id: 'asap', icon: '⚡', title: WHEN_LABEL.asap, desc: 'Es una urgencia: hoy o en cuanto un socio pueda', on: 'border-red-500 bg-red-50' },
+                    { id: 'flexible', icon: '🗓️', title: WHEN_LABEL.flexible, desc: 'No tienes afán: los socios te proponen día y hora', on: 'border-secondary-500 bg-primary-50' },
+                    { id: 'scheduled', icon: '📅', title: WHEN_LABEL.scheduled, desc: 'Tú decides cuándo', on: 'border-secondary-500 bg-primary-50' },
                   ] as const).map((opt) => (
                     <label
                       key={opt.id}
@@ -1394,8 +1394,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                     <div className="flex items-start gap-2">
                       <Calendar className="text-secondary-600 mt-0.5 flex-shrink-0" size={14} />
                       <span>
-                        {when === 'asap' && <span className="text-red-600 font-medium">⚡ Lo antes posible</span>}
-                        {when === 'flexible' && 'Esta semana, horario flexible'}
+                        {when === 'asap' && <span className="text-red-600 font-medium">⚡ {WHEN_LABEL.asap}</span>}
+                        {when === 'flexible' && WHEN_LABEL.flexible}
                         {when === 'scheduled' && (requestData.preferredDate
                           ? `${new Date(`${requestData.preferredDate}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${requestData.preferredTime || '—'}`
                           : 'Sin fecha')}
