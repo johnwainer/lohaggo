@@ -362,10 +362,10 @@ async function runOne(name: string, input: Record<string, unknown>, ctx: ToolCon
         if (waiting) return 'No se cerró: hay una acción esperando el sí de la persona o la aprobación del equipo. Termina eso primero.'
       }
       ctx.state.close = { reason, summary: s('resumen') }
-      if (dry) return `Conversación cerrada (simulado en pruebas) con motivo «${CLOSE_REASON_LABEL[reason]}».`
-      if (reason === 'spam') return 'La conversación se marcará como spam y se cerrará. No escribas nada más.'
-      if (reason === 'otra_marca') return 'Se cerrará después de tu mensaje: dile en una o dos frases que esta cuenta atiende LoHaggo (servicios para el hogar) y que por aquí no pueden ayudarle con eso. No traspases ni ofrezcas a una persona.'
-      return 'Se cerrará después de tu mensaje: despídete en una frase corta, sin repetir despedidas ni ofrecimientos que ya hiciste. Si la persona vuelve a escribir, se reabre sola.'
+      const sim = dry ? ' (En pruebas no se cierra de verdad.)' : ''
+      if (reason === 'spam') return `La conversación se marcará como spam y se cerrará. No escribas nada más.${sim}`
+      if (reason === 'otra_marca') return `Se cerrará después de tu mensaje: dile en una o dos frases que esta cuenta atiende LoHaggo (servicios para el hogar) y que por aquí no pueden ayudarle con eso. No traspases ni ofrezcas a una persona.${sim}`
+      return `Se cerrará después de tu mensaje: despídete en una frase corta, sin repetir despedidas ni ofrecimientos que ya hiciste. Si la persona vuelve a escribir, se reabre sola.${sim}`
     }
     case 'elegir_salida': {
       ctx.state.chosenOutput = s('salida')

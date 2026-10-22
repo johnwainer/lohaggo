@@ -405,7 +405,13 @@ export const AgentRuntimeService = {
       result.handoffReason = 'empty'
     }
 
-    let body = markers.text || (result.handoff ? agent.handoffMessage : '')
+    // A close always says goodbye (except spam): the contact must not be left without an answer
+    const closingLine = state.close && state.close.reason !== 'spam' && !markers.text
+      ? state.close.reason === 'otra_marca'
+        ? 'Esta cuenta atiende LoHaggo, servicios para el hogar; por aquí no podemos ayudarte con eso. ¡Gracias por escribir!'
+        : '¡Con gusto! Si necesitas algo más, escríbenos por aquí.'
+      : ''
+    let body = markers.text || closingLine || (result.handoff ? agent.handoffMessage : '')
     if (!opts.copilot && !result.handoff && body) {
       const previous = opts.history.filter((h) => h.role === 'assistant').map((h) => h.content)
       const deduped = dedupeReply(body, previous)
