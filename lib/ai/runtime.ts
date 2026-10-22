@@ -9,9 +9,12 @@ import { applySignature, formatForChannel, parseMarkers } from '@/lib/ai/format'
 import { buildSystem, type CommentPromptContext } from '@/lib/ai/prompt'
 import type { CommentSignals } from '@/lib/ai/comments-core'
 import { recordGap, retrieve, type KnowledgeChunk, type Retrieval } from '@/lib/ai/knowledge'
-import { buildToolDefs, executeTool, toolGuidance, toolsForMode, type ToolCallRecord, type ToolMode, type ToolRunState } from '@/lib/ai/tools'
+import { buildToolDefs, executeTool, toolGuidance, toolsForMode, withImplicitTools, type ToolCallRecord, type ToolMode, type ToolRunState } from '@/lib/ai/tools'
 import { auxBudgetAvailable, checkWorkspaceBudget } from '@/lib/ai/limits'
-import { CONFIRM_WINDOW_MS, pendingActionsText } from '@/lib/ai/actions-core'
+import { CONFIRM_WINDOW_MS, isClearYes, pendingActionsText } from '@/lib/ai/actions-core'
+import { CLOSE_REASON_LABEL, dedupeReply, parseRelayNotice, relayContextText, type CloseReason } from '@/lib/ai/conversation-core'
+import { closeConversation, lastCloseSummary } from '@/lib/ai/closing'
+import { loadEffectiveRates } from '@/lib/payments/commission'
 import type { UsageTokens } from '@/lib/ai/pricing'
 import type { AiCallKind } from '@/lib/ai/calls'
 import type { ProviderId } from '@/lib/ai/providers/types'
@@ -68,6 +71,10 @@ export type ReplyResult = {
   error: string | null
   /** Comment mode: raw signals for planCommentReply (text keeps the [[PRIVADO]] separator, unformatted) */
   comment?: CommentSignals
+  /** cerrar_conversacion: the conversation closes once the reply went out */
+  close?: { reason: CloseReason; summary: string } | null
+  /** The reply was (almost) what the agent had just sent: nothing goes out */
+  suppressed?: 'duplicate' | null
 }
 
 export type ReplyOptions = {
@@ -98,6 +105,39 @@ const emptyUsage = (): UsageTokens => ({ inputTokens: 0, outputTokens: 0, cacheR
 async function accountTimezone(workspaceId: string) {
   const ws = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { timezone: true } })
   return ws?.timezone || DEFAULT_TZ
+}
+
+let commissionCache: { at: number; text: string } | null = null
+
+/** The commission in force, one line for the agent's context (cached a few minutes). */
+async function commissionText() {
+  if (commissionCache && Date.now() - commissionCache.at < 5 * 60_000) return commissionCache.text
+  const r = await loadEffectiveRates().catch(() => null)
+  const text = !r ? '' : r.enabled
+    ? `Comisión vigente de LoHaggo: el socio paga ${r.partner} % del precio de cada servicio; el cliente paga una tarifa de servicio de ${r.client} % sobre el precio del socio.`
+    : 'Comisión vigente de LoHaggo: ninguna por ahora (el socio recibe el 100 % y el cliente no paga tarifa de servicio).'
+  commissionCache = { at: Date.now(), text }
+  return text
+}
+
+const RELAY_WINDOW_MS = 24 * 3600_000
+
+/** The last client↔partner message we forwarded into this conversation, and a relay waiting for the yes. */
+async function relayContext(conversationId: string, pending: Array<{ tool: string; summary: string; input: unknown; createdAt: Date }>, now: Date) {
+  const notice = await prisma.conversationMessage.findFirst({
+    where: { conversationId, direction: 'OUTBOUND', aiAgentId: 'chat-relay', sentAt: { gte: new Date(now.getTime() - RELAY_WINDOW_MS) } },
+    orderBy: { sentAt: 'desc' },
+    select: { body: true, sentAt: true },
+  }).catch(() => null)
+  const parsed = notice ? parseRelayNotice(notice.body) : null
+  const relay = pending.find((p) => p.tool === 'enviar_mensaje_reserva')
+  const input = (relay?.input ?? {}) as Record<string, unknown>
+  return relayContextText({
+    lastNotice: parsed && notice ? { ...parsed, minutesAgo: Math.max(0, Math.round((now.getTime() - notice.sentAt.getTime()) / 60_000)) } : null,
+    pendingMessage: relay
+      ? { recipient: relay.summary.match(/^Enviar a (.+?), en el chat/)?.[1] ?? 'la otra parte', ref: String(input.ref ?? ''), text: String(input.mensaje ?? ''), minutesAgo: Math.max(0, Math.round((now.getTime() - relay.createdAt.getTime()) / 60_000)) }
+      : null,
+  })
 }
 
 async function resolveModel(agent: AiAgent) {
@@ -176,7 +216,8 @@ export const AgentRuntimeService = {
   async reply(opts: ReplyOptions): Promise<ReplyResult> {
     // In copilot mode the agent only reads: tools that write stay out of its reach entirely
     // Public comments come from anyone: like the copilot, the agent only reads there (no accounts, tasks or status changes)
-    const agent = { ...opts.agent, tools: toolsForMode(opts.agent.tools, { copilot: Boolean(opts.copilot), comment: Boolean(opts.comment) }) }
+    const modeFlags = { copilot: Boolean(opts.copilot), comment: Boolean(opts.comment) }
+    const agent = { ...opts.agent, tools: withImplicitTools(toolsForMode(opts.agent.tools, modeFlags), modeFlags) }
     const mode: ToolMode = opts.dryRun && !opts.copilot ? 'playground' : opts.copilot ? 'copilot' : 'autopilot'
     const now = opts.now ?? new Date()
     const requestedModel = await resolveModel(agent)
@@ -193,7 +234,13 @@ export const AgentRuntimeService = {
     }
 
     const tz = await accountTimezone(opts.workspaceId)
-    const [knowledge, pending, unread] = await Promise.all([
+    const state: ToolRunState = { handoff: null, chosenOutput: null, chunks: [], close: null }
+    const toolCtx = {
+      agent, workspaceId: opts.workspaceId, conversationId: opts.conversationId, userId: opts.userId,
+      contact: { name: opts.contact.name, phone: opts.contact.phone, channel: opts.channel }, dryRun: opts.dryRun, mode, state,
+      personText: opts.text, turnStartedAt: new Date(),
+    }
+    const [knowledge, pendingRows, unread] = await Promise.all([
       retrieve({ workspaceId: opts.workspaceId, agentId: agent.id, query: opts.text }),
       mode === 'autopilot' && opts.conversationId
         ? prisma.aiAgentAction.findMany({
@@ -209,6 +256,24 @@ export const AgentRuntimeService = {
     result.knowledgeMode = knowledge.mode
     result.chunks = knowledge.mode === 'full' ? [] : [...knowledge.chunks]
 
+    // A plain yes to the only message waiting to be relayed sends it right away: the model tends to lose
+    // the relay and ask «what do you want me to tell him?» after the person already confirmed it
+    let pending = pendingRows
+    const done: string[] = []
+    if (mode === 'autopilot' && opts.conversationId && pending.length === 1 && pending[0].tool === 'enviar_mensaje_reserva' && agent.tools.includes('enviar_mensaje_reserva') && isClearYes(opts.text)) {
+      const record = await executeTool('enviar_mensaje_reserva', { ...((pending[0].input ?? {}) as Record<string, unknown>), confirmado: true }, toolCtx)
+      result.toolsUsed.push(record)
+      done.push(`Con el sí de la persona ya ejecutaste enviar_mensaje_reserva (${pending[0].summary}). Resultado: ${record.output} Confírmaselo en una frase; no le preguntes nada más sobre ese mensaje ni lo vuelvas a enviar.`)
+      pending = []
+    }
+
+    const [commission, relay, closedBefore] = await Promise.all([
+      opts.comment ? Promise.resolve('') : commissionText(),
+      mode === 'autopilot' && opts.conversationId && agent.tools.includes('enviar_mensaje_reserva') ? relayContext(opts.conversationId, pending, now).catch(() => '') : Promise.resolve(''),
+      mode === 'autopilot' && opts.conversationId ? lastCloseSummary(opts.conversationId).catch(() => null) : Promise.resolve(null),
+    ])
+    const closedText = closedBefore ? `Esta conversación ya se había cerrado (${describeNow(closedBefore.at, tz)}): ${closedBefore.detail}. La persona volvió a escribir: retómala desde ahí, sin presentarte de nuevo.` : ''
+
     const system = buildSystem(agent, {
       knowledge,
       nowText: describeNow(now, tz),
@@ -216,7 +281,14 @@ export const AgentRuntimeService = {
       channel: opts.channel,
       contact: { name: opts.contact.name, tags: opts.contact.tags, fields: opts.contact.fields, linkedUser: Boolean(opts.userId) },
       summary: opts.summary,
-      pendingActions: [pendingActionsText(pending, now), unread ? `Tiene ${unread} mensaje${unread === 1 ? '' : 's'} sin leer en el chat de sus reservas: cuéntaselo y léeselos con ver_mensajes_reserva si quiere.` : ''].filter(Boolean).join('\n'),
+      pendingActions: [
+        ...done,
+        pendingActionsText(pending, now),
+        relay,
+        unread ? `Tiene ${unread} mensaje${unread === 1 ? '' : 's'} sin leer en el chat de sus reservas: cuéntaselo y léeselos con ver_mensajes_reserva si quiere.` : '',
+        commission,
+        closedText,
+      ].filter(Boolean).join('\n'),
       toolGuidance: toolGuidance(agent, opts.flowOutputs),
       copilot: opts.copilot,
       flowOutputs: opts.flowOutputs,
@@ -233,14 +305,8 @@ export const AgentRuntimeService = {
       else merged.push({ ...m })
     }
 
-    const state: ToolRunState = { handoff: null, chosenOutput: null, chunks: [] }
-    const toolCtx = {
-      agent, workspaceId: opts.workspaceId, conversationId: opts.conversationId, userId: opts.userId,
-      contact: { name: opts.contact.name, phone: opts.contact.phone, channel: opts.channel }, dryRun: opts.dryRun, mode, state,
-      personText: opts.text, turnStartedAt: new Date(),
-    }
-
     let final: Anthropic.Message | null = null
+    let emptyRetried = false
     try {
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const call = await callClaude(
@@ -256,7 +322,17 @@ export const AgentRuntimeService = {
         result.stopReason = call.message.stop_reason
 
         if (call.message.stop_reason === 'refusal') break
-        if (call.message.stop_reason !== 'tool_use') break
+        if (call.message.stop_reason !== 'tool_use') {
+          // An empty answer gets one more try before it becomes a handoff (a marker alone is not empty)
+          const raw = textOf(call.message).trim()
+          if (!raw && !emptyRetried && !state.handoff && !state.close && round < MAX_TOOL_ROUNDS - 1) {
+            emptyRetried = true
+            if (call.message.content.length) merged.push({ role: 'assistant', content: call.message.content })
+            appendUserText(merged, '[Aviso interno de la plataforma, no lo escribió la persona] Tu respuesta llegó vacía. Escribe ahora el mensaje para la persona.')
+            continue
+          }
+          break
+        }
 
         const uses = call.message.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
         const records = await Promise.all(uses.map((u) => executeTool(u.name, (u.input || {}) as Record<string, unknown>, toolCtx)))
@@ -282,6 +358,7 @@ export const AgentRuntimeService = {
 
     result.chunks.push(...state.chunks)
     result.chosenOutput = state.chosenOutput
+    result.close = state.close ?? null
 
     if (final?.stop_reason === 'refusal') {
       return { ...result, handoff: true, handoffReason: 'refusal', handoffDetail: final.stop_details?.category ?? null, text: agent.handoffMessage }
@@ -307,26 +384,41 @@ export const AgentRuntimeService = {
       return result
     }
     result.done = markers.done
-    result.spam = markers.spam && agent.ignoreSpam
+    result.spam = (markers.spam && agent.ignoreSpam) || state.close?.reason === 'spam'
     if (result.spam) return { ...result, text: '' }
 
     if (state.handoff) {
       result.handoff = true
       result.handoffReason = 'tool'
       result.handoffDetail = state.handoff.reason
+      result.close = null
+    } else if (state.close) {
+      // Closing (done, another brand) is the agent's decision: no handoff on top, not even for an empty text
+      result.handoff = false
+      result.handoffReason = null
     } else if (markers.handoff && !result.handoff) {
       result.handoff = true
       result.handoffReason = 'model'
     }
-    if (!markers.text && !result.handoff) {
+    if (!markers.text && !result.handoff && !state.close) {
       result.handoff = true
       result.handoffReason = 'empty'
     }
 
-    const body = markers.text || (result.handoff ? agent.handoffMessage : '')
+    let body = markers.text || (result.handoff ? agent.handoffMessage : '')
+    if (!opts.copilot && !result.handoff && body) {
+      const previous = opts.history.filter((h) => h.role === 'assistant').map((h) => h.content)
+      const deduped = dedupeReply(body, previous)
+      if (deduped.dropped !== 'none') logger.info('Repeated reply trimmed', { conversationId: opts.conversationId, dropped: deduped.dropped })
+      if (deduped.dropped === 'duplicate') {
+        result.suppressed = 'duplicate'
+        return { ...result, text: '' }
+      }
+      body = deduped.text
+    }
     result.text = opts.copilot
       ? formatForChannel(body, opts.channel)
-      : applySignature(formatForChannel(body, opts.channel), agent.signatureMode, agent.signatureText, result.handoff || result.done)
+      : applySignature(formatForChannel(body, opts.channel), agent.signatureMode, agent.signatureText, result.handoff || result.done || Boolean(result.close))
     return result
   },
 
@@ -344,14 +436,25 @@ export const AgentRuntimeService = {
     done: boolean
     spam: boolean
     question?: string
+    close?: { reason: CloseReason; summary: string } | null
   }) {
     const { conversation, agent } = params
     const actor = { actorType: 'ai', actorId: agent.id, actorName: agent.name }
 
     if (params.spam) {
-      await prisma.conversation.update({ where: { id: conversation.id }, data: { aiSpam: true, aiHandled: false } })
-      await prisma.conversationEvent.create({ data: { conversationId: conversation.id, type: 'ai_spam', ...actor } })
-      emitInboxEvent({ type: 'status-update', conversationId: conversation.id, workspaceId: conversation.workspaceId })
+      // Evident spam: no answer and the conversation closes (the contact stays as it is)
+      const closed = await closeConversation(conversation.id, agent, 'spam', params.close?.summary || 'Marcada como spam por el agente').catch(() => false)
+      if (!closed) {
+        await prisma.conversation.update({ where: { id: conversation.id }, data: { aiSpam: true, aiHandled: false } })
+        await prisma.conversationEvent.create({ data: { conversationId: conversation.id, type: 'ai_spam', ...actor } })
+        emitInboxEvent({ type: 'status-update', conversationId: conversation.id, workspaceId: conversation.workspaceId })
+      }
+      return
+    }
+
+    if (params.close && !params.handoff) {
+      if (params.done) await prisma.conversationEvent.create({ data: { conversationId: conversation.id, type: 'ai_done', ...actor, detail: agent.goalDoneAction } })
+      await closeConversation(conversation.id, agent, params.close.reason, params.close.summary || CLOSE_REASON_LABEL[params.close.reason])
       return
     }
 
@@ -452,4 +555,15 @@ async function reportAgentFailure(agentName: string, error: string) {
   } catch (err) {
     logger.warn('Could not open the agent failure incident', { err: err instanceof Error ? err.message : err })
   }
+}
+
+/** Adds a text to the trailing user turn (a tool_result round or the person's message) or opens a new one. */
+function appendUserText(messages: Anthropic.MessageParam[], text: string) {
+  const last = messages[messages.length - 1]
+  if (last?.role === 'user') {
+    if (typeof last.content === 'string') last.content = `${last.content}\n\n${text}`
+    else last.content = [...last.content, { type: 'text', text }]
+    return
+  }
+  messages.push({ role: 'user', content: text })
 }

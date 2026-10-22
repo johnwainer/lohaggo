@@ -11,6 +11,9 @@ import { retrieve } from '@/lib/ai/knowledge'
 import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import { auxBudgetAvailable } from '@/lib/ai/limits'
 import { isCommentChannel } from '@/lib/ai/comments-core'
+import { isRepeatedGibberish, isUndeliverableError } from '@/lib/ai/conversation-core'
+import { isUndeliverableMarked, markUndeliverable } from '@/lib/ai/closing'
+import { AUDIO_NOTICE_TEXT, audioNoticeSent, markAudioNoticeSent, transcribeTurnAudio } from '@/lib/ai/transcribe'
 import {
   HUMAN_GRACE_MS,
   accountAllowed,
@@ -117,6 +120,8 @@ export async function handleInbound(conversationId: string, messageId: string, o
 
   let conversation = await prisma.conversation.findUnique({ where: { id: conversationId } })
   if (!conversation) return { skipped: 'no_conversation' }
+  // The provider said this recipient cannot get our messages: the agent does not try again here
+  if (isUndeliverableMarked(conversation.customFields)) return { skipped: 'undeliverable' }
   if (conversation.reengagedAt) await prisma.conversation.update({ where: { id: conversationId }, data: { reengagedAt: null } })
 
   const decision = await shouldTakeOver(conversation)
@@ -153,6 +158,28 @@ export async function handleInbound(conversationId: string, messageId: string, o
     await sendAsAgent(conversation, agent, applySignature(formatForChannel(agent.handoffMessage, conversation.channel), agent.signatureMode, agent.signatureText, true))
     await AgentRuntimeService.applyOutcome({ conversation, agent, handoff: true, handoffReason: pre.reason, handoffDetail: pre.detail ?? null, done: false, spam: false })
     return { handled: 'pre_handoff', reason: pre.reason }
+  }
+
+  // Evident spam (the same nonsense over and over): marked and closed without spending a call
+  const lastInbound = await prisma.conversationMessage.findMany({ where: { conversationId, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, take: 5, select: { body: true, mediaUrl: true } })
+  if (agent.ignoreSpam && isRepeatedGibberish(lastInbound.filter((m) => !m.mediaUrl).map((m) => m.body).reverse())) {
+    await AgentRuntimeService.applyOutcome({ conversation, agent, handoff: false, handoffReason: null, handoffDetail: null, done: false, spam: true, close: { reason: 'spam', summary: 'Texto sin sentido repetido' } })
+    return { handled: 'spam' }
+  }
+
+  // Voice notes become text before the agent reads them; when that fails, it asks once to write instead
+  const audio = await transcribeTurnAudio(conversation, agent.id).catch((err) => {
+    logger.warn('Transcription step failed', { conversationId, err: err instanceof Error ? err.message : err })
+    return { transcribed: 0, failed: 0, hasText: true }
+  })
+  if (audio.failed && !audio.transcribed && !audio.hasText) {
+    if (await audioNoticeSent(conversationId)) return { skipped: 'audio_untranscribed' }
+    const sent = await sendAsAgent(conversation, agent, formatForChannel(AUDIO_NOTICE_TEXT, conversation.channel))
+    if (sent.ok) {
+      await markAudioNoticeSent(conversationId, agent)
+      await prisma.conversation.update({ where: { id: conversationId }, data: { aiTurns: { increment: 1 } } })
+    }
+    return { handled: 'audio_notice' }
   }
 
   const turnStartedAt = new Date()
@@ -193,6 +220,11 @@ export async function handleInbound(conversationId: string, messageId: string, o
 
   if (result.text && !result.spam) {
     const sent = await sendAsAgent(fresh, agent, result.text)
+    if (!sent.ok && isUndeliverableError(sent.error)) {
+      // An invalid number does not get better with a handoff: mark it and stop answering here
+      await markUndeliverable(conversationId, agent, sent.error)
+      return { handled: 'undeliverable' }
+    }
     if (!sent.ok && !result.handoff) {
       result.handoff = true
       result.handoffReason = 'api_error'
@@ -200,10 +232,10 @@ export async function handleInbound(conversationId: string, messageId: string, o
     }
     await prisma.conversation.update({ where: { id: conversationId }, data: { aiTurns: { increment: 1 } } })
   }
-  if (result.handoff || result.done || result.spam) {
+  if (result.handoff || result.done || result.spam || result.close) {
     await AgentRuntimeService.applyOutcome({
       conversation: fresh, agent, handoff: result.handoff, handoffReason: result.handoffReason, handoffDetail: result.handoffDetail,
-      done: result.done, spam: result.spam, question: pending,
+      done: result.done, spam: result.spam, question: pending, close: result.close ?? null,
     })
   }
   return { handled: 'reply', handoff: result.handoff, model: result.model }

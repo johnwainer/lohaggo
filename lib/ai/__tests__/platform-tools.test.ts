@@ -8,6 +8,7 @@ const db = vi.hoisted(() => ({
   proposal: { findFirst: vi.fn() },
   serviceRequest: { findFirst: vi.fn() },
   aiAgentAction: { findUnique: vi.fn() },
+  conversationEvent: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
 }))
 vi.mock('@/lib/prisma', () => ({ prisma: db }))
 
@@ -195,6 +196,14 @@ describe('runPlatformTool · playground linking', () => {
     expect(out).toMatch(/Simulado en pruebas: Crear solicitud de Plomería/)
     expect(actions.recordAction).not.toHaveBeenCalled()
   })
+
+  it('sin fecha fija («cuando puedan»): crea la solicitud sin fecha ni urgencia, sin pedir la fecha', async () => {
+    const c = ctx({ mode: 'playground', dryRun: true, conversationId: null, userId: '__playground__' })
+    db.service.findMany.mockResolvedValue([{ id: 's1', name: 'Plomería', basePrice: 100000, slug: 'plomeria' }])
+    const out = await runPlatformTool('crear_solicitud', { servicio: 'Plomería', direccion: 'Calle 10 #43-20', ciudad: 'Medellín', fecha: '', hora: '', urgente: false, detalles: 'fuga', presupuesto: 0, socio_ref: '', incluir_fotos: false, confirmado: false }, c)
+    expect(out).toMatch(/sin fecha fija/)
+    expect(out).not.toMatch(/Falta la fecha/)
+  })
 })
 
 describe('runPlatformTool · garantía (reportar_problema_servicio)', () => {
@@ -276,7 +285,23 @@ describe('runPlatformTool · chat de la reserva', () => {
   it('no propone mensajes con datos de contacto', async () => {
     const out = await runPlatformTool('enviar_mensaje_reserva', { ref: '000abc', mensaje: 'escríbeme al 3001234567', incluir_fotos: false, confirmado: false }, ctx())
     expect(out).toMatch(/datos de contacto/)
+    // The agent learns the exact fragment and not to resend the same text
+    expect(out).toContain('«3001234567»')
+    expect(out).toMatch(/nunca reenvíes el mismo texto/)
     expect(actions.recordAction).not.toHaveBeenCalled()
+  })
+
+  it('un mensaje con hora, precio y dirección no se bloquea', async () => {
+    const out = await runPlatformTool('enviar_mensaje_reserva', { ref: '000abc', mensaje: 'Confirmo la instalación el sábado a las 11:00 por $150.000 en Cra 43A #12-34', incluir_fotos: false, confirmado: false }, ctx())
+    expect(out).not.toMatch(/No se envió/)
+  })
+
+  it('un segundo bloqueo seguido pasa la conversación a una persona y no se reintenta', async () => {
+    db.conversationEvent.count.mockResolvedValueOnce(1)
+    const c = ctx()
+    const out = await runPlatformTool('enviar_mensaje_reserva', { ref: '000abc', mensaje: 'mi correo es ana@x.com', incluir_fotos: false, confirmado: false }, c)
+    expect(out).toMatch(/segunda vez/)
+    expect(c.state.handoff?.reason).toMatch(/bloqueo de datos de contacto/)
   })
 })
 

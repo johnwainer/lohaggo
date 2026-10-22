@@ -95,7 +95,7 @@ export function withoutLinks(text: string) {
 
 export type SendChatResult =
   | { blocked: false; message: { id: string }; helpReply: { id: string } | null; delivery: DeliveryResult }
-  | { blocked: true; reason: string; systemMessage: { id: string } }
+  | { blocked: true; reason: string; fragment: string; systemMessage: { id: string } }
 
 /**
  * Sends a message (text and/or photo) as the actor. Participants only, open chats only, no contact
@@ -136,7 +136,7 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
     await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } })
     // The team sees who tried and what (the chat only shows the warning): Solicitud 360 and Haggo read it
     await prisma.adminAuditLog.create({
-      data: { action: 'CHAT_CONTACT_BLOCKED', entityType: 'Chat', entityId: chatId, actorId: actor.userId, actorEmail: side === 'CLIENT' ? 'cliente' : 'socio', details: JSON.stringify({ side, reason: contact.reason ?? null, text: content.slice(0, 300), origin: origin.via }).slice(0, 1000) },
+      data: { action: 'CHAT_CONTACT_BLOCKED', entityType: 'Chat', entityId: chatId, actorId: actor.userId, actorEmail: side === 'CLIENT' ? 'cliente' : 'socio', details: JSON.stringify({ side, reason: contact.reason, fragment: contact.fragment, text: content.slice(0, 300), origin: origin.via }).slice(0, 1000) },
     }).catch(() => null)
     void emitProposalBroadcast(chat.proposalId)
     await createNotification({
@@ -146,7 +146,8 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
       message: 'Se bloqueó un intento de compartir información de contacto en el chat',
       data: { chatId, targetUrl: side === 'PARTNER' ? '/dashboard' : '/partner' },
     })
-    return { blocked: true, reason: contact.reason ?? 'información de contacto', systemMessage }
+    // The fragment never reaches the other party (it may be the contact itself): only the sender learns what to reword
+    return { blocked: true, reason: contact.reason, fragment: contact.fragment, systemMessage }
   }
 
   const message = await prisma.chatMessage.create({

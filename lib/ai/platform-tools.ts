@@ -33,6 +33,8 @@ import { LOGIN_LINK_TTL_MIN, sendLoginLinkFromChat } from '@/lib/accounts/login-
 import { ACCESS_LINK_TTL_H, sendAccessLink } from '@/lib/accounts/access-link'
 import { toE164 } from '@/lib/inbox/contacts'
 import { eligibility, SLA_PROPOSAL_HOURS, SLA_RESOLUTION_HOURS, TYPE_LABEL, type GuaranteeType } from '@/lib/guarantee/policy'
+import { loadEffectiveRates } from '@/lib/payments/commission'
+import { zoneName } from '@/lib/geo/zones'
 
 export type PlatformToolName =
   | 'vincular_cuenta'
@@ -62,6 +64,7 @@ export type PlatformToolName =
   | 'ver_mensajes_reserva'
   | 'enviar_enlace_acceso'
   | 'pedir_de_nuevo'
+  | 'estado_de_mi_cuenta_socio'
 
 const str = (description: string) => ({ type: 'string', description })
 const confirmado = { type: 'boolean', description: 'false la primera vez (para proponer); true solo después de que la persona diga claramente que sí' }
@@ -94,7 +97,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   crear_solicitud: {
     label: 'Crear solicitud de servicio',
     description: 'Crea una solicitud de servicio a nombre de la persona, igual que desde la app: los socios verificados de su ciudad la reciben y envían propuestas.',
-    guidance: `Úsala solo después de tener: servicio del catálogo, dirección completa, fecha y hora (o urgente) y una descripción de lo que necesita. Pregunta una cosa a la vez. ${CONFIRM_RULE} ${NEEDS_LINK} Si la persona mandó fotos de lo que necesita en este chat (mensajes «📷 Imagen»), pon incluir_fotos: true y dile que van con la solicitud; nunca digas que hay fotos si no las mandó.`,
+    guidance: `Úsala solo después de tener: servicio del catálogo, dirección completa, cuándo lo necesita y una descripción de lo que necesita. Para el cuándo hay tres opciones: fecha (y hora si la dice); urgente (lo necesita ya, hoy); o sin fecha fija, si dice que no tiene fecha («cuando puedan», «lo que demore», «lo antes posible», «no tengo afán»): entonces deja fecha y hora vacías y urgente: false, y no le insistas con la fecha. Pregúntale el cuándo una sola vez. Pregunta una cosa a la vez. ${CONFIRM_RULE} ${NEEDS_LINK} Si la persona mandó fotos de lo que necesita en este chat (mensajes «📷 Imagen»), pon incluir_fotos: true y dile que van con la solicitud; nunca digas que hay fotos si no las mandó.`,
     writes: true, group: 'client', platform: true, confirm: true,
     schema: () => ({
       type: 'object',
@@ -102,9 +105,9 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
         servicio: str('Nombre del servicio del catálogo'),
         direccion: str('Dirección completa con barrio'),
         ciudad: str('Ciudad'),
-        fecha: str('Fecha preferida YYYY-MM-DD, o vacío si es urgente'),
+        fecha: str('Fecha preferida YYYY-MM-DD, o vacío si es urgente o no tiene fecha fija'),
         hora: str('Hora preferida HH:mm (24 h), o vacío'),
-        urgente: { type: 'boolean', description: 'true si lo necesita lo antes posible' },
+        urgente: { type: 'boolean', description: 'true si lo necesita ya (hoy); false si tiene fecha o si no tiene fecha fija' },
         detalles: str('Qué necesita, con sus palabras'),
         presupuesto: { type: 'number', description: 'Presupuesto en pesos que mencionó, o 0 si no dijo' },
         socio_ref: str('Referencia del socio si quiere uno en concreto (de ver_socios_disponibles), o vacío'),
@@ -137,7 +140,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   ver_mis_reservas: {
     label: 'Ver reservas',
     description: 'Lista las reservas de la persona (como cliente o como socio) con estado, fecha, precio, pago y referencia.',
-    guidance: `Úsala cuando pregunte por el estado de su servicio, cuándo viene el socio, o antes de reprogramar, cancelar, cambiar estado, pagar o calificar. ${NEEDS_LINK}`,
+    guidance: `Úsala cuando pregunte por el estado de su servicio, cuándo viene el socio, o antes de reprogramar, cancelar, cambiar estado, pagar o calificar, y SIEMPRE antes de confirmarle a alguien un día u hora: la fecha y la hora válidas son solo las que devuelve esta herramienta, nunca las que se deduzcan del chat. Si en el chat acordaron otra hora, no la afirmes: dile cuál está registrada y ofrece reprogramar_reserva. ${NEEDS_LINK}`,
     writes: false, group: 'client', platform: true,
     schema: () => ({ type: 'object', properties: { solo_proximas: { type: 'boolean', description: 'true para ver solo las que están por venir' } }, required: ['solo_proximas'], additionalProperties: false }),
   },
@@ -196,6 +199,13 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
     guidance: `Usa la referencia de ver_oportunidades. El precio debe ser al menos el precio base del servicio. Pregúntale qué día y a qué hora puede ir: si lo dice, pásalo en fecha y hora; si no, déjalos vacíos. ${CONFIRM_RULE} ${NEEDS_LINK}`,
     writes: true, group: 'partner', platform: true, confirm: true,
     schema: () => ({ type: 'object', properties: { solicitud_ref: REF, precio: { type: 'number', description: 'Precio total en pesos' }, nota: str('Qué incluye, con sus palabras'), fecha: str('Día que propone ir, YYYY-MM-DD, o vacío'), hora: str('Hora que propone, HH:mm (24 h), o vacío'), confirmado }, required: ['solicitud_ref', 'precio', 'nota', 'fecha', 'hora', 'confirmado'], additionalProperties: false }),
+  },
+  estado_de_mi_cuenta_socio: {
+    label: 'Estado de la cuenta del socio y sus avisos',
+    description: 'Estado de la cuenta del socio vinculado: verificado o no y qué documento falta, disponible sí/no, servicios activos por ciudad, zonas de cobertura, cuántas solicitudes de sus servicios llegaron en su ciudad en los últimos 7 días, cuántos avisos recibió (app y WhatsApp), por qué podría no estar recibiéndolos y la comisión vigente.',
+    guidance: `Solo para socios. Úsala cuando el socio pregunte por qué no le llegan solicitudes o avisos, cuántas solicitudes hay, si ya está verificado, qué le falta, en qué zonas aparece o cuánta comisión cobra LoHaggo. Responde solo con lo que devuelve; explícale en pocas palabras lo que puede hacer (subir el documento, ponerse disponible, activar servicios). ${NEEDS_LINK}`,
+    writes: false, group: 'partner', platform: true,
+    schema: () => ({ type: 'object', properties: {}, required: [], additionalProperties: false }),
   },
   cambiar_estado_reserva: {
     label: 'Cambiar el estado de una reserva (socio)',
@@ -280,14 +290,14 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   pedir_de_nuevo: {
     label: 'Pedir de nuevo al mismo socio',
     description: 'Crea una solicitud directa al socio de una reserva completada, con el mismo servicio y dirección (se pueden cambiar), para la fecha que diga el cliente o urgente.',
-    guidance: `Úsala cuando el cliente quiera repetir un servicio con el mismo socio (por ejemplo, pulsó «Pedir de nuevo» en un aviso). Toma la referencia de ver_mis_reservas. Pregunta para cuándo (fecha y hora, o urgente) y si la dirección es la misma. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    guidance: `Úsala cuando el cliente quiera repetir un servicio con el mismo socio (por ejemplo, pulsó «Pedir de nuevo» en un aviso). Toma la referencia de ver_mis_reservas. Pregunta para cuándo (fecha y hora, urgente o sin fecha fija; si no tiene fecha, deja fecha vacía y urgente: false sin insistir) y si la dirección es la misma. ${CONFIRM_RULE} ${NEEDS_LINK}`,
     writes: true, group: 'client', platform: true, confirm: true,
     schema: () => ({
       type: 'object',
       properties: {
         reserva_ref: REF,
         urgente: { type: 'boolean', description: 'true si lo necesita lo antes posible' },
-        fecha: str('YYYY-MM-DD, o vacío si es urgente'),
+        fecha: str('YYYY-MM-DD, o vacío si es urgente o sin fecha fija'),
         hora: str('HH:mm (24 h), o vacío'),
         direccion: str('Dirección si cambia, o vacío para usar la de la reserva'),
         detalles: str('Qué necesita esta vez, o vacío'),
@@ -458,6 +468,23 @@ async function newChatPhotos(conversationId: string) {
 }
 const photosText = (n: number) => (n === 1 ? '1 foto' : `${n} fotos`)
 
+/**
+ * The relay message carries contact details. The model gets the exact fragment so it rewords only that,
+ * and never sends the same text again; a second block in a row hands the conversation to a person.
+ */
+async function contactBlockedText(ctx: ToolContext, reason: string, fragment: string) {
+  const base = `No se envió: el mensaje trae ${reason} (fragmento bloqueado: «${fragment}»). Por seguridad no viajan datos de contacto por el chat de la reserva.`
+  if (ctx.mode !== 'autopilot' || !ctx.conversationId) return `${base} Reescríbelo sin ese fragmento (sin teléfonos, correos, redes ni pedir contacto por fuera) y vuelve a proponerlo; no reenvíes el mismo texto.`
+  const since = new Date(Date.now() - 2 * 3600_000)
+  const before = await prisma.conversationEvent.count({ where: { conversationId: ctx.conversationId, type: 'chat_contact_blocked', createdAt: { gte: since } } })
+  await prisma.conversationEvent.create({ data: { conversationId: ctx.conversationId, type: 'chat_contact_blocked', actorType: 'ai', actorId: ctx.agent.id, actorName: ctx.agent.name, detail: `${reason}: ${fragment}`.slice(0, 300) } }).catch(() => null)
+  if (before >= 1) {
+    ctx.state.handoff = { reason: `El bloqueo de datos de contacto impidió reenviar un mensaje (${reason}: «${fragment}»)` }
+    return `${base} Es la segunda vez: no lo intentes más. Dile a la persona, una sola vez y en una frase, que ese mensaje no se puede reenviar por el chat y que una persona del equipo la ayuda; la conversación ya pasó al equipo.`
+  }
+  return `${base} Si el fragmento no era un dato de contacto (una hora, un precio, una dirección), reescribe el mensaje sin esa parte o con otras palabras y vuelve a proponerlo; nunca reenvíes el mismo texto. Si lo que la persona quiere pasar es justo un dato de contacto, explícale una vez que por seguridad todo va por LoHaggo.`
+}
+
 const GUARANTEE_TYPE: Record<string, GuaranteeType> = { no_llego: 'NO_SHOW', mal_trabajo: 'BAD_WORK', dano: 'DAMAGE' }
 
 // ─── Plans ──────────────────────────────────────────────────────────────────
@@ -479,7 +506,8 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     const urgent = Boolean(input.urgente)
     const fecha = s(input, 'fecha')
     const hora = s(input, 'hora')
-    if (!urgent && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'Falta la fecha (YYYY-MM-DD) o marcar la solicitud como urgente.' }
+    if (fecha && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'La fecha va como YYYY-MM-DD, o vacía si es urgente o no tiene fecha fija.' }
+    if (hora && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(hora)) return { error: 'La hora va como HH:mm en 24 h (o vacía).' }
     const address = s(input, 'direccion')
     if (address.length < 5) return { error: 'Falta la dirección completa.' }
     let partnerId: string | null = null
@@ -490,7 +518,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
       if (!partnerId) return { error: 'Esa referencia de socio no corresponde a ninguno disponible para este servicio. Vuelve a consultar ver_socios_disponibles.' }
     }
     const budget = n(input, 'presupuesto')
-    const when = urgent ? 'lo antes posible (urgente)' : `${fecha}${hora ? ` a las ${hora}` : ''}`
+    const when = urgent ? 'lo antes posible (urgente)' : fecha ? `${fecha}${hora ? ` a las ${hora}` : ''}` : 'sin fecha fija (cuando un socio pueda)'
     const photos = input.incluir_fotos && ctx.conversationId && ctx.mode !== 'playground' ? await newChatPhotos(ctx.conversationId) : []
     const summary = `Crear solicitud de ${service.name} en ${address} (${city}) para ${when}${budget ? `, presupuesto ${cop(budget)}` : ''}${partnerId ? ', dirigida a un socio en concreto' : ''}${photos.length ? `, con ${photosText(photos.length)} del chat` : ''}`
     return {
@@ -500,7 +528,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
         const stored = photos.length ? await storeChatPhotos(photos.map((ph) => ph.mediaUrl), 'lohaggo/service-requests') : { urls: [], failed: 0 }
         const sr = await createServiceRequest(actor, {
           serviceId: service.id, address, city, notes: s(input, 'detalles') || undefined, budget: budget || undefined,
-          preferredDate: urgent && !fecha ? null : fecha, preferredTime: hora || null, isUrgent: urgent, partnerId, photoUrls: stored.urls,
+          preferredDate: fecha || null, preferredTime: fecha && hora ? hora : null, isUrgent: urgent, partnerId, photoUrls: stored.urls,
         }, originFor(ctx))
         const photoNote = stored.urls.length ? ` Van ${photosText(stored.urls.length)}.` : ''
         const failNote = stored.failed ? ` ${photosText(stored.failed)} no se pudieron guardar (formato no válido o muy pesadas): pídele que las reenvíe y usa agregar_fotos.` : ''
@@ -721,12 +749,12 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     const urgent = input.urgente === true
     const fecha = s(input, 'fecha')
     const hora = s(input, 'hora')
-    if (!urgent && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'Falta la fecha (YYYY-MM-DD) o marcarla como urgente.' }
+    if (fecha && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'La fecha va como YYYY-MM-DD, o vacía si es urgente o no tiene fecha fija.' }
     if (hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) return { error: 'La hora va como HH:mm en 24 h (o vacía).' }
     const address = s(input, 'direccion') || b.address
     const service = b.service?.name ?? 'servicio'
     const partnerName = b.partner?.user?.name ?? 'el mismo socio'
-    const when = urgent ? 'lo antes posible (urgente)' : `${fecha}${hora ? ` a las ${hora}` : ''}`
+    const when = urgent ? 'lo antes posible (urgente)' : fecha ? `${fecha}${hora ? ` a las ${hora}` : ''}` : 'sin fecha fija'
     return {
       summary: `Pedir de nuevo ${service} a ${partnerName} en ${address} para ${when}`,
       wouldRecord: 'una solicitud directa a ese socio (ServiceRequest) y su aviso',
@@ -734,7 +762,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
         const sr = await createServiceRequest(actor, {
           serviceId: b.serviceId, address, city: b.city, partnerId: b.partnerId,
           notes: s(input, 'detalles') || `Pedido de nuevo (reserva ${shortId(b.id)})`,
-          preferredDate: urgent && !fecha ? null : fecha, preferredTime: hora || null, isUrgent: urgent,
+          preferredDate: fecha || null, preferredTime: fecha && hora ? hora : null, isUrgent: urgent,
         }, originFor(ctx))
         return { text: `Solicitud directa creada (ref ${shortId(sr.id)}): ${partnerName} ya recibió el aviso y te mandará su propuesta.`, entityType: 'ServiceRequest', entityId: sr.id }
       },
@@ -838,7 +866,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     const text = s(input, 'mensaje')
     if (text.length > CHAT_MESSAGE_MAX) return { error: `El mensaje es muy largo (máximo ${CHAT_MESSAGE_MAX} caracteres).` }
     const contact = text ? detectContactInfo(text) : { isValid: true as const }
-    if (!contact.isValid) return { error: `El mensaje trae ${contact.reason}: por seguridad no se envían datos de contacto por el chat de la reserva. Explícale que toda la comunicación va por LoHaggo y pregúntale cómo quiere decirlo.` }
+    if (!contact.isValid) return { error: await contactBlockedText(ctx, contact.reason, contact.fragment) }
     const photos = input.incluir_fotos && ctx.conversationId && ctx.mode !== 'playground' ? await newChatPhotos(ctx.conversationId) : []
     if (!text && !photos.length) return { error: 'No hay mensaje ni fotos nuevas para enviar.' }
     const isClient = chat.clientId === actor.userId
@@ -850,7 +878,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
       run: async () => {
         const stored = photos.length ? await storeChatPhotos(photos.map((ph) => ph.mediaUrl), 'lohaggo/chat') : { urls: [], failed: 0 }
         const first = await sendChatMessage(actor, chat.id, { content: text, imageUrl: stored.urls[0] ?? null }, originFor(ctx))
-        if (first.blocked) throw new OpsError(`El mensaje se bloqueó por traer ${first.reason}.`)
+        if (first.blocked) throw new OpsError(`El mensaje se bloqueó por traer ${first.reason} (fragmento: «${first.fragment}»). No lo reenvíes igual: quita ese fragmento o díselo a la persona una vez.`)
         for (const url of stored.urls.slice(1)) await sendChatMessage(actor, chat.id, { content: '', imageUrl: url }, originFor(ctx))
         const how = first.delivery === 'whatsapp' ? 'le llegó por WhatsApp' : first.delivery === 'template' ? 'le avisamos por WhatsApp y en la app' : 'le llegó a la app'
         const failed = stored.failed ? ` ${photosText(stored.failed)} no se pudieron enviar (formato no válido o muy pesadas).` : ''
@@ -905,7 +933,13 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
   if (name === 'ver_mis_reservas') {
     const rows = await bookingsFor(actor, { upcomingOnly: Boolean(input.solo_proximas), take: 10 })
     if (!rows.length) return 'No tiene reservas.'
-    return rows.map((b) => `- ref ${shortId(b.id)}: ${bookingSummaryForChat(b)} · ${paymentSummaryForChat(b)}`).join('\n')
+    const lines = rows.map((b) => `- ref ${shortId(b.id)}: ${bookingSummaryForChat(b)} · fecha registrada ${formatCalendarDay(b.scheduledDate)}, hora registrada ${b.scheduledTime || 'sin hora'} · ${paymentSummaryForChat(b)}`)
+    return `${lines.join('\n')}\nEstas fechas y horas son las únicas válidas: confírmalas tal cual. Si en el chat se habló de otra hora, no la afirmes; di la registrada y ofrece reprogramar_reserva con la hora que acordaron.`
+  }
+  if (name === 'estado_de_mi_cuenta_socio') {
+    if (!actor.partnerId) return NOT_PARTNER
+    if (ctx.mode === 'playground' && actor.userId === PLAYGROUND_USER) return 'Simulado en pruebas: aquí aparecería el estado de la cuenta del socio (verificación, servicios, zonas, solicitudes y avisos de los últimos 7 días, comisión).'
+    return partnerAccountStatus(actor)
   }
   if (name === 'ver_oportunidades') {
     if (!actor.partnerId) return NOT_PARTNER
@@ -917,6 +951,54 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
     return `${status}\nSolicitudes disponibles:\n${rows.slice(0, 8).map((r) => `- ref ${shortId(r.id)}: ${r.service?.name ?? 'servicio'} · ${r.isUrgent ? 'urgente' : (r.preferredDate ? formatCalendarDay(r.preferredDate) : 'sin fecha')}${r.preferredTime ? ` ${r.preferredTime}` : ''} · ${r.address}${r.budget ? ` · presupuesto ${cop(r.budget)}` : ''} · ${r._count?.proposals ?? 0} propuestas · vence ${fmtDate(r.expiresAt)}`).join('\n')}`
   }
   return `Herramienta "${name}" no disponible.`
+}
+
+const CITY_LABEL: Record<string, string> = { MEDELLIN: 'Medellín', BOGOTA: 'Bogotá', CALI: 'Cali', BARRANQUILLA: 'Barranquilla' }
+
+/** The linked partner's own account, for «why don't I get requests?»: only this person's data. */
+async function partnerAccountStatus(actor: Actor) {
+  const partner = await partnerByUser(actor.userId)
+  const since = new Date(Date.now() - 7 * 24 * 3600_000)
+  const active = partner.services.filter((x) => x.active)
+  const [summary, user, optOut, requestCounts, appNotices, waNotices, rates] = await Promise.all([
+    partnerStatusSummary(partner.id),
+    prisma.user.findUnique({ where: { id: actor.userId }, select: { isActive: true, phone: true, notificationsWhatsappEnabled: true } }),
+    prisma.messagingOptOut.findFirst({ where: { channel: 'WHATSAPP', isActive: true, userId: actor.userId }, select: { id: true } }),
+    Promise.all(active.map((x) => prisma.serviceRequest.count({ where: { serviceId: x.serviceId, city: x.city, createdAt: { gte: since } } }))),
+    prisma.notification.count({ where: { userId: actor.userId, type: 'NEW_SERVICE_REQUEST', createdAt: { gte: since }, OR: [{ data: null }, { NOT: { data: { contains: '"recipient":"CLIENT"' } } }] } }),
+    prisma.adminAuditLog.count({ where: { action: 'WA_TEMPLATE_SENT', createdAt: { gte: since }, AND: [{ details: { contains: `"userId":"${actor.userId}"` } }, { details: { contains: '"event":"C10"' } }] } }),
+    loadEffectiveRates(),
+  ])
+
+  const byCity = new Map<string, string[]>()
+  active.forEach((x, i) => {
+    const city = CITY_LABEL[x.city] ?? x.city
+    byCity.set(city, [...(byCity.get(city) ?? []), `${x.service.name} (${requestCounts[i]} solicitud${requestCounts[i] === 1 ? '' : 'es'} en 7 días)`])
+  })
+  const zones = partner.coverageZones.map((z) => zoneName(z) ?? z)
+  const totalRequests = requestCounts.reduce((a, b) => a + b, 0)
+
+  const reasons: string[] = []
+  if (!partner.isActive || user?.isActive === false) reasons.push('la cuenta está inactiva')
+  if (!partner.verified) reasons.push('no está verificado (sin verificación no recibe solicitudes)')
+  if (!partner.isAvailable) reasons.push('está marcado como no disponible')
+  if (!active.length) reasons.push('no tiene servicios activos')
+  if (zones.length) reasons.push(`solo recibe primero las solicitudes de sus zonas (${zones.join(', ')})`)
+  if (user?.notificationsWhatsappEnabled === false) reasons.push('tiene apagados los avisos por WhatsApp en su perfil')
+  if (optOut) reasons.push('pidió no recibir mensajes de WhatsApp (baja activa)')
+  if (!user?.phone) reasons.push('no tiene celular en su cuenta, así que no le llegan avisos por WhatsApp')
+  if (active.length && !totalRequests) reasons.push('en los últimos 7 días no llegaron solicitudes de sus servicios en su ciudad')
+
+  return [
+    summary,
+    `Servicios activos por ciudad: ${byCity.size ? Array.from(byCity.entries()).map(([c, list]) => `${c}: ${list.join(', ')}`).join(' · ') : 'ninguno'}.`,
+    `Zonas de cobertura: ${zones.length ? zones.join(', ') : 'toda la ciudad'}.`,
+    `Últimos 7 días: ${totalRequests} solicitud${totalRequests === 1 ? '' : 'es'} de sus servicios en su ciudad; recibió ${appNotices} aviso${appNotices === 1 ? '' : 's'} de solicitudes nuevas en la app y ${waNotices} por WhatsApp.`,
+    reasons.length ? `Por qué podría no recibir avisos: ${reasons.join('; ')}.` : 'No hay nada que le impida recibir avisos.',
+    rates.enabled
+      ? `Comisión vigente: LoHaggo descuenta ${rates.partner} % al socio sobre el precio del servicio; el cliente paga además una tarifa de servicio de ${rates.client} %.`
+      : 'Comisión vigente: ninguna por ahora (el socio recibe el 100 % del precio y el cliente no paga tarifa de servicio).',
+  ].join('\n')
 }
 
 // ─── Identity (direct: runs without proposal; the code goes to the account's own phone or email) ─────

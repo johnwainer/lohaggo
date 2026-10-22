@@ -254,7 +254,7 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         casos_de_soporte: c.supportCases.map((x) => ({ asunto: u(x.subject, 120), estado: x.status, prioridad: x.priority })),
         creada: bogotaTime(c.createdAt), vence: bogotaTime(c.expiresAt), precio_base: c.service.basePrice,
         cliente: { id: c.client.id, nombre: u(c.client.name, 80), activo: c.client.isActive }, directa_a: c.direct ? u(c.direct.name, 80) : null,
-        direccion: u(c.address, 200), zona: c.zone, cuando: c.isUrgent ? 'urgente' : c.preferredDate ? `${formatCalendarDay(c.preferredDate)} ${c.preferredTime ?? ''}` : null, presupuesto: c.budget, notas: u(c.notes), fotos: c.photos.length,
+        direccion: u(c.address, 200), zona: c.zone, cuando: c.isUrgent ? 'urgente' : c.preferredDate ? `${formatCalendarDay(c.preferredDate)} ${c.preferredTime ?? ''}` : 'sin fecha fija', presupuesto: c.budget, notas: u(c.notes), fotos: c.photos.length,
         origen: { via: c.origin.via, canal: c.origin.channel, conversacionId: c.origin.conversation?.id ?? null },
         socios_avisados: c.notified.length, socios_que_leyeron: c.notified.filter((n) => n.read).length,
         propuestas: c.proposals.map((p) => ({

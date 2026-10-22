@@ -8,6 +8,8 @@ import { ACCESS_LINK_TTL_HOURS, MAX_PARTNER_SERVICES, createAccountFromContact, 
 import { maskEmail } from '@/lib/ai/platform-data'
 import { TOOL_GROUPS, dailyLimitFor, type ToolGroup } from '@/lib/ai/actions-core'
 import { PLATFORM_TOOLS, runPlatformTool, type PlatformToolName } from '@/lib/ai/platform-tools'
+import { CLOSE_REASONS, CLOSE_REASON_LABEL, isCloseReason, type CloseReason } from '@/lib/ai/conversation-core'
+import { CONFIRM_WINDOW_MS } from '@/lib/ai/actions-core'
 
 /** Account-creation attempts an AI agent may make per conversation per day (anti-abuse). */
 export const MAX_ACCOUNT_ATTEMPTS_PER_DAY = 3
@@ -29,6 +31,7 @@ export type InboxToolName =
   | 'consultar_catalogo'
   | 'crear_cuenta_cliente'
   | 'crear_cuenta_socio'
+  | 'cerrar_conversacion'
 
 export type ToolName = InboxToolName | PlatformToolName
 
@@ -152,6 +155,22 @@ const INBOX_TOOLS: Record<InboxToolName, CatalogEntry> = {
       additionalProperties: false,
     }),
   },
+  cerrar_conversacion: {
+    label: 'Cerrar la conversación',
+    description: 'Cierra la conversación (queda resuelta) cuando la gestión terminó, cuando es spam o cuando el mensaje es para otra marca. Se cierra después de enviar tu mensaje; si la persona vuelve a escribir, se reabre sola.',
+    guidance: 'Úsala cuando la gestión terminó: la solicitud quedó creada y confirmada, la reserva quedó gestionada, o respondiste lo que preguntó y la persona agradece o se despide (motivo gestionada). Con motivo otra_marca cuando escriben por otra marca o un tema que no es de LoHaggo (por ejemplo seguidores de «Pasos al Éxito» que preguntan por giras, eventos o conferencias): respóndeles una sola vez, breve, que esta cuenta atiende LoHaggo (servicios para el hogar) y ciérrala; no traspases. Con motivo spam ante publicidad o texto sin sentido repetido (no escribas nada más). NUNCA la uses si quedó algo pendiente: una pregunta de la persona sin responder, una acción esperando su sí, datos que faltan o algo que prometiste revisar. En resumen pon en una frase qué se gestionó.',
+    writes: true,
+    group: 'inbox',
+    schema: () => ({
+      type: 'object',
+      properties: {
+        motivo: { type: 'string', enum: [...CLOSE_REASONS], description: CLOSE_REASONS.map((r) => `${r}: ${CLOSE_REASON_LABEL[r].toLowerCase()}`).join('; ') },
+        resumen: str('Qué se gestionó, en una frase (para el equipo y para retomar si vuelve a escribir)'),
+      },
+      required: ['motivo', 'resumen'],
+      additionalProperties: false,
+    }),
+  },
   consultar_crm: {
     label: 'Consultar datos del usuario',
     description: 'Consulta los datos en la plataforma de la persona que atiendes (solo los suyos): su cuenta y, como cliente, reservas, solicitudes y pagos; como socio, estado de verificación, documentos, servicios, reservas, propuestas y pagos.',
@@ -219,6 +238,8 @@ export type ToolRunState = {
   handoff: { reason: string } | null
   chosenOutput: string | null
   chunks: KnowledgeChunk[]
+  /** cerrar_conversacion: applied after the reply goes out */
+  close?: { reason: CloseReason; summary: string } | null
 }
 
 /**
@@ -333,6 +354,19 @@ async function runOne(name: string, input: Record<string, unknown>, ctx: ToolCon
       return createAccountFromChat('CLIENT', input, ctx)
     case 'crear_cuenta_socio':
       return createAccountFromChat('PARTNER', input, ctx)
+    case 'cerrar_conversacion': {
+      const reason = s('motivo')
+      if (!isCloseReason(reason)) return `Motivo no válido: usa ${CLOSE_REASONS.join(', ')}.`
+      if (reason === 'gestionada' && convId && !dry) {
+        const waiting = await prisma.aiAgentAction.count({ where: { conversationId: convId, status: { in: ['proposed', 'awaiting_approval'] }, createdAt: { gte: new Date(Date.now() - CONFIRM_WINDOW_MS) } } })
+        if (waiting) return 'No se cerró: hay una acción esperando el sí de la persona o la aprobación del equipo. Termina eso primero.'
+      }
+      ctx.state.close = { reason, summary: s('resumen') }
+      if (dry) return `Conversación cerrada (simulado en pruebas) con motivo «${CLOSE_REASON_LABEL[reason]}».`
+      if (reason === 'spam') return 'La conversación se marcará como spam y se cerrará. No escribas nada más.'
+      if (reason === 'otra_marca') return 'Se cerrará después de tu mensaje: dile en una o dos frases que esta cuenta atiende LoHaggo (servicios para el hogar) y que por aquí no pueden ayudarle con eso. No traspases ni ofrezcas a una persona.'
+      return 'Se cerrará después de tu mensaje: despídete en una frase corta, sin repetir despedidas ni ofrecimientos que ya hiciste. Si la persona vuelve a escribir, se reabre sola.'
+    }
     case 'elegir_salida': {
       ctx.state.chosenOutput = s('salida')
       return `Salida "${s('salida')}" elegida.`
@@ -407,6 +441,18 @@ export function toolsForMode(tools: string[], p: { copilot: boolean; comment: bo
   if (p.comment) return tools.filter((t) => !isWriteTool(t))
   if (p.copilot) return tools.filter((t) => !isWriteTool(t) || isPlatformTool(t))
   return tools
+}
+
+/**
+ * Tools every agent gets without picking them in its screen: closing the conversation when it answers
+ * alone, and the partner's own account status whenever it already serves partners.
+ */
+export function withImplicitTools(tools: string[], p: { copilot: boolean; comment: boolean }) {
+  if (p.comment) return tools
+  const extra: string[] = []
+  if (!p.copilot) extra.push('cerrar_conversacion')
+  if (tools.includes('ver_oportunidades') || tools.includes('consultar_crm')) extra.push('estado_de_mi_cuenta_socio')
+  return Array.from(new Set([...tools, ...extra]))
 }
 
 export async function executeTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallRecord> {

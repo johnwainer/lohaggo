@@ -138,7 +138,8 @@ export function pendingActionsText(rows: Array<{ tool: string; summary: string; 
     const data = { ...((r.input ?? {}) as Record<string, unknown>) }
     delete data.confirmado
     const mins = Math.max(0, Math.round((now.getTime() - r.createdAt.getTime()) / 60_000))
-    return `- ${r.tool} (propuesta hace ${mins} min): ${r.summary}. Datos exactos: ${JSON.stringify(data)}`
+    const relay = r.tool === 'enviar_mensaje_reserva' ? ' Es un mensaje para reenviar: ya sabes el texto y el destinatario; con un sí, envíalo tal cual y no le preguntes qué mensaje quiere enviar.' : ''
+    return `- ${r.tool} (propuesta hace ${mins} min): ${r.summary}. Datos exactos: ${JSON.stringify(data)}.${relay}`
   })
   return [
     'Acciones que ya le propusiste a la persona y esperan su sí (la plataforma las guardó):',
