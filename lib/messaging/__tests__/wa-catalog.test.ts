@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { WA_CATALOG, contentTypes } from '@/lib/messaging/wa-catalog'
 
 describe('WA_CATALOG · reglas de Meta', () => {
-  it('101 plantillas con nombres únicos', () => {
-    expect(WA_CATALOG).toHaveLength(101)
-    expect(new Set(WA_CATALOG.map((t) => t.name)).size).toBe(101)
+  it('108 plantillas con nombres únicos', () => {
+    expect(WA_CATALOG).toHaveLength(108)
+    expect(new Set(WA_CATALOG.map((t) => t.name)).size).toBe(108)
   })
   it('ningún texto empieza ni termina con variable, ni junta dos variables', () => {
     for (const t of WA_CATALOG.filter((x) => x.body)) {
@@ -44,7 +44,7 @@ describe('WA_CATALOG · reglas de Meta', () => {
 describe('Seguimiento de reservas · botones', () => {
   it('cada botón de las plantillas de seguimiento lo aplica el servidor', async () => {
     const { FOLLOWUP_BUTTONS } = await import('@/lib/bookings/followup-buttons')
-    const codes = ['B30', 'B31', 'B32', 'B33', 'B34', 'B35', 'B36', 'B37', 'C36', 'C39']
+    const codes = ['B30', 'B31', 'B32', 'B33', 'B34', 'B35', 'B36', 'B37', 'B38', 'B39', 'B40', 'C36', 'C39', 'C42']
     const ids = WA_CATALOG.filter((t) => codes.includes(t.code)).flatMap((t) => t.quickReplies.map((q) => q.id))
     expect(ids.length).toBeGreaterThan(10)
     for (const id of ids) expect(FOLLOWUP_BUTTONS[id], id).toBeDefined()

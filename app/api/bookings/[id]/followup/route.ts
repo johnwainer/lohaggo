@@ -14,6 +14,7 @@ const schema = z.object({
   method: z.enum(['CASH', 'DIRECT_TRANSFER']).optional(),
   amount: z.number().int().positive().max(100_000_000).optional(),
   note: z.string().max(300).optional(),
+  etaMinutes: z.number().int().min(5).max(120).optional(),
 })
 
 /** The client or the partner answers a booking follow-up from the app (el socio no llegó, ya terminó, buscar otro socio…). */
@@ -25,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (actor.role === 'ADMIN') return NextResponse.json({ error: 'El equipo actúa desde la solicitud en el admin' }, { status: 403 })
     const parsed = schema.safeParse(await request.json().catch(() => ({})))
     if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
-    return NextResponse.json(await applyFollowup(actor, id, parsed.data.action, APP_ORIGIN, { method: parsed.data.method, amount: parsed.data.amount, note: parsed.data.note }))
+    return NextResponse.json(await applyFollowup(actor, id, parsed.data.action, APP_ORIGIN, { method: parsed.data.method, amount: parsed.data.amount, note: parsed.data.note, etaMinutes: parsed.data.etaMinutes }))
   } catch (error) {
     if (error instanceof OpsError) return opsErrorResponse(error)
     logger.error('Error applying booking follow-up:', error)

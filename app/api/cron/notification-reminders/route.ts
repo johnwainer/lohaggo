@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { bookingWhen } from '@/lib/bookings/when'
+import { FOLLOWUP_SINCE } from '@/lib/bookings/followups'
 import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
 import { createNotification } from '@/lib/notifications/notificationService'
@@ -32,16 +34,20 @@ async function remindBookings(now: Date, kind: 'day' | 'soon') {
     if (!inReminderWindow(b, now, REMINDER_WINDOWS[kind])) continue
     if (await alreadyReminded(b.userId, type, b.id, since)) continue
     const time = formatBookingWhen(b).split(' ').pop()
+    // The day before, the client gets the appointment re-confirmation instead (lib/bookings/followups.ts)
+    const skipClient = kind === 'day' && bookingWhen(b).getTime() >= FOLLOWUP_SINCE.getTime()
     // B11 + C17 / B12 + C18 by template first; the notifications' free-text WhatsApp is then skipped
-    await waBookingReminder(b.id, kind)
+    await waBookingReminder(b.id, kind, { skipClient })
 
-    await createNotification({
-      userId: b.userId,
-      type,
-      title: kind === 'day' ? 'Recordatorio: tu servicio es mañana' : 'Tu servicio empieza pronto',
-      message: kind === 'day' ? `Mañana a las ${time} tienes el servicio agendado.` : `Tu servicio empieza a las ${time}.`,
-      data: { bookingId: b.id },
-    })
+    if (!skipClient) {
+      await createNotification({
+        userId: b.userId,
+        type,
+        title: kind === 'day' ? 'Recordatorio: tu servicio es mañana' : 'Tu servicio empieza pronto',
+        message: kind === 'day' ? `Mañana a las ${time} tienes el servicio agendado.` : `Tu servicio empieza a las ${time}.`,
+        data: { bookingId: b.id },
+      })
+    }
 
     if (b.partner?.user?.id) {
       await createNotification({

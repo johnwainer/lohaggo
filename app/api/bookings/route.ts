@@ -27,7 +27,9 @@ export async function GET(request: Request) {
     if (actor.role === 'ADMIN') return NextResponse.json(bookings)
     // Follow-up buttons and what waits for an answer (el socio no llegó, ya terminó, otra fecha, precio final…)
     const recent = Date.now() - 14 * 24 * 3600_000
-    const ids = bookings.filter((b) => b.updatedAt.getTime() >= recent && (b.status !== 'COMPLETED' || b.payment?.status !== 'APPROVED')).map((b) => b.id)
+    // Live bookings always (one booked weeks ago still needs its re-confirmation), the rest when recent
+    const live = new Set(['PENDING', 'CONFIRMED', 'IN_PROGRESS'])
+    const ids = bookings.filter((b) => live.has(b.status) || (b.updatedAt.getTime() >= recent && (b.status !== 'COMPLETED' || b.payment?.status !== 'APPROVED'))).map((b) => b.id)
     const views = await followupViews(actor, ids).catch(() => ({} as Awaited<ReturnType<typeof followupViews>>))
     return NextResponse.json(bookings.map((b) => {
       const { receiptUrl, ...payment } = paymentView(b.payment)

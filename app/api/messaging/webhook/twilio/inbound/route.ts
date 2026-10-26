@@ -19,7 +19,7 @@ import { recordCsatReply } from '@/lib/inbox/csat'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 import { parseButtonReply, withButtonMark, type ButtonMark } from '@/lib/messaging/wa-format'
-import { handleFollowupButton, isFollowupButton } from '@/lib/bookings/followup-buttons'
+import { handleFollowupButton, handleTextYes, isFollowupButton, isPlainYes } from '@/lib/bookings/followup-buttons'
 import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import type { Prisma } from '@prisma/client'
 
@@ -250,6 +250,12 @@ export async function POST(request: NextRequest) {
   // Booking follow-up buttons (¿llegó el socio?, ¿buscamos otro?…) are applied by the server and answered at once
   if (buttonMark && isFollowupButton(buttonMark.id)) {
     const handled = await handleFollowupButton({ conversationId, userId: user?.id ?? null, button: buttonMark }).catch(() => false)
+    if (handled) return twiml()
+  }
+  // A typed «sí» confirms the appointment (SMS always; WhatsApp right after a confirmation template)
+  if (!button && !media.length && isPlainYes(body)) {
+    const fields = (await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true } }))?.customFields as { lastTemplate?: { name?: string; at?: string } } | null
+    const handled = await handleTextYes({ conversationId, userId: user?.id ?? null, channel, body, lastTemplate: fields?.lastTemplate ?? null }).catch(() => false)
     if (handled) return twiml()
   }
   after(async () => {

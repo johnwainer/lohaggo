@@ -203,12 +203,12 @@ export function waBookingRescheduled(p: { bookingId: string; actorRole: 'CLIENT'
 }
 
 /** B11 + C17 (tomorrow) or B12 + C18 (soon). Returns what went to the client and to the partner. */
-export async function waBookingReminder(bookingId: string, kind: 'day' | 'soon'): Promise<{ client: WaOutcome | null; partner: WaOutcome | null }> {
+export async function waBookingReminder(bookingId: string, kind: 'day' | 'soon', opts: { skipClient?: boolean } = {}): Promise<{ client: WaOutcome | null; partner: WaOutcome | null }> {
   const out = { client: null as WaOutcome | null, partner: null as WaOutcome | null }
   await safe(`reminder:${kind}`, async () => {
     const b = await loadBooking(bookingId)
     if (!b) return null
-    out.client = await sendWaToUser(b.row.userId, kind === 'day' ? WA.B11(b.data) : WA.B12(b.data))
+    if (!opts.skipClient) out.client = await sendWaToUser(b.row.userId, kind === 'day' ? WA.B11(b.data) : WA.B12(b.data))
     if (b.row.partner?.userId) out.partner = await sendWaToUser(b.row.partner.userId, kind === 'day' ? WA.C17(b.data) : WA.C18(b.data))
     return true
   })

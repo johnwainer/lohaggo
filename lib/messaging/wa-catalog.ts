@@ -1771,6 +1771,82 @@ export const WA_CATALOG: WaCatalogEntry[] = [
   "variables": { "1": "Carlos", "2": "A1B2C3", "3": "Plomería" },
   "quickReplies": [],
   "url": null
+},
+{
+  "code": "B38",
+  "name": "lh_cliente_reconfirmar_cita",
+  "category": "UTILITY",
+  "body": "📅 Hola {{1}}, confirma tu servicio de *{{2}}* con {{3}} el {{4}} (reserva #{{5}}). El socio solo sale hacia tu dirección cuando confirmes.",
+  "variables": { "1": "Ana", "2": "Plomería", "3": "Carlos", "4": "sáb 25 oct, 10:00 a. m.", "5": "A1B2C3" },
+  "quickReplies": [
+    { "title": "Confirmo", "id": "reconfirm_yes" },
+    { "title": "Cambiar hora", "id": "reconfirm_change" },
+    { "title": "Cancelar", "id": "reconfirm_cancel" }
+  ],
+  "url": null
+},
+{
+  "code": "B39",
+  "name": "lh_cliente_reconfirmar_urgente",
+  "category": "UTILITY",
+  "body": "⏰ Hola {{1}}, tu servicio de *{{2}}* es hoy a las {{3}} (reserva #{{4}}) y aún no lo confirmas. Si no confirmas antes de las {{5}}, el socio no saldrá y la cita quedará en espera.",
+  "variables": { "1": "Ana", "2": "Plomería", "3": "10:00 a. m.", "4": "A1B2C3", "5": "8:30 a. m." },
+  "quickReplies": [
+    { "title": "Confirmo", "id": "reconfirm_yes" },
+    { "title": "Cambiar hora", "id": "reconfirm_change" },
+    { "title": "Cancelar", "id": "reconfirm_cancel" }
+  ],
+  "url": null
+},
+{
+  "code": "B40",
+  "name": "lh_cliente_socio_sale",
+  "category": "UTILITY",
+  "body": "🚗 Hola {{1}}, {{2}} sale ahora hacia tu dirección para *{{3}}* (reserva #{{4}}) y llega en unos {{5}} minutos. ¿Estarás en el lugar?",
+  "variables": { "1": "Ana", "2": "Carlos", "3": "Plomería", "4": "A1B2C3", "5": "30" },
+  "quickReplies": [
+    { "title": "Sí, aquí estaré", "id": "here_yes" },
+    { "title": "Necesito otra hora", "id": "here_later" }
+  ],
+  "url": null
+},
+{
+  "code": "C42",
+  "name": "lh_socio_cliente_confirmo",
+  "category": "UTILITY",
+  "body": "✅ Hola {{1}}, {{2}} confirmó el servicio de *{{3}}* del {{4}} (reserva #{{5}}). Antes de salir, avísale con «Voy a salir».",
+  "variables": { "1": "Carlos", "2": "Ana", "3": "Plomería", "4": "sáb 25 oct, 10:00 a. m.", "5": "A1B2C3" },
+  "quickReplies": [
+    { "title": "Voy a salir", "id": "depart_now" }
+  ],
+  "url": null
+},
+{
+  "code": "C43",
+  "name": "lh_socio_cliente_sin_confirmar",
+  "category": "UTILITY",
+  "body": "⛔ Hola {{1}}, {{2}} aún no confirma el servicio de *{{3}}* de las {{4}} (reserva #{{5}}). No salgas todavía: te avisamos apenas confirme. Si no confirma, la cita se cancela sin falta para ti.",
+  "variables": { "1": "Carlos", "2": "Ana", "3": "Plomería", "4": "10:00 a. m.", "5": "A1B2C3" },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C44",
+  "name": "lh_socio_cliente_no_responde",
+  "category": "UTILITY",
+  "body": "⚠️ Hola {{1}}, {{2}} no respondió a tu aviso de salida para *{{3}}* (reserva #{{4}}). Te recomendamos no salir; puedes liberar la reserva en la app sin falta para ti.",
+  "variables": { "1": "Carlos", "2": "Ana", "3": "Plomería", "4": "A1B2C3" },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C45",
+  "name": "lh_socio_cliente_te_espera",
+  "category": "UTILITY",
+  "body": "🟢 Hola {{1}}, {{2}} confirmó que te espera para *{{3}}* (reserva #{{4}}). Puedes salir tranquilo.",
+  "variables": { "1": "Carlos", "2": "Ana", "3": "Plomería", "4": "A1B2C3" },
+  "quickReplies": [],
+  "url": null
 }
 ]
 

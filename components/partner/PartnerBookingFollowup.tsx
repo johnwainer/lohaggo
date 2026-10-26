@@ -1,7 +1,7 @@
 'use client'
 
 import { useId, useState } from 'react'
-import { CalendarClock, DollarSign, Loader2, Navigation, UserX } from 'lucide-react'
+import { CalendarClock, CheckCircle2, CircleSlash, DollarSign, Loader2, Navigation, UserX } from 'lucide-react'
 import { DESIGN_SYSTEM } from '@/lib/design-system'
 import { formatCurrency } from '@/lib/utils'
 import type { FollowupInfo } from '@/components/bookings/BookingFollowup'
@@ -9,28 +9,53 @@ import type { FollowupInfo } from '@/components/bookings/BookingFollowup'
 const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2'
 const field = 'w-full rounded-2xl border border-gray-200 px-4 py-3 text-base focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500'
 
-type Action = 'partner_on_way' | 'client_absent' | 'propose_price'
+type Action = 'partner_departing' | 'partner_release' | 'client_absent' | 'propose_price'
+
+const ETAS = [15, 30, 45, 60]
+
+/** What the partner sees of the appointment guarantee: whether to leave or not. */
+function appointmentNotice(a: FollowupInfo['appointment']): { tone: 'green' | 'red' | 'gray'; text: string } | null {
+  if (!a) return null
+  const d = a.departure
+  if (d?.answer === 'waiting') return { tone: 'green', text: 'El cliente confirmó que te espera. Puedes salir tranquilo.' }
+  if (d?.answer === 'later') return { tone: 'red', text: 'El cliente pidió otra hora: no salgas. Te avisamos la nueva hora o puedes liberar la reserva sin falta.' }
+  if (d?.answer === 'no_answer' && a.state === 'confirmed') return { tone: 'gray', text: 'El cliente confirmó la cita, aunque no respondió tu aviso de salida. Ve según lo acordado o escríbele por el chat de la reserva.' }
+  if (d?.answer === 'no_answer') return { tone: 'red', text: 'El cliente no respondió a tu aviso de salida: te recomendamos no salir. Puedes liberar la reserva sin falta para ti.' }
+  if (d && !d.answer) return { tone: 'gray', text: 'Le avisamos al cliente que vas a salir. Espera su respuesta (máximo 10 minutos).' }
+  if (a.state === 'confirmed') return { tone: 'green', text: 'El cliente confirmó la cita. Antes de salir toca «Voy a salir» para avisarle.' }
+  if (a.state === 'on_hold') return { tone: 'red', text: 'El cliente no confirmó la cita: no salgas. Si no confirma, se cancela sin falta para ti; también puedes liberarla ya.' }
+  if (a.state === 'pending') return { tone: 'red', text: 'El cliente aún no confirma la cita: no salgas todavía. Te avisamos apenas confirme.' }
+  return { tone: 'gray', text: 'Le pediremos al cliente que confirme la cita el día anterior. Te avisamos su respuesta.' }
+}
+
+const TONE = { green: 'border-green-200 bg-green-50 text-green-900', red: 'border-red-200 bg-red-50 text-red-900', gray: 'border-gray-200 bg-gray-50 text-gray-800' }
 
 /**
- * The partner's follow-up on a booking card: «Voy en camino», «El cliente no estaba», the final price, and
- * what is waiting for the client (a new date or price they proposed). POST /api/bookings/{id}/followup.
+ * The partner's follow-up on a booking card: whether the client confirmed (leave or not), «Voy a salir»,
+ * «Liberar reserva», «El cliente no estaba», the final price, and what waits for the client (a new date or
+ * price they proposed). POST /api/bookings/{id}/followup.
  */
 export default function PartnerBookingFollowup({ bookingId, actions, info = {}, totalPrice, onDone }: { bookingId: string; actions: string[]; info?: FollowupInfo; totalPrice: number; onDone: () => void }) {
-  const list = actions.filter((a): a is Action => a === 'partner_on_way' || a === 'client_absent' || a === 'propose_price')
+  const list = actions.filter((a): a is Action => a === 'partner_departing' || a === 'partner_release' || a === 'client_absent' || a === 'propose_price')
   const [busy, setBusy] = useState<Action | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [priceOpen, setPriceOpen] = useState(false)
   const [confirmAbsent, setConfirmAbsent] = useState(false)
+  const [departOpen, setDepartOpen] = useState(false)
+  const [confirmRelease, setConfirmRelease] = useState(false)
+  const [eta, setEta] = useState(30)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const amountId = useId()
   const noteId = useId()
   const hintId = useId()
-  const waiting = Boolean(info.reschedule || info.price || info.clientAbsent)
+  const notice = appointmentNotice(info.appointment)
+  const waiting = Boolean(info.reschedule || info.price || info.clientAbsent || notice)
   if (!list.length && !waiting && !message) return null
 
   async function run(action: Action, extra: Record<string, unknown> = {}) {
     setConfirmAbsent(false)
+    setConfirmRelease(false)
     setBusy(action)
     setMessage(null)
     try {
@@ -39,6 +64,7 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
       setMessage({ ok: res.ok, text: res.ok ? data.message : data.error || 'No pudimos registrar tu respuesta' })
       if (res.ok) {
         setPriceOpen(false)
+        setDepartOpen(false)
         onDone()
       }
     } catch {
@@ -54,6 +80,12 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
 
   return (
     <div className="space-y-2">
+      {notice && (
+        <p className={`flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm ${TONE[notice.tone]}`}>
+          {notice.tone === 'green' ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" aria-hidden="true" /> : notice.tone === 'red' ? <CircleSlash size={16} className="mt-0.5 shrink-0" aria-hidden="true" /> : <CalendarClock size={16} className="mt-0.5 shrink-0" aria-hidden="true" />}
+          <span>{notice.text}</span>
+        </p>
+      )}
       {info.reschedule && (
         <p className="flex items-start gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <CalendarClock size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
@@ -74,10 +106,14 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
       )}
       {list.length > 0 && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {list.includes('partner_on_way') && (
-            <button type="button" disabled={busy !== null} aria-busy={busy === 'partner_on_way'} onClick={() => run('partner_on_way')} className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${DESIGN_SYSTEM.components.button.primary}`}>
-              {busy === 'partner_on_way' ? <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden="true" /> : <Navigation size={18} className="shrink-0" aria-hidden="true" />}
-              Voy en camino
+          {list.includes('partner_departing') && !departOpen && (
+            <button type="button" disabled={busy !== null} onClick={() => setDepartOpen(true)} className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${DESIGN_SYSTEM.components.button.primary}`}>
+              <Navigation size={18} className="shrink-0" aria-hidden="true" /> Voy a salir
+            </button>
+          )}
+          {list.includes('partner_release') && !confirmRelease && (
+            <button type="button" disabled={busy !== null} onClick={() => setConfirmRelease(true)} className={secondary}>
+              <CircleSlash size={18} className="shrink-0" aria-hidden="true" /> Liberar reserva (sin falta)
             </button>
           )}
           {list.includes('client_absent') && !confirmAbsent && (
@@ -91,6 +127,38 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
               <DollarSign size={18} className="shrink-0" aria-hidden="true" /> Ajustar precio final
             </button>
           )}
+        </div>
+      )}
+      {departOpen && (
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
+          <p className="text-sm text-gray-700">Le avisamos al cliente que sales y le pedimos que confirme que está. <strong>Sal cuando te confirmemos</strong> (te escribimos en máximo 10 minutos).</p>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-gray-700">¿En cuánto llegas?</legend>
+            <div className="flex flex-wrap gap-2">
+              {ETAS.map((m) => (
+                <label key={m} className={`inline-flex min-h-[44px] cursor-pointer items-center rounded-full border px-4 text-sm font-semibold ${eta === m ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-gray-300 text-gray-800'}`}>
+                  <input type="radio" name={`eta-${bookingId}`} className="sr-only" checked={eta === m} onChange={() => setEta(m)} /> {m} min
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" disabled={busy !== null} onClick={() => run('partner_departing', { etaMinutes: eta })} className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:opacity-60 ${focusRing} ${DESIGN_SYSTEM.components.button.primary}`}>
+              {busy === 'partner_departing' && <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden="true" />} Avisar al cliente
+            </button>
+            <button type="button" disabled={busy !== null} onClick={() => setDepartOpen(false)} className={secondary}>Volver</button>
+          </div>
+        </div>
+      )}
+      {confirmRelease && (
+        <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">¿Liberar esta reserva? Se cancela sin ninguna falta para ti y queda registrado que el cliente no confirmó.</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" autoFocus disabled={busy !== null} onClick={() => run('partner_release')} className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:opacity-60 ${focusRing} ${DESIGN_SYSTEM.components.button.primary}`}>
+              {busy === 'partner_release' && <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden="true" />} Sí, liberar
+            </button>
+            <button type="button" disabled={busy !== null} onClick={() => setConfirmRelease(false)} className={secondary}>Volver</button>
+          </div>
         </div>
       )}
       {confirmAbsent && (

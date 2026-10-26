@@ -206,6 +206,16 @@ export const WA = {
   B37: (b: BookingData & { amount: number; previous: number; at: string }) =>
     spec('B37', [['lh_cliente_precio_final', { 1: client(b.clientName), 2: partner(b.partnerName), 3: waMoney(b.amount), 4: b.service, 5: waRef(b.id), 6: waMoney(b.previous) }]], E('Booking', b.id), { dedupeKey: `B37:Booking:${b.id}:${b.at}` }),
   C41: (b: BookingData) => spec('C41', [['lh_socio_cliente_ausente_cancelada', { 1: partner(b.partnerName), 2: waRef(b.id), 3: b.service }]], E('Booking', b.id)),
+  /** Appointment guarantee (lib/bookings/appointment.ts): the client re-confirms, the partner leaves only then */
+  B38: (b: BookingData) => spec('B38', [['lh_cliente_reconfirmar_cita', { 1: client(b.clientName), 2: b.service, 3: partner(b.partnerName), 4: waWhen(b.when), 5: waRef(b.id) }]], E('Booking', b.id), { dedupeKey: `B38:Booking:${b.id}:${b.when.toISOString()}` }),
+  B39: (b: BookingData & { deadline: Date }) =>
+    spec('B39', [['lh_cliente_reconfirmar_urgente', { 1: client(b.clientName), 2: b.service, 3: waTime(b.when), 4: waRef(b.id), 5: waTime(b.deadline) }]], E('Booking', b.id), { dedupeKey: `B39:Booking:${b.id}:${b.when.toISOString()}` }),
+  B40: (b: BookingData & { etaMinutes: number; at: string }) =>
+    spec('B40', [['lh_cliente_socio_sale', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service, 4: waRef(b.id), 5: b.etaMinutes }]], E('Booking', b.id), { dedupeKey: `B40:Booking:${b.id}:${b.at}` }),
+  C42: (b: BookingData) => spec('C42', [['lh_socio_cliente_confirmo', { 1: partner(b.partnerName), 2: client(b.clientName), 3: b.service, 4: waWhen(b.when), 5: waRef(b.id) }]], E('Booking', b.id), { dedupeKey: `C42:Booking:${b.id}:${b.when.toISOString()}` }),
+  C43: (b: BookingData) => spec('C43', [['lh_socio_cliente_sin_confirmar', { 1: partner(b.partnerName), 2: client(b.clientName), 3: b.service, 4: waTime(b.when), 5: waRef(b.id) }]], E('Booking', b.id), { dedupeKey: `C43:Booking:${b.id}:${b.when.toISOString()}` }),
+  C44: (b: BookingData & { at: string }) => spec('C44', [['lh_socio_cliente_no_responde', { 1: partner(b.partnerName), 2: client(b.clientName), 3: b.service, 4: waRef(b.id) }]], E('Booking', b.id), { dedupeKey: `C44:Booking:${b.id}:${b.at}` }),
+  C45: (b: BookingData & { at: string }) => spec('C45', [['lh_socio_cliente_te_espera', { 1: partner(b.partnerName), 2: client(b.clientName), 3: b.service, 4: waRef(b.id) }]], E('Booking', b.id), { dedupeKey: `C45:Booking:${b.id}:${b.at}` }),
   D11: (p: { adminName: string; bookingId: string; requestId: string | null; service: string; problem: string }) =>
     spec('D11', [['lh_admin_pago_sin_resolver', { 1: admin(p.adminName), 2: waRef(p.bookingId), 3: p.service, 4: p.problem, 5: p.requestId ? `admin/service-requests/${p.requestId}` : 'admin?section=payments' }]], E('Booking', p.bookingId), { dedupeKey: `D11:Booking:${p.bookingId}:${p.problem.slice(0, 40)}` }),
 

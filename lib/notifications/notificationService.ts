@@ -26,6 +26,12 @@ interface CreateNotificationParams {
   data?: any
   /** Limit the automatic channels (default: all four). */
   channels?: NotificationChannel[]
+  /**
+   * A message that protects a service (the client confirming the appointment, the partner told not to leave):
+   * it goes out on every channel the person has (app, push, email, SMS, WhatsApp) with this exact text, even
+   * if a channel is off in the admin or in their preferences. Opt-outs (STOP) are still respected.
+   */
+  critical?: boolean
 }
 
 export async function createNotification({
@@ -35,15 +41,18 @@ export async function createNotification({
   message,
   data,
   channels,
+  critical,
 }: CreateNotificationParams) {
   try {
+    // A one-tap link (data.actionLink) is a bearer token: it goes in the message, never in the stored rows
+    const { actionLink, ...stored } = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>
     const notification = await prisma.notification.create({
       data: {
         userId,
         type,
         title,
         message,
-        data: data ? JSON.stringify(data) : null
+        data: data ? JSON.stringify(actionLink === undefined ? data : stored) : null
       }
     })
 
@@ -75,8 +84,10 @@ export async function createNotification({
         type,
         title,
         message,
-        data,
+        data: actionLink === undefined ? data : stored,
+        actionLink: typeof actionLink === 'string' ? actionLink : null,
         channels,
+        critical,
       }).catch((err) => logger.error('Dispatch error (non-fatal):', err))
     }
 
@@ -260,6 +271,13 @@ export function referenceFor(data: unknown): string {
   return id ? `#${id.slice(-6)}` : ''
 }
 
+/** The one-tap link of a critical message (absolute https), if any. */
+function criticalLink(v: string | null | undefined): string | null {
+  return typeof v === 'string' && /^https:\/\/[^\s"<>]+$/.test(v) ? v : null
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
 /** Marker action of lib/messaging/wa-send.ts (kept literal: this module must not import the sender). */
 const WA_TEMPLATE_SENT = 'WA_TEMPLATE_SENT'
 const TEMPLATE_SUPPRESS_MS = 3 * 60_000
@@ -291,6 +309,8 @@ async function dispatchAutomaticNotificationChannels(params: {
   message: string
   data?: unknown
   channels?: NotificationChannel[]
+  critical?: boolean
+  actionLink?: string | null
 }) {
   const [runtimeConfig, snapshot] = await Promise.all([
     getMessagingProviderRuntimeConfig(),
@@ -301,11 +321,11 @@ async function dispatchAutomaticNotificationChannels(params: {
 
   for (const channel of channels) {
     try {
-    if (!isNotificationChannelEnabled({ snapshot, role: params.user.role, channel })) {
+    if (!params.critical && !isNotificationChannelEnabled({ snapshot, role: params.user.role, channel })) {
       continue
     }
 
-    if (!mapUserChannelPreference(params.user, channel)) {
+    if (!params.critical && !mapUserChannelPreference(params.user, channel)) {
       await (prisma as any).notificationDispatchLog.create({
         data: {
           notificationId: params.notificationId,
@@ -435,7 +455,8 @@ async function dispatchAutomaticNotificationChannels(params: {
     let body = params.message
     let templateKey: string | null = null
 
-    const template = await resolveNotificationChannelTemplate(params.type, params.user.role, channel)
+    // A critical message keeps its own words: a generic template of the type would hide what to do
+    const template = params.critical ? null : await resolveNotificationChannelTemplate(params.type, params.user.role, channel)
     if (template) {
       const rendered = renderNotificationChannelTemplate({
         subjectTemplate: template.subjectTemplate,
@@ -448,7 +469,11 @@ async function dispatchAutomaticNotificationChannels(params: {
       body = channel === 'EMAIL' ? rendered.bodyHtml || rendered.body : rendered.body
       templateKey = template.key
     } else if (channel === 'EMAIL') {
-      body = `${params.message}<br/><br/><a href=\"${enriched.action_url}\">Abrir en LoHaggo</a>`
+      const link = criticalLink(params.actionLink) || enriched.action_url
+      body = `${escapeHtml(params.message).replace(/\n/g, '<br/>')}<br/><br/><a href=\"${link}\">${params.critical ? 'Responder ahora' : 'Abrir en LoHaggo'}</a>`
+    } else if (channel === 'SMS' && params.critical) {
+      const link = criticalLink(params.actionLink)
+      body = `LoHaggo: ${params.message}${link ? ` ${link}` : ''}`
     }
 
     const result = await sendMessageViaProvider(
