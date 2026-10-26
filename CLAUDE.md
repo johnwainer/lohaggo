@@ -59,6 +59,11 @@
 - ✅ Tras cambiar el proveedor o el modelo de IA, probar el agente con el simulador del admin (`/api/admin/ai/agents/[id]/test`), no solo «Probar modelo» (que va sin herramientas).
 - ✅ Un fallo del agente con un cliente abre un incidente crítico `ai:agent-failing` (aviso por WhatsApp a los admins); nunca debe quedar solo en un evento de la conversación.
 
+#### Reglas duras aprendidas (incidente del 2026-10-26 — socios que viajaban y el cliente no aparecía)
+- ❌ **NUNCA** dejar que un socio salga hacia una cita que el cliente no re-confirmó: la garantía de cita (`lib/bookings/followups.ts`, paso «appointment») pide confirmar el día anterior a las 6 p. m., insiste 3 h antes, deja la cita «en espera» 90 min antes y la cancela 1 h después como falta del cliente.
+- ✅ El socio avisa «Voy a salir» y solo sale con el «aquí estaré» del cliente; sin respuesta en 10 min puede liberar la reserva sin falta. Un cliente que ya confirmó nunca se libera por no responder un mensaje más.
+- ✅ Esos avisos son `critical` (app, push, correo, SMS y WhatsApp, respetando STOP); de noche al cliente solo por la app. Cuando el socio recibió «no salgas», nunca se le pregunta «¿llegaste?» ni recibe falta.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
