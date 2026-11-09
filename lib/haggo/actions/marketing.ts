@@ -132,7 +132,8 @@ const approve: HaggoActionDef<{ postId: string }> = {
 const cancel: HaggoActionDef<{ postId: string }> = {
   id: 'marketing.cancel_post',
   domain: 'marketing',
-  risk: 'medium',
+  // Taking a piece off the networks' queue is a person's decision (publishing never stops by itself)
+  risk: 'high',
   label: 'Frenar una publicación programada de un agente',
   hint: 'Saca de la cola una publicación de un agente de marketing antes de que salga (queda aprobada, sin hora).',
   schema: { type: 'object', properties: { postId: { type: 'string' } }, required: ['postId'] },
