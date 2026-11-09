@@ -80,7 +80,8 @@ export async function loadLibrary(workspaceId: string, opts: { results?: boolean
       take: 3000,
     }),
     prisma.adminAuditLog.findMany({ where: { action: CANDIDATE_ACTION, details: { contains: `"ws":${JSON.stringify(workspaceId)}` } }, select: { id: true, entityId: true, createdAt: true, details: true }, orderBy: { createdAt: 'desc' }, take: 2000 }),
-    prisma.adminAuditLog.findMany({ where: { action: ARCHIVE_ACTION, entityType: 'Workspace', entityId: workspaceId }, select: { details: true }, orderBy: { createdAt: 'asc' }, take: 5000 }),
+    // The newest marks (the latest one per asset wins): read newest first, folded oldest to newest
+    prisma.adminAuditLog.findMany({ where: { action: ARCHIVE_ACTION, entityType: 'Workspace', entityId: workspaceId }, select: { details: true }, orderBy: { createdAt: 'desc' }, take: 5000 }).then((r) => r.reverse()),
     prisma.service.findMany({ select: { name: true } }).then((s) => s.map((x) => x.name.trim()).filter(Boolean)).catch(() => [] as string[]),
   ])
   const candidates = candidateRows.map(readCandidate).filter((c): c is NonNullable<typeof c> => Boolean(c))
@@ -109,7 +110,10 @@ export async function findAsset(workspaceId: string, key: string) {
 }
 
 export async function setArchived(p: { workspaceId: string; key: string; archived: boolean; actorId: string; actorEmail: string | null }) {
-  if (!(await findAsset(p.workspaceId, p.key))) throw new LibraryError('Recurso no encontrado en la biblioteca')
+  const asset = await findAsset(p.workspaceId, p.key)
+  if (!asset) throw new LibraryError('Recurso no encontrado en la biblioteca')
+  // Already in that state: no new mark (repeated clicks must not fill the log)
+  if (Boolean(asset.archived) === p.archived) return
   await prisma.adminAuditLog.create({ data: { action: ARCHIVE_ACTION, entityType: 'Workspace', entityId: p.workspaceId, actorId: p.actorId, actorEmail: p.actorEmail, details: JSON.stringify({ key: p.key, archived: p.archived }) } })
 }
 
