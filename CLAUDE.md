@@ -64,6 +64,11 @@
 - ✅ El socio avisa «Voy a salir» y solo sale con el «aquí estaré» del cliente; sin respuesta en 10 min puede liberar la reserva sin falta. Un cliente que ya confirmó nunca se libera por no responder un mensaje más.
 - ✅ Esos avisos son `critical` (app, push, correo, SMS y WhatsApp, respetando STOP); de noche al cliente solo por la app. Cuando el socio recibió «no salgas», nunca se le pregunta «¿llegaste?» ni recibe falta.
 
+#### Reglas duras aprendidas (revisión de clientes orgánicos del 2026-11-09)
+- ❌ **NUNCA** dejar que el mensaje de traspaso de la IA marque la conversación como respondida: un cliente esperó 4 días porque el chat salía de «Por responder». Un traspaso deja `awaitingReply` y lo vigila la escalera de `lib/inbox/escalation.ts` (10 min, 30 min, 2 h).
+- ❌ **NUNCA** mostrar a un socio la dirección exacta ni el nombre completo del cliente antes de reservar: todo listado de oportunidades pasa por `toPartnerOpportunity` / `approximateAddress` (también en el agente de IA).
+- ✅ La duración de una solicitud sale de `lib/service-requests/lifetime.ts` (fecha deseada, mínimo 48 h, máximo 7 días, tope total 14 días); las solicitudes sin propuestas amplían la convocatoria (`lib/service-requests/reach.ts`) en vez de vencer.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
