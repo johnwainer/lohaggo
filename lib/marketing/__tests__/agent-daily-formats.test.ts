@@ -27,7 +27,7 @@ describe('Formatos obligatorios por día', () => {
 
   it('cuenta los días del horizonte que aún no tienen reel', () => {
     const c = withReels()
-    const now = at('2026-10-22T10:00:00-05:00')
+    const now = at('2026-10-22T16:00:00-05:00')
     const planned = [
       { channel: 'INSTAGRAM' as const, at: at('2026-10-23T12:00:00-05:00'), format: 'reel' },
       { channel: 'INSTAGRAM' as const, at: at('2026-10-24T12:00:00-05:00'), format: 'feed' },
@@ -67,8 +67,18 @@ describe('Post diario', () => {
     const base = defaultAgentConfig()
     const c = sanitizeAgentConfig({ ...base, schedule: { ...base.schedule, days: ALL_DAYS }, channels: { ...base.channels, INSTAGRAM: { ...base.channels.INSTAGRAM, minDaily: { reel: 1, story: 1, feed: 1 } } } })
     expect(c.channels.INSTAGRAM.perWeek).toBe(21)
-    const g = dailyFormatGaps({ now: at('2026-11-09T10:00:00-05:00'), horizonDays: 2, channels: c.channels, planned: [{ channel: 'INSTAGRAM', at: at('2026-11-10T12:00:00-05:00'), format: 'carousel' }], days: ALL_DAYS })
+    const g = dailyFormatGaps({ now: at('2026-11-09T16:00:00-05:00'), horizonDays: 2, channels: c.channels, planned: [{ channel: 'INSTAGRAM', at: at('2026-11-10T12:00:00-05:00'), format: 'carousel' }], days: ALL_DAYS })
     // Two days ahead (10 and 11): the 10th already has its post (a carousel)
     expect(g.map((x) => `${x.format}:${x.dates.join(',')}`).sort()).toEqual(['feed:2026-11-11', 'reel:2026-11-10,2026-11-11', 'story:2026-11-10,2026-11-11'])
+  })
+})
+
+describe('El mismo día', () => {
+  it('antes de las 3 p. m. también cuenta hoy', () => {
+    const c = withReels()
+    const morning = dailyFormatGaps({ now: at('2026-11-09T10:00:00-05:00'), horizonDays: 1, channels: c.channels, planned: [], days: ALL_DAYS })
+    expect(morning[0].dates).toEqual(['2026-11-09', '2026-11-10'])
+    const afternoon = dailyFormatGaps({ now: at('2026-11-09T15:30:00-05:00'), horizonDays: 1, channels: c.channels, planned: [], days: ALL_DAYS })
+    expect(afternoon[0].dates).toEqual(['2026-11-10'])
   })
 })

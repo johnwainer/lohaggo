@@ -374,7 +374,8 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     const recent = await recentTopics(agent.id, now, config.schedule.repeatDays)
     const order = pillarDeficit(strategy.pillars, (await prisma.marketingIdea.findMany({ where: { agentId: agent.id, createdAt: { gte: new Date(now.getTime() - 30 * DAY) }, status: { not: 'rejected' } }, select: { pillar: true } })))
     const maxIdeas = Math.min(MAX_IDEAS, Math.max(0, ...gaps.map((g) => g.needed), ...daily.map((d) => d.dates.length)) + 2)
-    const fromDay = addDays(bogota(now).key, 1)
+    // Daily formats may still be missing today: the plan can target it while there is time
+    const fromDay = daily.some((d) => d.dates.includes(bogota(now).key)) ? bogota(now).key : addDays(bogota(now).key, 1)
     const toDay = bogota(new Date(Math.min(now.getTime() + agent.horizonDays * DAY, endsAt ? endsAt.getTime() : Infinity))).key
     const input = await callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 7000, effort: 'medium',

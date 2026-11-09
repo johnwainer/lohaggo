@@ -381,6 +381,9 @@ export function calendarGaps(p: { now: Date; horizonDays: number; channels: Reco
 /** A planned piece as the quotas read it: its channel, day and format (agent format or the variant's). */
 export type PlannedPiece = { channel: MarketingChannel; at: Date; format?: string | null }
 
+/** Before 15:00 in Bogotá a piece can still be written, reviewed and published the same day. */
+export const sameDayPossible = (now: Date) => bogota(now).hour < 15
+
 /** A required «post» (feed) is also met by a carousel: both are regular posts of the profile grid. */
 export const sameDailyFormat = (have: string | null | undefined, required: string) => Boolean(have) && (have === required || (required === 'feed' && have === 'carousel'))
 
@@ -402,7 +405,8 @@ export function dailyFormatGaps(p: { now: Date; horizonDays: number; channels: R
     for (const [format, perDay] of Object.entries(plan.minDaily ?? {})) {
       if (!perDay) continue
       const dates: string[] = []
-      for (let d = 1; d <= totalDays; d++) {
+      // Today too while there is time to write and publish it (before 15:00 Bogotá)
+      for (let d = sameDayPossible(p.now) ? 0 : 1; d <= totalDays; d++) {
         const key = addDays(today, d)
         if (!p.days.includes(weekdayOf(key))) continue
         const have = p.planned.filter((x) => x.channel === channel && bogota(x.at).key === key && isFormat(x, format)).length
