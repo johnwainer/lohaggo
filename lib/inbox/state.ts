@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { readEscalation, type EscalationState } from '@/lib/inbox/escalation-core'
 
 const logger = createLogger('inbox-state')
 
@@ -28,6 +29,8 @@ export type InboxState = {
   csatAskedAt?: string | null
   /** The contact's answer to the survey (1–5) */
   csat?: { score: number; at: string } | null
+  /** Escalation of the current wait for a person (lib/inbox/escalation-core.ts) */
+  escalation?: EscalationState | null
 }
 
 export const INBOX_KEY = 'inbox'
@@ -51,6 +54,7 @@ export function readInboxState(customFields: unknown): InboxState {
     unreadFor: ids(raw.unreadFor),
     csatAskedAt: typeof raw.csatAskedAt === 'string' ? raw.csatAskedAt : null,
     csat: readCsat(raw.csat),
+    escalation: readEscalation(raw.escalation),
   }
 }
 

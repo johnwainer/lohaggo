@@ -99,7 +99,7 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       const [agent, replies, handoffs, cost, gaps, actions] = await Promise.all([
         prisma.aiAgent.findUnique({ where: { id }, select: { id: true, workspaceId: true, name: true, status: true, autopilot: true, model: true, conversations: true, handoffs: true, tools: true, channels: true, autopilotChannels: true, copilotChannels: true } }),
         prisma.conversationMessage.count({ where: { aiAgentId: id, direction: 'OUTBOUND', sentAt: { gte: since } } }),
-        prisma.conversation.count({ where: { aiAgentId: id, aiHandoffAt: { gte: since }, isTest: false } }),
+        prisma.conversation.count({ where: { isTest: false, events: { some: { type: 'ai_handoff', actorId: id, createdAt: { gte: since } } } } }),
         prisma.aiCall.aggregate({ where: { agentId: id, createdAt: { gte: since } }, _sum: { costUsd: true }, _count: { _all: true } }),
         prisma.aiKnowledgeGap.findMany({ where: { agentId: id, status: 'open' }, orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, question: true, createdAt: true } }),
         actionStats({ agentId: id, days: 7 }).catch(() => ({ byStatus: {} as Record<string, number>, byTool: [] })),
