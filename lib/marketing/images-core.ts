@@ -117,13 +117,18 @@ export const STYLE_PRESETS = IMAGE_STYLES.map((s) => [s.label, s.prompt] as cons
  * The final instruction to the generator. Brand rules always go in: no text or logos drawn by the
  * AI (the real logo is laid over by Cloudinary), no people's faces recognisable as real persons.
  */
+/** Said in every generation: true-to-life colors, never the warm vintage cast the models add by themselves. */
+export const REAL_COLORS = 'Colores naturales y fieles a la realidad, balance de blancos neutro de luz de día, blancos limpios: sin tinte sepia, amarillento ni anaranjado, sin filtros ni aspecto vintage.'
+
 export function finalPrompt(prompt: string, opts: { style?: string | null; orientation: Orientation; withReference: boolean }) {
   const a = aspectFor(opts.orientation)
   return [
     prompt.trim(),
     opts.style?.trim() ? `Estilo: ${opts.style.trim()}.` : '',
-    opts.withReference ? 'Usa la imagen adjunta como referencia de estilo, colores y composición.' : '',
+    opts.withReference ? 'Usa la imagen adjunta como referencia de estilo y composición, sin copiar su tono de color.' : '',
     `Formato ${a.ratio}.`,
+    // The image models tend to an amber, sepia-like cast: the colors must look like a real photo of today
+    REAL_COLORS,
     'No incluyas textos, letras, marcas de agua ni logotipos en la imagen.',
   ].filter(Boolean).join(' ')
 }

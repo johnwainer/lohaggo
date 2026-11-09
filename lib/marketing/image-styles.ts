@@ -37,9 +37,9 @@ export const IMAGE_STYLES: ImageStyle[] = [
   {
     id: 'cercana',
     label: 'Cotidiana y cercana',
-    description: 'Escena real en un hogar colombiano, cálida, como una foto de la vida diaria.',
+    description: 'Escena real en un hogar colombiano, como una foto de la vida diaria.',
     whenToUse: 'consejos para el hogar, contar una situación del cliente, contenido de conversación y comunidad',
-    prompt: 'fotografía cotidiana y cálida en un hogar colombiano, luz de ventana, momento auténtico y espontáneo, ambiente acogedor',
+    prompt: 'fotografía cotidiana en un hogar colombiano, luz natural de día, colores reales, momento auténtico y espontáneo',
     exampleQuery: 'cozy home family kitchen natural light',
   },
   {
@@ -55,7 +55,7 @@ export const IMAGE_STYLES: ImageStyle[] = [
     label: 'Animada 3D',
     description: 'Render 3D estilo película animada: personajes amigables y colores vivos.',
     whenToUse: 'piezas divertidas o para todo público: mascotas, niños, belleza, campañas de temporada',
-    prompt: 'render 3D estilo película animada, personajes amigables y expresivos, colores vivos, iluminación suave y cálida, acabado tipo plastilina brillante',
+    prompt: 'render 3D estilo película animada, personajes amigables y expresivos, colores vivos, iluminación suave y neutra, acabado tipo plastilina brillante',
     exampleQuery: null,
   },
   {

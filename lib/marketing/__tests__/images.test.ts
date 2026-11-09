@@ -101,3 +101,17 @@ describe('sugerencias por servicio del catálogo', () => {
     expect(servicePrompt('Cerrajería')).toBe('Profesional de cerrajería trabajando en un hogar colombiano, escena real y cercana.')
   })
 })
+
+describe('Colores reales', () => {
+  it('toda imagen pide colores fieles, sin tinte sepia, y no copia el tono de la referencia', async () => {
+    const { finalPrompt, REAL_COLORS } = await import('@/lib/marketing/images-core')
+    const p = finalPrompt('Plomero arreglando un lavamanos', { style: 'fotografía cotidiana', orientation: 'portrait', withReference: true })
+    expect(p).toContain(REAL_COLORS)
+    expect(p).toContain('sin copiar su tono de color')
+    expect(p).not.toMatch(/cálid/)
+  })
+  it('ningún estilo pide luz cálida', async () => {
+    const { IMAGE_STYLES } = await import('@/lib/marketing/image-styles')
+    for (const s of IMAGE_STYLES) expect(s.prompt, s.id).not.toMatch(/cálid|acogedor|sepia|vintage/)
+  })
+})
