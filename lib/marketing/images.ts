@@ -8,6 +8,7 @@ import { checkWorkspaceBudget } from '@/lib/ai/limits'
 import { getAiSettings } from '@/lib/ai/settings'
 import { isCloudinaryUrl, STILL_VIDEO_SEC } from '@/lib/marketing/media'
 import { mediaFolder } from '@/lib/marketing/service'
+import { recordCandidates } from '@/lib/marketing/library'
 import {
   IMAGE_PROVIDERS,
   aspectFor,
@@ -229,7 +230,7 @@ async function generateWith(s: ImageSettings, provider: GenProvider, key: string
  * with every other provider that has a key, before giving up), stores them in the post's Cloudinary folder
  * (so the preview is fast and choosing one needs no re-upload) and logs the cost.
  */
-export async function generateImages(params: { workspaceId: string; postId: string; prompt: string; style?: string | null; orientation: Orientation; n: number; referenceUrl?: string | null }): Promise<ImageCandidate[]> {
+export async function generateImages(params: { workspaceId: string; postId: string; prompt: string; style?: string | null; orientation: Orientation; n: number; referenceUrl?: string | null; service?: string | null }): Promise<ImageCandidate[]> {
   const s = await getImageSettings()
   const ready = providerReady(s)
   if (!ready.ready) throw new ImageError(ready.reason!)
@@ -270,6 +271,11 @@ export async function generateImages(params: { workspaceId: string; postId: stri
   // The provider charged for every image; the request is logged even if none could be stored (it counts for the daily limit)
   await logFixedCostCall({ provider, model, kind: 'image_generation', workspaceId: params.workspaceId, costUsd: s.costPerImageUsd * images.length, latencyMs: Date.now() - started })
   if (!uploaded.length) throw new ImageError('Las imágenes se generaron pero no se pudieron guardar en Cloudinary; inténtalo de nuevo')
+  // Paid for: every candidate stays in the library, also the ones nobody chooses
+  await recordCandidates({
+    workspaceId: params.workspaceId, postId: params.postId, prompt: params.prompt, style: params.style, orientation: params.orientation, service: params.service, credit: `Generada con ${meta.label}`,
+    files: uploaded.map((u) => ({ url: u.secure_url, publicId: u.public_id, width: u.width ?? null, height: u.height ?? null, bytes: u.bytes ?? null })),
+  })
   return uploaded.map((u, i) => ({
     source: 'ai', id: `ai:${u.public_id}:${i}`, previewUrl: u.secure_url.replace('/upload/', '/upload/c_limit,w_600/'), fullUrl: u.secure_url,
     width: u.width ?? null, height: u.height ?? null, alt: null, credit: `Generada con ${meta.label}`, creditUrl: null, publicId: u.public_id, bytes: u.bytes ?? null,

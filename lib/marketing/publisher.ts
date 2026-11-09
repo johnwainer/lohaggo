@@ -6,7 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { MetaGraphError } from '@/lib/messaging/meta-graph'
 import { getConnectionCredentials, getConnectionMeta, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { instagramFormat, validateVariant, type MarketingChannel, type MediaInfo } from '@/lib/marketing/channel-rules'
-import { deliveryUrl } from '@/lib/marketing/media'
+import { deliveryUrl, isAiSource } from '@/lib/marketing/media'
 import { articleUrl } from '@/lib/marketing/seo'
 import { editorialGate, holdForReview } from '@/lib/marketing/editorial'
 import {
@@ -312,7 +312,7 @@ export async function runPublication(pub: MarketingPublication) {
     const media = files.map((m) => ({ url: deliveryUrl(social, m.url, infoOf(m), format, options), kind: infoOf(m).kind, alt: m.alt }))
     // The network's version of each file must exist before Meta fetches it
     await Promise.all(media.map((m) => warmMedia(m.url, m.kind)))
-    const aiGenerated = files.some((m) => m.source === 'ai')
+    const aiGenerated = files.some((m) => isAiSource(m.source))
     let result: PublishResult
     if (social === 'FACEBOOK') {
       result = await publishToFacebook(ctx, pageId, { message: variant.body, link: variant.linkUrl, media, format: format as 'post' | 'reel' | 'story', options, aiGenerated }, saveContainer)

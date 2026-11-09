@@ -54,7 +54,9 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
       {meta.slots?.length ? <p className="text-xs text-gray-600">{meta.slots.map((s) => `${CHANNEL_NAME[s.channel]}: ${s.reason}`).join(' · ')}</p> : null}
       {issues.length > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 space-y-0.5">{issues.slice(0, 5).map((i, n) => <p key={n} className="flex gap-1"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{i}</p>)}</div>}
       {meta.risks?.length ? <p className="text-xs text-gray-500">Riesgos que vio el agente: {meta.risks.join('; ')}</p> : null}
-      {meta.imageError && <p className="text-xs text-amber-700">Imagen: {meta.imageError}</p>}
+      {meta.imageSource === 'library' ? (
+        <p className="text-xs text-primary-800">Imagen de la biblioteca: {meta.imageError || 'reutilizada según la configuración del agente'}{meta.imageLibrary?.some((x) => x.fromTitle) ? ` · antes en «${meta.imageLibrary.find((x) => x.fromTitle)!.fromTitle}»` : meta.imageLibrary?.some((x) => x.candidate) ? ' · imagen de IA que nadie había usado' : ''}</p>
+      ) : meta.imageError && <p className="text-xs text-amber-700">Imagen: {meta.imageError}</p>}
       {meta.videoError && <p className="text-xs text-amber-700">Video: {meta.videoError}</p>}
       {meta.preflight?.some((r) => r.status === 'failed') && (
         <p className="text-xs text-red-700">Meta la rechazó en la prueba previa: {meta.preflight.filter((r) => r.status === 'failed').map((r) => `${CHANNEL_NAME[r.channel]} ${r.account}: ${r.detail}`).join(' · ')}</p>

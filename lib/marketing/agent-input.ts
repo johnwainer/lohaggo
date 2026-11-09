@@ -4,6 +4,7 @@
  */
 import { defaultImageStyleConfig, sanitizeImageStyles, type ImageStyleConfig } from '@/lib/marketing/image-styles'
 import type { MarketingChannel } from '@/lib/marketing/channel-rules'
+import { DEFAULT_REUSE, REUSE_MODES, type ReuseConfig } from '@/lib/marketing/library-core'
 
 export const AGENT_MODES = ['copilot', 'supervised', 'autopilot'] as const
 export type AgentMode = (typeof AGENT_MODES)[number]
@@ -49,6 +50,9 @@ export const AWARENESS_LABEL: Record<Awareness, string> = {
 export const EMOJI_LEVELS = ['none', 'few', 'moderate'] as const
 export type EmojiLevel = (typeof EMOJI_LEVELS)[number]
 export const IMAGE_SOURCES = ['pexels', 'ai', 'manual'] as const
+/** Days a library image rests before the agent may use it again. */
+export const MIN_REUSE_DAYS = 7
+export const MAX_REUSE_DAYS = 365
 
 /** minDaily: at least this many pieces of a format every allowed day (e.g. { reel: 1 }); counts inside perWeek */
 export type ChannelPlan = { enabled: boolean; perWeek: number; formats: string[]; accountIds: string[]; minDaily: Record<string, number> }
@@ -109,7 +113,8 @@ export type AgentConfig = {
   }
   /** carouselSize: images in each carousel the agent makes (2 to 10) */
   /** styles: which looks the agent may use for AI images and whether it picks per piece (lib/marketing/image-styles) */
-  images: { source: (typeof IMAGE_SOURCES)[number]; logo: boolean; carouselSize: number; styles: ImageStyleConfig }
+  /** reuse: when the agent takes images from the resource library (lib/marketing/library-core) and how long an image rests between uses */
+  images: { source: (typeof IMAGE_SOURCES)[number]; logo: boolean; carouselSize: number; styles: ImageStyleConfig; reuse: ReuseConfig }
   notify: { email: boolean }
 }
 
@@ -144,7 +149,7 @@ export function defaultAgentConfig(objective = 'reach'): AgentConfig {
       WEB: { enabled: true, perWeek: 1, formats: ['guía', 'lista'], accountIds: [], minDaily: {} },
     },
     schedule: { smart: true, days: [1, 2, 3, 4, 5, 6], windows: [{ from: 8, to: 21 }], quietFrom: 21, quietTo: 7, minGapHours: 3, maxPerDay: 1, repeatDays: 21, draftLeadHours: 72 },
-    images: { source: 'ai', logo: true, carouselSize: 2, styles: defaultImageStyleConfig() },
+    images: { source: 'ai', logo: true, carouselSize: 2, styles: defaultImageStyleConfig(), reuse: { ...DEFAULT_REUSE } },
     notify: { email: true },
   }
 }
@@ -191,6 +196,8 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
   const channels = obj(b.channels ?? prev.channels)
   const schedule = obj(b.schedule ?? prev.schedule)
   const images = obj(b.images ?? prev.images)
+  const reuse = obj(images.reuse ?? prev.images.reuse)
+  const prevReuse = prev.images.reuse ?? DEFAULT_REUSE
   const notify = obj(b.notify ?? prev.notify)
   const budget = obj(b.budget ?? prev.budget)
   const emojis = obj(voice.emojis)
@@ -284,7 +291,9 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
       repeatDays: int(schedule.repeatDays, 0, 120, prev.schedule.repeatDays),
       draftLeadHours: int(schedule.draftLeadHours, 12, 168, prev.schedule.draftLeadHours),
     },
-    images: { source: oneOf(images.source, IMAGE_SOURCES, prev.images.source), logo: bool(images.logo, prev.images.logo), carouselSize: int(images.carouselSize, 2, 10, prev.images.carouselSize ?? 2), styles: sanitizeImageStyles(images.styles, prev.images.styles ?? defaultImageStyleConfig()) },
+    images: { source: oneOf(images.source, IMAGE_SOURCES, prev.images.source), logo: bool(images.logo, prev.images.logo), carouselSize: int(images.carouselSize, 2, 10, prev.images.carouselSize ?? 2), styles: sanitizeImageStyles(images.styles, prev.images.styles ?? defaultImageStyleConfig()),
+      reuse: { mode: oneOf(reuse.mode, REUSE_MODES, prevReuse.mode), afterDays: int(reuse.afterDays, MIN_REUSE_DAYS, MAX_REUSE_DAYS, prevReuse.afterDays) },
+    },
     notify: { email: bool(notify.email, prev.notify.email) },
   }
   for (const c of AGENT_CHANNELS) if (config.channels[c].enabled && !config.channels[c].formats.length) config.channels[c].formats = [AGENT_FORMATS[c][0]]

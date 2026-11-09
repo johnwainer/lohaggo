@@ -227,6 +227,9 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
       />
       {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} className="mt-0.5 shrink-0" /><span className="min-w-0 flex-1 break-words">{error}</span><button onClick={() => setError(null)} aria-label="Cerrar"><X size={14} /></button></div>}
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><CheckCircle2 size={16} /> {notice}</div>}
+      {post.agentMeta?.reusedFrom && (
+        <div className="rounded-xl bg-primary-50 px-4 py-2 text-xs text-primary-900">Reedición de <Link href={`/admin/marketing/posts/${post.agentMeta.reusedFrom.postId}`} className="font-semibold underline break-words">«{post.agentMeta.reusedFrom.title}»</Link>: adapta el texto y las imágenes antes de programarla.</div>
+      )}
       {post.status === 'publishing' && <div className="rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-800">Se está publicando: la edición se bloquea hasta que termine.</div>}
       {current && current.channel !== 'WEB' && post.publications.some((p) => p.channel === current.channel && p.status === 'published') && (
         <div className="rounded-xl bg-gray-50 px-4 py-2 text-xs text-gray-600">Ya publicada en {CHANNEL_NAME[current.channel]}: cambiar el texto aquí no modifica la publicación en la red (Meta no lo permite). Sirve para volver a publicarla.</div>

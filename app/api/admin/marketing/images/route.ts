@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         const ref = await prisma.marketingMedia.findFirst({ where: { id: b.referenceMediaId, postId: post.id, kind: 'image' }, select: { url: true, originalUrl: true } })
         referenceUrl = ref ? ref.originalUrl || ref.url : null
       }
-      const results = await generateImages({ workspaceId: post.workspaceId, postId: post.id, prompt, style: typeof b.style === 'string' ? b.style.slice(0, 200) : null, orientation, n: clampCount(b.count), referenceUrl })
+      const results = await generateImages({ workspaceId: post.workspaceId, postId: post.id, prompt, style: typeof b.style === 'string' ? b.style.slice(0, 200) : null, orientation, n: clampCount(b.count), referenceUrl, service: typeof b.service === 'string' ? b.service.trim().slice(0, 120) || null : null })
       return NextResponse.json({ results })
     }
     if (b.action === 'import') {

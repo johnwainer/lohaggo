@@ -49,6 +49,9 @@ export type AgentMeta = {
   rationale?: string | null
   service?: string | null
   imageError?: string | null
+  imageSource?: string | null
+  /** Files taken from the resource library (lib/marketing/library) */
+  imageLibrary?: Array<{ key: string; url: string; origin: string; candidate: boolean; lastUsedAt: string | null; fromPostId: string | null; fromTitle: string | null }> | null
   /** Id of the image style the agent used (lib/marketing/image-styles) */
   imageStyle?: string | null
   videoSource?: string | null

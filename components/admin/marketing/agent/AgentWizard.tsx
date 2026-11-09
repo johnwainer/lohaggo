@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { CHANNEL_NAME, MkChannelIcon, OBJECTIVES, api, input, type MkChannel } from '@/components/admin/marketing/shared'
-import { AGENT_FORMATS, MAX_DAILY_PER_FORMAT, MAX_PER_DAY, MAX_PER_WEEK, AWARENESS, AWARENESS_LABEL, DEFAULT_SETTINGS, KPIS, KPI_BY_OBJECTIVE, KPI_LABEL, defaultAgentConfig } from '@/lib/marketing/agent-input'
+import { AGENT_FORMATS, MAX_DAILY_PER_FORMAT, MAX_REUSE_DAYS, MIN_REUSE_DAYS, MAX_PER_DAY, MAX_PER_WEEK, AWARENESS, AWARENESS_LABEL, DEFAULT_SETTINGS, KPIS, KPI_BY_OBJECTIVE, KPI_LABEL, defaultAgentConfig } from '@/lib/marketing/agent-input'
 import ImageStylesField from '@/components/admin/marketing/agent/ImageStylesField'
 import { defaultImageStyleConfig } from '@/lib/marketing/image-styles'
+import { DEFAULT_REUSE, REUSE_MODES, REUSE_MODE_LABEL, type ReuseMode } from '@/lib/marketing/library-core'
 import { MODE_INFO, type AgentConfig, type AgentDetailData, type AgentSettings, type WizardOptions } from '@/components/admin/marketing/agent/types'
 
 type Ws = { id: string; name: string; permissions: string[] }
@@ -467,6 +468,20 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                   <input type="number" min={2} max={10} className={input} value={config.images.carouselSize ?? 2} onChange={(e) => set('images', { ...config.images, carouselSize: Math.min(10, Math.max(2, Number(e.target.value) || 2)) })} />
                 </Field>
                 <label className="flex items-end gap-2 pb-2 text-sm text-gray-700 sm:col-span-2"><input type="checkbox" checked={config.images.logo} onChange={(e) => set('images', { ...config.images, logo: e.target.checked })} /> Poner siempre el logo (del kit de marca)</label>
+                {config.images.source !== 'manual' && (
+                  <>
+                    <Field label="Reutilizar de la biblioteca" hint="Imágenes del mismo servicio y formato que ya están pagadas (primero las de IA que nadie eligió, luego las que mejor funcionaron). La pieza dice cuál tomó.">
+                      <select className={input} value={(config.images.reuse ?? DEFAULT_REUSE).mode} onChange={(e) => set('images', { ...config.images, reuse: { ...(config.images.reuse ?? DEFAULT_REUSE), mode: e.target.value as ReuseMode } })}>
+                        {REUSE_MODES.map((m) => <option key={m} value={m}>{REUSE_MODE_LABEL[m]}</option>)}
+                      </select>
+                    </Field>
+                    {(config.images.reuse ?? DEFAULT_REUSE).mode !== 'never' && (
+                      <Field label="Días sin usarse antes de repetirla" hint={`Una imagen usada hace menos de estos días no se repite (${MIN_REUSE_DAYS} a ${MAX_REUSE_DAYS}).`}>
+                        <input type="number" min={MIN_REUSE_DAYS} max={MAX_REUSE_DAYS} className={input} value={(config.images.reuse ?? DEFAULT_REUSE).afterDays} onChange={(e) => set('images', { ...config.images, reuse: { ...(config.images.reuse ?? DEFAULT_REUSE), afterDays: Number(e.target.value) } })} />
+                      </Field>
+                    )}
+                  </>
+                )}
               </div>
               {config.images.source === 'ai' && (
                 <ImageStylesField agentId={agentId} value={config.images.styles ?? defaultImageStyleConfig()} onChange={(styles) => set('images', { ...config.images, styles })} />

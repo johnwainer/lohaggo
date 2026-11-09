@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
+import { CANDIDATE_ACTION } from '@/lib/marketing/library-core'
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
@@ -12,8 +13,8 @@ export async function GET(request: NextRequest) {
 
   const logs = await prisma.adminAuditLog.findMany({
     where: {
-      // WhatsApp template sends are markers (thousands a day): only listed when asked for
-      ...(action ? { action } : { NOT: { action: 'WA_TEMPLATE_SENT' } }),
+      // Markers, not admin actions (WhatsApp template sends, the resource library's AI candidates): only listed when asked for
+      ...(action ? { action } : { action: { notIn: ['WA_TEMPLATE_SENT', CANDIDATE_ACTION] } }),
       ...(entityType ? { entityType } : {}),
     },
     orderBy: { createdAt: 'desc' },
