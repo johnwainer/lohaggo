@@ -85,13 +85,13 @@ const logger = createLogger('marketing-agent')
 
 const H = 3600_000
 const DAY = 24 * H
-/** Runs that call the model, per agent and 24 h, whatever the monthly budget says. */
-export const DAILY_AI_RUNS = 24
+/** Runs that call the model, per agent and 24 h, whatever the monthly budget says (6+ pieces a day need ~40). */
+export const DAILY_AI_RUNS = 80
 const PLAN_EVERY_MS = 6 * H
 const LEARN_EVERY_MS = 7 * DAY
 const LOCK_MS = 10 * 60_000
 const MAX_IDEAS = 12
-const MAX_DRAFTS_PER_CYCLE = 2
+const MAX_DRAFTS_PER_CYCLE = 3
 /** Share of slots used to try little-tested hours once the agent has data. */
 const SLOT_EXPLORE = 0.2
 /** Model calls of the agent run outside a chat: they may take minutes (the routes allow 300 s). */
