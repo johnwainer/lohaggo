@@ -2187,7 +2187,7 @@ export default function DashboardPage() {
                                       {canAccept && (proposalBadges.get(proposal.id) ?? []).length > 0 && (
                                         <div className="mt-1 flex flex-wrap gap-1.5">
                                           {(proposalBadges.get(proposal.id) ?? []).map((b) => (
-                                            <span key={b} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${b === 'best_rated' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                            <span key={b} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${b === 'best_rated' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                                               {b === 'best_rated' ? <Star size={11} className="fill-amber-500 text-amber-500" aria-hidden="true" /> : null}
                                               {PROPOSAL_BADGE_LABEL[b]}
                                             </span>
@@ -2227,20 +2227,23 @@ export default function DashboardPage() {
                                   <div className="flex flex-col sm:flex-row gap-2">
                                     {canAccept && (
                                       <button
+                                        type="button"
+                                        aria-label={`Aceptar la propuesta de ${proposal.partner.user.name}`}
                                         onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
                                         disabled={session?.user?.isActive === false}
                                         className="min-h-[44px] w-full sm:flex-1 bg-emerald-700 text-white px-3 py-2.5 rounded-full hover:bg-emerald-800 transition-colors font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-card"
                                       >
-                                        <CheckCircle size={16} />
+                                        <CheckCircle size={16} aria-hidden="true" />
                                         Aceptar propuesta
                                       </button>
                                     )}
                                     {canAccept && (
                                       <button
                                         type="button"
+                                        aria-label={`No me sirve la propuesta de ${proposal.partner.user.name}`}
                                         onClick={() => setRejectSheet({ id: proposal.id, partnerName: proposal.partner.user.name })}
                                         disabled={session?.user?.isActive === false}
-                                        className="min-h-[44px] w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-full hover:bg-gray-50 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="min-h-[44px] w-full sm:w-auto px-4 py-2.5 rounded-full text-gray-600 hover:text-gray-900 underline-offset-2 hover:underline transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                       >
                                         <XCircle size={16} aria-hidden="true" />
                                         No me sirve
@@ -2333,7 +2336,7 @@ export default function DashboardPage() {
           proposalId={rejectSheet.id}
           partnerName={rejectSheet.partnerName}
           onClose={() => setRejectSheet(null)}
-          onDone={() => { setRejectSheet(null); fetchServiceRequests(); setModal({ isOpen: true, title: 'Propuesta rechazada', message: `Le avisamos a ${rejectSheet.partnerName}. Tu solicitud sigue abierta para recibir otras propuestas.`, type: 'success' }) }}
+          onDone={() => { setRejectSheet(null); fetchServiceRequests() }}
         />
       )}
 

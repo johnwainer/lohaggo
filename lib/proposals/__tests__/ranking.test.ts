@@ -26,9 +26,15 @@ describe('ranking de propuestas', () => {
     expect(badges.b).toEqual(['cheapest'])
     expect(badges.c).toEqual([])
     expect(rankProposals([p('solo', 100_000, 5, 9)])[0].badges).toEqual([])
-    // Same price or same rating: no winner, no badge
-    const tie = rankProposals([p('x', 100_000, 4.8, 5), p('y', 100_000, 4.8, 7)])
+    // Same price and same trusted rating: no winner, no badge
+    const tie = rankProposals([p('x', 100_000, 4.8, 5), p('y', 100_000, 4.8, 5)])
     expect(tie.every((r) => r.badges.length === 0)).toBe(true)
+    // Same stars: the one with more reviews is the best rated (as in the order)
+    const more = Object.fromEntries(rankProposals([p('x', 100_000, 4.8, 5), p('y', 100_000, 4.8, 7)]).map((r) => [r.proposal.id, r.badges]))
+    expect(more.y).toEqual(['best_rated'])
+    // One 5★ review never wins over many 4.8★
+    const few = Object.fromEntries(rankProposals([p('nuevo', 100_000, 5, 1), p('viejo', 110_000, 4.8, 40)]).map((r) => [r.proposal.id, r.badges]))
+    expect(few.viejo).toEqual(['best_rated'])
   })
 
   it('las dos insignias pueden ir en la misma', () => {

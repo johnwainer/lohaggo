@@ -51,10 +51,11 @@ export function rankProposals<T extends RankableProposal>(list: T[]): Array<Rank
   const minPrice = choosable.length ? Math.min(...choosable.map((p) => p.price).filter((x) => x > 0)) : 0
   const badges = new Map<string, ProposalBadge[]>()
   if (choosable.length >= 2) {
-    const reviewed = choosable.filter((p) => (p.partner.totalReviews ?? 0) > 0)
+    // The same trusted rating the order uses, and only with enough reviews: one 5★ never beats forty 4.8★
+    const reviewed = choosable.filter((p) => (p.partner.totalReviews ?? 0) >= 3)
     if (reviewed.length) {
-      const best = Math.max(...reviewed.map((p) => p.partner.rating ?? 0))
-      const top = reviewed.filter((p) => (p.partner.rating ?? 0) === best)
+      const best = Math.max(...reviewed.map((p) => trustedRating(p.partner)))
+      const top = reviewed.filter((p) => trustedRating(p.partner) === best)
       if (top.length === 1) badges.set(top[0].id, ['best_rated'])
     }
     const cheapest = choosable.filter((p) => p.price === minPrice)
