@@ -29,6 +29,7 @@ import {
   budgetLevel,
   calendarGaps,
   dailyFormatGaps,
+  sameDailyFormat,
   enforceDailyFormats,
   checkGuardrails,
   degradation,
@@ -360,8 +361,10 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     const endsAt = config.alwaysOn ? null : agent.campaign.endsAt
     const gaps = calendarGaps({ now, horizonDays: agent.horizonDays, channels: config.channels, planned, days: config.schedule.days, endsAt })
     // Required formats per day (e.g. one reel a day): the nearest days first, as many as one plan can hold
-    const daily = dailyFormatGaps({ now, horizonDays: agent.horizonDays, channels: config.channels, planned, days: config.schedule.days, endsAt })
-      .map((d) => ({ ...d, dates: d.dates.slice(0, MAX_IDEAS - 2) }))
+    const dailyAll = dailyFormatGaps({ now, horizonDays: agent.horizonDays, channels: config.channels, planned, days: config.schedule.days, endsAt })
+    // The nearest days of every required format fit in one plan (three formats share its ideas)
+    const perFormat = Math.max(1, Math.floor((MAX_IDEAS - 2) / Math.max(1, dailyAll.length)))
+    const daily = dailyAll.map((d) => ({ ...d, dates: d.dates.slice(0, perFormat) }))
     if (!gaps.length && !daily.length) {
       await prisma.marketingAgent.update({ where: { id: agent.id }, data: { lastPlannedAt: now } })
       return { summary: 'El calendario del horizonte ya está cubierto', value: 0, skipped: true }
@@ -1361,5 +1364,56 @@ export async function runMarketingAgents(budgetMs = 250_000) {
     if (deadline - Date.now() < 60_000) break
     results.push(await runAgentCycle(a.id, deadline))
   }
-  return { agents: agents.length, ran: results.length, results }
+  const watchdog = await publishingWatchdog().catch((err: unknown) => ({ error: err instanceof Error ? err.message : 'error' }))
+  return { agents: agents.length, ran: results.length, results, watchdog }
+}
+
+/**
+ * Publishing must never stop silently. Every run checks the always-on agents: stopped (paused, finished,
+ * draft) → critical incident (WhatsApp to the admins); active but tomorrow (or today after noon) lacks a
+ * required daily format → incident; publications failing in the last 24 h → incident. One open incident per
+ * kind and agent.
+ */
+export async function publishingWatchdog(now = new Date()) {
+  const agents = await prisma.marketingAgent.findMany({ select: { id: true, status: true, config: true, campaign: { select: { name: true } } } })
+  const { openIncident } = await import('@/lib/ops/platform-ops')
+  const raise = async (type: string, title: string, description: string, severity: 'CRITICAL' | 'HIGH') => {
+    const open = await prisma.adminIncident.findFirst({ where: { type, status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, select: { id: true } })
+    if (open) return false
+    await openIncident({ type, title, description, severity, source: 'marketing-watchdog', route: '/admin/marketing' })
+    return true
+  }
+  const out: string[] = []
+  for (const a of agents) {
+    const config = readAgentConfig(a.config)
+    if (!config.alwaysOn) continue
+    const name = a.campaign.name
+    if (a.status !== 'active') {
+      if (await raise(`marketing:stopped:${a.id}`, `El agente de marketing «${name}» está detenido`, `Está en estado «${a.status}» y debe publicar siempre. Actívalo en Publicaciones → Agente.`, 'CRITICAL')) out.push(`detenido: ${name}`)
+      continue
+    }
+    // Required daily formats for today (published or queued) and, from noon on, for tomorrow
+    const today = bogota(now).key
+    const days = [today, ...(bogota(now).hour >= 12 ? [addDays(today, 1)] : [])]
+    const pubs = await prisma.marketingPublication.findMany({
+      where: { post: { agentId: a.id }, status: { in: ['scheduled', 'publishing', 'processing', 'published'] }, scheduledAt: { gte: new Date(now.getTime() - DAY), lte: new Date(now.getTime() + 2 * DAY) } },
+      select: { channel: true, scheduledAt: true, variantId: true },
+    })
+    const formats = new Map((await prisma.marketingPostVariant.findMany({ where: { id: { in: pubs.map((p) => p.variantId) } }, select: { id: true, format: true } })).map((v) => [v.id, v.format]))
+    const missing: string[] = []
+    for (const channel of AGENT_CHANNELS) {
+      const plan = config.channels[channel]
+      if (!plan.enabled) continue
+      for (const [format, n] of Object.entries(plan.minDaily ?? {})) {
+        for (const day of days) {
+          const have = pubs.filter((p) => p.channel === channel && bogota(p.scheduledAt).key === day && sameDailyFormat(formats.get(p.variantId) ?? null, format)).length
+          if (have < n) missing.push(`${day} ${channel === 'INSTAGRAM' ? 'Instagram' : channel === 'FACEBOOK' ? 'Facebook' : 'blog'} ${format} (${have}/${n})`)
+        }
+      }
+    }
+    if (missing.length && await raise(`marketing:gap:${a.id}:${days[0]}`, `Faltan publicaciones obligatorias de «${name}»`, `Sin programar: ${missing.join('; ')}. El agente las está preparando; si no aparecen en unas horas, revisa ideas y borradores en Publicaciones → Agente.`, 'HIGH')) out.push(`faltan: ${missing.length}`)
+    const failed = await prisma.marketingPublication.count({ where: { post: { agentId: a.id }, status: 'failed', updatedAt: { gte: new Date(now.getTime() - DAY) } } })
+    if (failed && await raise(`marketing:failed:${a.id}:${today}`, `${failed} ${failed === 1 ? 'publicación falló' : 'publicaciones fallaron'} en «${name}»`, 'Revisa el error en Publicaciones (Meta, token o formato) y reintenta.', 'HIGH')) out.push(`fallidas: ${failed}`)
+  }
+  return out
 }

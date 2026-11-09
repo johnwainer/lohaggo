@@ -55,6 +55,8 @@ export type ChannelPlan = { enabled: boolean; perWeek: number; formats: string[]
 
 /** Most pieces of one format a day can require. */
 export const MAX_DAILY_PER_FORMAT = 3
+/** Most pieces a channel can plan per week (3 a day plus extras). */
+export const MAX_PER_WEEK = 42
 
 export type AgentConfig = {
   kpi: Kpi
@@ -204,10 +206,10 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
     }
     // A required format is always one the agent may use, and the week has room for every day's quota
     for (const f of Object.keys(minDaily)) if (!formats.includes(f)) formats.push(f)
-    const floor = Math.min(14, Object.values(minDaily).reduce((a, n) => a + n, 0) * Math.max(1, Math.min(7, allowedDays || 7)))
+    const floor = Math.min(MAX_PER_WEEK, Object.values(minDaily).reduce((a, n) => a + n, 0) * Math.max(1, Math.min(7, allowedDays || 7)))
     return {
       enabled: bool(x.enabled, p.enabled),
-      perWeek: Math.max(int(x.perWeek, 0, 14, p.perWeek), floor),
+      perWeek: Math.max(int(x.perWeek, 0, MAX_PER_WEEK, p.perWeek), floor),
       formats,
       accountIds: c === 'WEB' ? [] : list(x.accountIds, 5, 40),
       minDaily: c === 'WEB' ? {} : minDaily,

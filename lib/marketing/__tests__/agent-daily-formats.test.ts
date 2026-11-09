@@ -54,3 +54,21 @@ describe('Formatos obligatorios por día', () => {
     expect(r.uncovered).toEqual(['2026-10-26 Instagram reel'])
   })
 })
+
+describe('Post diario', () => {
+  it('un carrusel cuenta como el post del día', async () => {
+    const { sameDailyFormat } = await import('@/lib/marketing/agent-core')
+    expect(sameDailyFormat('carousel', 'feed')).toBe(true)
+    expect(sameDailyFormat('feed', 'feed')).toBe(true)
+    expect(sameDailyFormat('reel', 'feed')).toBe(false)
+    expect(sameDailyFormat('carousel', 'reel')).toBe(false)
+  })
+  it('reel, historia y post diarios caben en la semana', () => {
+    const base = defaultAgentConfig()
+    const c = sanitizeAgentConfig({ ...base, schedule: { ...base.schedule, days: ALL_DAYS }, channels: { ...base.channels, INSTAGRAM: { ...base.channels.INSTAGRAM, minDaily: { reel: 1, story: 1, feed: 1 } } } })
+    expect(c.channels.INSTAGRAM.perWeek).toBe(21)
+    const g = dailyFormatGaps({ now: at('2026-11-09T10:00:00-05:00'), horizonDays: 2, channels: c.channels, planned: [{ channel: 'INSTAGRAM', at: at('2026-11-10T12:00:00-05:00'), format: 'carousel' }], days: ALL_DAYS })
+    // Two days ahead (10 and 11): the 10th already has its post (a carousel)
+    expect(g.map((x) => `${x.format}:${x.dates.join(',')}`).sort()).toEqual(['feed:2026-11-11', 'reel:2026-11-10,2026-11-11', 'story:2026-11-10,2026-11-11'])
+  })
+})

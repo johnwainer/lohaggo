@@ -167,7 +167,9 @@ const cancel: HaggoActionDef<{ postId: string }> = {
 const pause: HaggoActionDef<{ agentId: string }> = {
   id: 'marketing.pause_agent',
   domain: 'marketing',
-  risk: 'medium',
+  // Stopping publishing is never Haggo's call alone (on 2026-10-24 it paused the agent by itself and the
+  // networks went two weeks without posts)
+  risk: 'high',
   label: 'Pausar un agente de marketing',
   hint: 'Detiene un agente de marketing y saca de la cola lo que tenía programado.',
   schema: { type: 'object', properties: { agentId: { type: 'string' } }, required: ['agentId'] },
@@ -176,9 +178,10 @@ const pause: HaggoActionDef<{ agentId: string }> = {
   describe: () => 'Pausar el agente de marketing',
   entity: (p) => ({ type: 'MarketingAgent', id: p.agentId }),
   preconditions: async (p) => {
-    const a = await prisma.marketingAgent.findUnique({ where: { id: p.agentId }, select: { status: true, campaign: { select: { name: true } } } })
+    const a = await prisma.marketingAgent.findUnique({ where: { id: p.agentId }, select: { status: true, config: true, campaign: { select: { name: true } } } })
     if (!a) return { ok: false, reason: 'El agente no existe' }
     if (a.status !== 'active') return { ok: false, reason: 'El agente no está activo' }
+    if (sanitizeAgentConfig(a.config).alwaysOn) return { ok: false, reason: 'El agente está configurado para no detenerse nunca: solo una persona puede pausarlo desde Publicaciones → Agente' }
     const queued = await prisma.marketingPost.findMany({ where: { agentId: p.agentId, status: 'scheduled' }, select: { id: true } })
     return { ok: true, before: { campaign: a.campaign.name, status: a.status, queued: queued.map((q) => q.id) } }
   },
