@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, ImageIcon, Loader2, Search, Wand2, X } from 'lucide-react'
+import { ExternalLink, Images, ImageIcon, Loader2, Search, Wand2, X } from 'lucide-react'
 import { api, input, type MkChannel } from '@/components/admin/marketing/shared'
 import { STYLE_PRESETS, defaultOrientation, servicePrompt, type ImageCandidate, type Orientation } from '@/lib/marketing/images-core'
 import type { Post } from '@/components/admin/marketing/editor/types'
+import { AssetBadges, AssetThumb } from '@/components/admin/marketing/LibraryTab'
+import { assetKey, filterLibrary, type LibraryAsset } from '@/lib/marketing/library-core'
 
 export type ImageSummary = { pexels: boolean; provider: string; providerLabel: string; providerReady: boolean; providerReason: string | null; supportsReference: boolean; costPerImageUsd: number }
 export type BrandKitView = { logoUrl: string | null; logoPublicId: string | null; autoApply: boolean } | null
@@ -28,7 +30,7 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
   onImported: (p: Post) => void
 }) {
   // AI first when a provider is ready; Pexels when it is not
-  const [tab, setTab] = useState<'pexels' | 'ai'>(summary.providerReady || !summary.pexels ? 'ai' : 'pexels')
+  const [tab, setTab] = useState<'pexels' | 'ai' | 'library'>(summary.providerReady || !summary.pexels ? 'ai' : 'pexels')
   const [orientation, setOrientation] = useState<Orientation>(defaultOrientation(channel, format))
   const [brand, setBrand] = useState(Boolean(kit?.logoPublicId && kit.autoApply))
   const [services, setServices] = useState<string[]>([])
@@ -46,6 +48,18 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
   const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const images = post.media.filter((m) => m.kind === 'image')
+  const [library, setLibrary] = useState<LibraryAsset[] | null>(null)
+  const [onlyService, setOnlyService] = useState(true)
+  useEffect(() => {
+    if (tab !== 'library' || library) return
+    api<{ assets: LibraryAsset[] }>(`/api/admin/marketing/library?workspaceId=${post.workspaceId}`)
+      .then((d) => setLibrary(d.assets))
+      .catch((err) => { setLibrary([]); setError(err instanceof Error ? err.message : 'Error') })
+  }, [tab, library, post.workspaceId])
+  const inPost = new Set(post.media.map((m) => assetKey(m)))
+  const libraryList = library
+    ? filterLibrary(library, { orientation, service: onlyService ? service : '', q: query.trim() && query !== service ? query : '' }).filter((a) => !inPost.has(a.key)).slice(0, 30)
+    : []
 
   // The service the post is about (detected from the catalog, no AI): photo search and AI description start from it
   const pickService = (name: string, run = true) => {
@@ -83,8 +97,17 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
   async function generate() {
     setBusy('generate'); setError(null)
     try {
-      const d = await api<{ results: ImageCandidate[] }>('/api/admin/marketing/images', { method: 'POST', json: { action: 'generate', postId: post.id, prompt, style, orientation, count, referenceMediaId: referenceId || undefined } })
+      const d = await api<{ results: ImageCandidate[] }>('/api/admin/marketing/images', { method: 'POST', json: { action: 'generate', postId: post.id, prompt, style, orientation, count, referenceMediaId: referenceId || undefined, service: service || undefined } })
       setResults(d.results)
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error') } finally { setBusy(null) }
+  }
+
+  async function useAsset(a: LibraryAsset) {
+    setBusy(a.key); setError(null)
+    try {
+      const d = await api<{ post: Post }>('/api/admin/marketing/library', { method: 'POST', json: { action: 'use', workspaceId: post.workspaceId, key: a.key, postId: post.id, brand, alt: a.alt || alt } })
+      onImported(d.post)
+      onClose()
     } catch (err) { setError(err instanceof Error ? err.message : 'Error') } finally { setBusy(null) }
   }
 
@@ -97,7 +120,7 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
     } catch (err) { setError(err instanceof Error ? err.message : 'Error') } finally { setBusy(null) }
   }
 
-  const tabBtn = (k: 'pexels' | 'ai', label: string, disabled: boolean, hint?: string | null) => (
+  const tabBtn = (k: 'pexels' | 'ai' | 'library', label: string, disabled: boolean, hint?: string | null) => (
     <button disabled={disabled} title={hint || undefined} onClick={() => { setTab(k); setResults([]) }} className={`px-3 py-2 text-sm border-b-2 -mb-px disabled:opacity-40 ${tab === k ? 'border-primary-600 text-primary-700 font-medium' : 'border-transparent text-gray-500'}`}>{label}</button>
   )
 
@@ -112,6 +135,7 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
         <div className="flex flex-wrap gap-x-1 border-b border-gray-200">
           {tabBtn('pexels', 'Fotos gratis (Pexels)', !summary.pexels, summary.pexels ? null : 'Falta la clave de Pexels')}
           {tabBtn('ai', `Generar con IA${summary.providerReady ? ` · ${summary.providerLabel}` : ''}`, !summary.providerReady, summary.providerReason)}
+          {tabBtn('library', 'Biblioteca', false)}
         </div>
         {!summary.pexels && !summary.providerReady && (
           <p className="text-sm text-amber-800 bg-amber-50 rounded-xl px-3 py-2">No hay fuentes de imágenes configuradas. El administrador de la plataforma las activa en Publicaciones → Marca e imágenes.</p>
@@ -156,7 +180,36 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
           <input className={input} value={alt} onChange={(e) => setAlt(e.target.value)} placeholder="Describe la imagen en una frase" />
         </label>
 
-        {tab === 'pexels' ? (
+        {tab === 'library' ? (
+          <div className="space-y-2">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
+              <input className={`${input} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar en la biblioteca" />
+            </div>
+            {service && <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={onlyService} onChange={(e) => setOnlyService(e.target.checked)} /> Solo de {service}</label>}
+            {!library ? (
+              <p className="flex items-center gap-2 text-sm text-gray-500"><Loader2 size={15} className="animate-spin" /> Cargando la biblioteca…</p>
+            ) : libraryList.length ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {libraryList.map((a) => (
+                  <div key={a.key} className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                    <AssetThumb a={a} className={orientation === 'portrait' ? 'aspect-[4/5]' : orientation === 'square' ? 'aspect-square' : 'aspect-video'} />
+                    <div className="space-y-1.5 p-2">
+                      <AssetBadges a={a} />
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[10px] text-gray-500">{a.lastUsedAt ? `Último uso ${new Date(a.lastUsedAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'America/Bogota' })}` : a.credit}</span>
+                        <button onClick={() => useAsset(a)} disabled={Boolean(busy)} className="shrink-0 rounded-lg bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50">{busy === a.key ? <Loader2 size={12} className="animate-spin" /> : 'Usar'}</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-500"><Images size={15} /> Nada en la biblioteca con este formato{onlyService && service ? ` y servicio` : ''}. Cambia el formato o quita el filtro.</p>
+            )}
+            <p className="text-[11px] text-gray-500">Reutiliza el mismo archivo (no se vuelve a pagar ni a subir) con su crédito y texto alternativo.</p>
+          </div>
+        ) : tab === 'pexels' ? (
           <div className="space-y-2">
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); search() }}>
               <div className="relative min-w-0 flex-1">

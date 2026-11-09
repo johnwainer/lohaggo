@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, BarChart3, Bot, CalendarDays, ChevronDown, FileText, Loader2, Megaphone, Palette, Target, Settings, ShieldCheck, SpellCheck } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bot, CalendarDays, ChevronDown, FileText, Images, Loader2, Megaphone, Palette, Target, Settings, ShieldCheck, SpellCheck } from 'lucide-react'
 import { api, type Account } from '@/components/admin/marketing/shared'
 import PostsTab, { type PostRow } from '@/components/admin/marketing/PostsTab'
 import CalendarTab from '@/components/admin/marketing/CalendarTab'
@@ -12,13 +12,14 @@ import PermissionsTab from '@/components/admin/marketing/PermissionsTab'
 import BrandTab from '@/components/admin/marketing/BrandTab'
 import EditorialTab from '@/components/admin/marketing/EditorialTab'
 import PaidTab from '@/components/admin/marketing/PaidTab'
+import LibraryTab from '@/components/admin/marketing/LibraryTab'
 import AgentTab from '@/components/admin/marketing/agent/AgentTab'
 import NoticesBell from '@/components/admin/marketing/agent/NoticesBell'
 
 type Workspace = { id: string; name: string; permissions: string[]; canManagePermissions: boolean }
 type Overview = { workspaces: Workspace[]; posts: PostRow[]; campaigns: Campaign[]; accounts: Account[] }
 
-type Tab = 'posts' | 'calendar' | 'paid' | 'campaigns' | 'agent' | 'stats' | 'editorial' | 'brand' | 'permissions'
+type Tab = 'posts' | 'library' | 'calendar' | 'paid' | 'campaigns' | 'agent' | 'stats' | 'editorial' | 'brand' | 'permissions'
 type TabDef = { key: Tab; label: string; icon: typeof FileText; help: string }
 
 /** Sections grouped by what the person is doing: create, plan, measure; settings apart. */
@@ -27,6 +28,7 @@ const GROUPS: Array<{ label: string; tabs: TabDef[] }> = [
     label: 'Crear',
     tabs: [
       { key: 'posts', label: 'Publicaciones', icon: FileText, help: 'Todo lo que se escribe: borradores, en revisión, programado y publicado. Crea una vez y adáptala al blog, Facebook e Instagram.' },
+      { key: 'library', label: 'Biblioteca', icon: Images, help: 'Todas las imágenes y videos del workspace para reutilizar: lo que ya se usó (con sus resultados) y las imágenes de IA que nadie eligió. También las piezas que mejor funcionaron, para reeditarlas.' },
       { key: 'paid', label: 'Pauta', icon: Target, help: 'Un agente de IA crea anuncios pagados para Meta Ads (textos, público, presupuesto e imágenes) listos para copiar en Meta Ads Manager.' },
       { key: 'calendar', label: 'Calendario', icon: CalendarDays, help: 'Qué sale y cuándo. Arrastra una publicación a otro día para moverla; las tarjetas punteadas son ideas del agente.' },
     ],
@@ -202,6 +204,7 @@ export default function MarketingPage() {
               workspace={activeWs} workspaces={ws} canCreate={can('edit')} loading={loading} onChanged={load}
             />
           )}
+          {tab === 'library' && <LibraryTab workspace={activeWs} />}
           {tab === 'paid' && <PaidTab workspace={activeWs} workspaces={ws} />}
           {tab === 'calendar' && <CalendarTab workspaceId={workspaceId} campaigns={data.campaigns} workspace={activeWs} canEdit={can('edit')} />}
           {tab === 'campaigns' && <CampaignsTab campaigns={data.campaigns} workspace={activeWs} canEdit={can('edit')} onChanged={load} onCreateWithAgent={() => { setTab('agent'); setAgentTarget({ wizard: true }) }} />}

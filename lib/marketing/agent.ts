@@ -19,6 +19,9 @@ import { saveVariants, workspaceAccounts } from '@/lib/marketing/service'
 import { addStillVideo, generateImages, getBrandKit, getImageSettings, importImage, importVideo, providerReady, searchPexels, searchPexelsVideos } from '@/lib/marketing/images'
 import { servicePrompt } from '@/lib/marketing/images-core'
 import { AGENT_CHANNELS, normalizeDomain, readAgentConfig, type AgentConfig, type AgentMode, type AgentSettings } from '@/lib/marketing/agent-input'
+import { DEFAULT_REUSE } from '@/lib/marketing/library-core'
+import { isAiSource } from '@/lib/marketing/media'
+import { reuseForPiece, type LibraryPick } from '@/lib/marketing/library'
 import {
   DIMENSIONS,
   DIMENSION_LABEL,
@@ -475,7 +478,7 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
  * if configured and within the per-post cap; the brand logo on top. Never throws: without an image
  * the piece fails validation for Instagram and goes to a person.
  */
-async function attachImages(agent: Agent, config: AgentConfig, postId: string, draft: PostDraft, service: string | null, channels: MarketingChannel[], meter: Meter): Promise<{ source: string | null; error: string | null; style?: string | null }> {
+async function attachImages(agent: Agent, config: AgentConfig, postId: string, draft: PostDraft, service: string | null, channels: MarketingChannel[], meter: Meter): Promise<{ source: string | null; error: string | null; style?: string | null; library?: LibraryPick[] }> {
   if (config.images.source === 'manual') return { source: null, error: null }
   if (await prisma.marketingMedia.count({ where: { postId } })) return { source: 'existing', error: null }
   const carousel = channels.includes('INSTAGRAM') && draft.instagram?.format === 'carousel'
@@ -485,6 +488,21 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
   const orientation = channels.includes('INSTAGRAM') || vertical ? 'portrait' as const : 'landscape' as const
   const brand = config.images.logo && Boolean((await getBrandKit(agent.workspaceId))?.logoPublicId)
   const alt = draft.image.alt || draft.title
+  const reuse = config.images.reuse ?? DEFAULT_REUSE
+  // Reuse from the resource library is the agent's configuration, never silent: the piece records which files it took
+  const fromLibrary = async (why: string) => {
+    const picks = await reuseForPiece({ workspaceId: agent.workspaceId, postId, service, orientation, n, afterDays: reuse.afterDays, brand, alt }).catch((err) => {
+      logger.warn('Library reuse failed', { agentId: agent.id, postId, err: err instanceof Error ? err.message : err })
+      return []
+    })
+    if (!picks.length) return null
+    if (carousel && picks.length < 2) await saveVariants(postId, [{ channel: 'INSTAGRAM', format: 'feed' }])
+    return { source: 'library', error: `${why}: ${picks.length === 1 ? 'una imagen' : `${picks.length} imágenes`} de la biblioteca sin uso en ${reuse.afterDays} días`, library: picks }
+  }
+  if (reuse.mode === 'prefer') {
+    const got = await fromLibrary('Biblioteca primero (configuración del agente)')
+    if (got) return got
+  }
   // Why the AI images were not used (shown on the piece): Pexels is only the fallback
   let aiNote: string | null = null
   try {
@@ -503,8 +521,8 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
           // A carousel with one scene per image when the model described them; otherwise n images of the same scene
           const slides = carousel ? (draft.image.slides ?? []).slice(0, count) : []
           const imgs = slides.length >= 2
-            ? (await Promise.all(slides.map((sl) => generateImages({ workspaceId: agent.workspaceId, postId, prompt: `${sl}. ${base}`.slice(0, 1500), style: style?.prompt ?? null, orientation, n: 1 })))).flat()
-            : await generateImages({ workspaceId: agent.workspaceId, postId, prompt: base, style: style?.prompt ?? null, orientation, n: count })
+            ? (await Promise.all(slides.map((sl) => generateImages({ workspaceId: agent.workspaceId, postId, prompt: `${sl}. ${base}`.slice(0, 1500), style: style?.prompt ?? null, orientation, n: 1, service })))).flat()
+            : await generateImages({ workspaceId: agent.workspaceId, postId, prompt: base, style: style?.prompt ?? null, orientation, n: count, service })
           // The provider charges every generated image, also those whose upload failed
           meter.addFixed(s.costPerImageUsd * Math.max(imgs.length, slides.length >= 2 ? slides.length : count))
           for (const img of imgs) await importImage({ workspaceId: agent.workspaceId, postId, brand, candidate: { source: 'ai', url: img.fullUrl, publicId: img.publicId, width: img.width, height: img.height, bytes: img.bytes, alt, credit: img.credit } })
@@ -515,6 +533,11 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
           logger.warn('AI image failed, using Pexels', { agentId: agent.id, err: err instanceof Error ? err.message : err })
           aiNote = `La IA falló (${(err instanceof Error ? err.message : 'error').slice(0, 160)}); se usaron fotos de Pexels`
         }
+      }
+      // AI failed or hit a limit: the library before Pexels
+      if (aiNote && reuse.mode === 'fallback') {
+        const got = await fromLibrary(aiNote.replace(/; se usaron fotos de Pexels$/, ''))
+        if (got) return got
       }
     }
     const queries = Array.from(new Set([service, draft.image.query].filter((q): q is string => Boolean(q?.trim()))))
@@ -555,7 +578,7 @@ async function attachVideoAndAssign(agent: Agent, postId: string, draft: PostDra
   let source: string | null = video ? 'existing' : null
   let error: string | null = null
   // Photos made with AI: the reel is that photo animated (stock clips only when there is no AI photo)
-  const aiPhoto = images.find((m) => m.source === 'ai')
+  const aiPhoto = images.find((m) => isAiSource(m.source))
   if (!video && aiPhoto && variants.some((v) => v.format === 'reel')) {
     try {
       video = await addStillVideo(postId, aiPhoto)
@@ -806,7 +829,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     const t = nextAgentState(from, 'drafted', mode, { valid: check.ok, needsReview: !arbiterPublishes && (check.needsReview || heldByEditor), trial })!
     const meta = {
       confidence: draft.confidence, risks: draft.risks, hypothesis: draft.hypothesis || idea.hypothesis, cta: draft.cta, rationale: idea.rationale, explore: idea.explore, service,
-      imageSource: image.source, imageError: image.error, imageStyle: image.style ?? null, videoSource: video.source, videoError: video.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
+      imageSource: image.source, imageError: image.error, imageStyle: image.style ?? null, imageLibrary: image.library ?? null, videoSource: video.source, videoError: video.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
       review: review ? { status: review.status, score: review.score, rounds: review.rounds, summary: review.summary.slice(0, 600) } : null,
       arbiter: arbitration && !arbitration.transient ? { decision: arbitration.decision, reason: arbitration.reason, by: arbitration.by, at: new Date().toISOString() } : null,
     }

@@ -7,7 +7,7 @@
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { describeGraphError, getConnectionCredentials, getConnectionMeta, requireMetaApp } from '@/lib/messaging/meta-channels'
-import { deliveryUrl } from '@/lib/marketing/media'
+import { deliveryUrl, isAiSource } from '@/lib/marketing/media'
 import { readPublishOptions, resolveFormat } from '@/lib/marketing/publish-options'
 import { containerStatus, createInstagramContainer, deleteFacebookObject, facebookVideoState, uploadFacebookPhotoOnly, uploadFacebookVideoOnly, warmMedia } from '@/lib/marketing/meta-publish'
 import { CONNECTION_CHANNEL, infoOf, mediaFor, postInclude, validatePostForChannel } from '@/lib/marketing/publisher'
@@ -71,7 +71,7 @@ export async function preflightPost(postId: string, opts: { channels?: Marketing
       try {
         await Promise.all(media.map((m) => warmMedia(m.url, m.kind)))
         if (social === 'INSTAGRAM') {
-          const containerId = await createInstagramContainer(ctx, conn.externalId, { caption: format === 'story' ? '' : variant.body, format: format as 'feed' | 'carousel' | 'reel' | 'trial_reel' | 'story', media, options, aiGenerated: files.some((m) => m.source === 'ai') })
+          const containerId = await createInstagramContainer(ctx, conn.externalId, { caption: format === 'story' ? '' : variant.body, format: format as 'feed' | 'carousel' | 'reel' | 'trial_reel' | 'story', media, options, aiGenerated: files.some((m) => isAiSource(m.source)) })
           const s = await waitFor(() => containerStatus(ctx, containerId), maxWait)
           results.push({ ...base, status: s.code === 'FINISHED' ? 'ok' : s.code === 'IN_PROGRESS' ? 'pending' : 'failed', detail: s.code === 'FINISHED' ? 'Instagram aceptó el archivo (no se publicó)' : s.code === 'IN_PROGRESS' ? 'Instagram sigue procesando el video; sin errores hasta ahora' : `Instagram lo rechazó: ${s.detail || s.code}` })
           return

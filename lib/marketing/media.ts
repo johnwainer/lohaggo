@@ -11,6 +11,18 @@ export function isCloudinaryUrl(url: string) {
   return CLOUDINARY_UPLOAD.test(url)
 }
 
+/** Prefix of a file copied from the resource library: «library-ai», «library-pexels», «library-upload». */
+export const LIBRARY_SOURCE_PREFIX = 'library-'
+
+/** Where a file was made (ai, pexels, upload…), also when it was copied from the library. */
+export function mediaOrigin(source: string | null | undefined) {
+  const s = source || 'upload'
+  return s.startsWith(LIBRARY_SOURCE_PREFIX) ? s.slice(LIBRARY_SOURCE_PREFIX.length) || 'upload' : s
+}
+
+/** Made by an AI: Meta's «hecho con IA» label and the 4:5 crop apply, also to a copy from the library. */
+export const isAiSource = (source: string | null | undefined) => mediaOrigin(source) === 'ai'
+
 function withTransform(url: string, transform: string, ext?: string) {
   const m = url.match(CLOUDINARY_UPLOAD)
   if (!m) return url
@@ -46,7 +58,7 @@ export function deliveryUrl(channel: MarketingChannel, url: string, media: Media
     const ratio = media.width && media.height ? media.width / media.height : null
     // Out-of-range aspect ratios are padded (never cropped: the person's image stays whole)
     // AI images come 2:3: cropped to 4:5 around the subject (no white bars); other images are padded whole
-    const pad = ratio && ratio < L.imageMinRatio ? (media.source === 'ai' ? ',c_fill,g_auto,ar_4:5' : ',c_pad,ar_4:5,b_white') : ratio && ratio > L.imageMaxRatio ? ',c_pad,ar_191:100,b_white' : ''
+    const pad = ratio && ratio < L.imageMinRatio ? (isAiSource(media.source) ? ',c_fill,g_auto,ar_4:5' : ',c_pad,ar_4:5,b_white') : ratio && ratio > L.imageMaxRatio ? ',c_pad,ar_191:100,b_white' : ''
     return withTransform(url, `c_limit,w_${L.imageMaxWidth}${pad},f_jpg,q_90`, 'jpg')
   }
   if (channel === 'FACEBOOK') return withTransform(url, 'c_limit,w_2048,q_auto:good')

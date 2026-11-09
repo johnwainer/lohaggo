@@ -6,6 +6,7 @@ import { loadPostDetail, mediaFolder, reopenReviewIfNeeded, saveVariants } from 
 import { validateUploadedMedia } from '@/lib/marketing/input'
 import { ImageError, addStillVideo, setMediaBranding } from '@/lib/marketing/images'
 import { markStaleIfChanged } from '@/lib/marketing/editorial'
+import { LIBRARY_SOURCE_PREFIX, isAiSource } from '@/lib/marketing/media'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -105,9 +106,11 @@ export async function DELETE(request: NextRequest, context: Ctx) {
   for (const v of variants) await prisma.marketingPostVariant.update({ where: { id: v.id }, data: { mediaIds: v.mediaIds.filter((x) => x !== media.id) } })
   // The Cloudinary file is only removed if nothing ever went out or is queued with it
   const used = await prisma.marketingPublication.count({ where: { postId: id, status: { not: 'cancelled' } } })
-  // …and no other file of the post uses it (an animated reel is the same photo)
-  const shared = await prisma.marketingMedia.count({ where: { postId: id, OR: [{ url: media.url }, { originalUrl: media.originalUrl ?? media.url }, ...(media.publicId ? [{ publicId: media.publicId }] : [])] } })
-  if (!used && !shared && media.publicId && media.kind === 'image') await cloudinaryService.delete(media.publicId).catch(() => null)
+  // …no other file uses it (an animated reel is the same photo; the library copies files between posts)…
+  const shared = await prisma.marketingMedia.count({ where: { OR: [{ url: media.url }, { originalUrl: media.originalUrl ?? media.url }, ...(media.publicId ? [{ publicId: media.publicId }] : [])] } })
+  // …and it is not an AI image: those stay in the resource library (they were paid for)
+  const inLibrary = isAiSource(media.source) || media.source.startsWith(LIBRARY_SOURCE_PREFIX)
+  if (!used && !shared && !inLibrary && media.publicId && media.kind === 'image') await cloudinaryService.delete(media.publicId).catch(() => null)
   await markStaleIfChanged(id)
   return NextResponse.json({ post: await loadPostDetail(id) })
 }

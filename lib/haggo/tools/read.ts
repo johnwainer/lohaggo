@@ -297,9 +297,9 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         const cur = byPost.get(p.post.id)
         const label = fmt.get(p.variantId) ?? p.channel
         if (cur) { if (!cur.canales.includes(label)) cur.canales.push(label); continue }
-        const meta = (p.post.agentMeta as { preflight?: Array<{ status: string; channel: string; format: string; detail: string }>; imageError?: string | null } | null) ?? {}
+        const meta = (p.post.agentMeta as { preflight?: Array<{ status: string; channel: string; format: string; detail: string }>; imageError?: string | null; imageSource?: string | null } | null) ?? {}
         const pf = meta.preflight
-        byPost.set(p.post.id, { postId: p.post.id, titulo: untrusted(p.post.title), prueba_meta: pf?.length ? pf.map((r) => `${r.channel} ${r.format}: ${r.status === 'ok' ? 'aceptada' : r.status === 'failed' ? `rechazada (${r.detail.slice(0, 120)})` : r.status}`).join(' · ') : null, nota_imagenes: meta.imageError ?? null, estado: p.post.status, campana: p.post.campaign?.name ?? null, de_agente: Boolean(p.post.agentId), revision: p.post.reviewStatus ? `${p.post.reviewStatus}${p.post.reviewScore != null ? ` ${p.post.reviewScore}/10` : ''}` : null, canales: [label], hora: bogotaTime(p.scheduledAt), hora_iso: p.scheduledAt.toISOString() })
+        byPost.set(p.post.id, { postId: p.post.id, titulo: untrusted(p.post.title), prueba_meta: pf?.length ? pf.map((r) => `${r.channel} ${r.format}: ${r.status === 'ok' ? 'aceptada' : r.status === 'failed' ? `rechazada (${r.detail.slice(0, 120)})` : r.status}`).join(' · ') : null, nota_imagenes: meta.imageSource === 'library' ? `biblioteca (reutilizada según la configuración del agente): ${meta.imageError ?? ''}`.trim() : meta.imageError ?? null, estado: p.post.status, campana: p.post.campaign?.name ?? null, de_agente: Boolean(p.post.agentId), revision: p.post.reviewStatus ? `${p.post.reviewStatus}${p.post.reviewScore != null ? ` ${p.post.reviewScore}/10` : ''}` : null, canales: [label], hora: bogotaTime(p.scheduledAt), hora_iso: p.scheduledAt.toISOString() })
       }
       return {
         ahora: bogotaTime(new Date()),

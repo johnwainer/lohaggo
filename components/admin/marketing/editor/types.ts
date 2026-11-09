@@ -70,6 +70,9 @@ export type Post = {
     confidence?: number; risks?: string[]; hypothesis?: string | null; rationale?: string | null; service?: string | null
     guardrails?: Array<{ message: string; severity: string }>; validation?: string[]; slots?: Array<{ channel: MkChannel; reason: string }>; scheduleProblems?: string[]; arbiter?: { decision: 'publish' | 'discard' | 'human'; reason: string; by: 'rules' | 'haggo'; at: string } | null
     preflight?: PreflightRow[]
+    imageSource?: string | null; imageError?: string | null
+    /** «Reutilizar» from the library: the piece this draft was copied from */
+    reusedFrom?: { postId: string; title: string; at: string } | null
   } | null
 }
 
