@@ -60,13 +60,13 @@ describe('isRequestExpired', () => {
 })
 
 describe('reactivar solicitud', () => {
-  it('pone ACTIVE por 24 h, restaura propuestas cerradas por vencimiento, audita y avisa a socios', async () => {
+  it('pone ACTIVE por 48 h (lo mismo que una solicitud nueva), restaura propuestas cerradas por vencimiento, audita y avisa a socios', async () => {
     m.srFindUnique.mockResolvedValue({ id: 'r1', userId: 'u1', status: 'EXPIRED', expiresAt: past })
     m.auditFindFirst.mockResolvedValue({ details: JSON.stringify({ proposalIds: ['p1', 'p2'] }) } as never)
     m.proposalUpdateMany.mockResolvedValue({ count: 2 })
     const r = await reactivateServiceRequest(client, 'r1', APP_ORIGIN)
     expect(r).toMatchObject({ reactivations: 1, remaining: MAX_REACTIVATIONS - 1, restoredProposals: 2 })
-    expect(r.expiresAt.toISOString()).toBe('2026-10-02T15:00:00.000Z')
+    expect(r.expiresAt.toISOString()).toBe('2026-10-03T15:00:00.000Z')
     expect(m.srUpdateMany.mock.calls[0][0].data).toMatchObject({ status: 'ACTIVE' })
     expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['p1', 'p2'] }, serviceRequestId: 'r1', status: 'REJECTED' }, data: { status: 'PENDING' } })
     expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: REQUEST_REACTIVATE_ACTION, entityId: 'r1', actorId: 'u1' })
@@ -148,7 +148,8 @@ describe('extensión automática de solicitudes sin propuestas', () => {
     expect(upd.where).toEqual({ id: 'r1', status: 'ACTIVE', expiresAt: soon })
     expect(upd.data.expiresAt.toISOString()).toBe('2026-10-08T15:00:00.000Z')
     expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: REQUEST_AUTO_EXTEND_ACTION, entityId: 'r1' })
-    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1', { partnersOnly: true, round: 41 })
+    // Only the partners not told yet (the city wave skips the ones already told)
+    expect(m.notifyNewServiceRequest).not.toHaveBeenCalled()
     expect(m.notifyMorePartners).toHaveBeenCalledWith('r1', { scope: 'city', limit: 20, round: 41 }, now)
     const n = m.createNotification.mock.calls[0][0] as unknown as { userId: string; title: string; channels: string[]; data: { kind: string } }
     expect(n).toMatchObject({ userId: 'u1', title: 'Tu solicitud sigue activa', channels: ['PUSH'], data: { kind: 'AUTO_EXTENDED' } })

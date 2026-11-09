@@ -142,6 +142,13 @@ export async function widenUnansweredRequests(now: Date = new Date(), opts: { bu
     where: { action: REQUEST_WIDEN_ACTION, entityType: 'ServiceRequest', entityId: { in: rows.map((r) => r.id) } },
     select: { entityId: true, details: true },
   })
+  // A reopened or extended request starts its waves over from then (it was just announced again)
+  const restarts = await prisma.adminAuditLog.findMany({
+    where: { action: { in: ['REQUEST_REOPEN', 'REQUEST_AUTO_EXTEND'] }, entityType: 'ServiceRequest', entityId: { in: rows.map((r) => r.id) } },
+    select: { entityId: true, createdAt: true },
+  })
+  const restartedAt = new Map<string, number>()
+  for (const m of restarts) if (m.entityId && m.createdAt instanceof Date) restartedAt.set(m.entityId, Math.max(restartedAt.get(m.entityId) ?? 0, m.createdAt.getTime()))
   const done = new Map<string, Set<number>>()
   for (const m of marks) {
     const wave = Number((() => { try { return (JSON.parse(m.details ?? '{}') as { wave?: unknown }).wave } catch { return 0 } })())
@@ -154,7 +161,7 @@ export async function widenUnansweredRequests(now: Date = new Date(), opts: { bu
   let partnersWidened = 0
   for (const r of rows) {
     if (Date.now() > deadline) break
-    const age = now.getTime() - r.createdAt.getTime()
+    const age = now.getTime() - Math.max(r.createdAt.getTime(), restartedAt.get(r.id) ?? 0)
     const w = WIDEN_WAVES.find((x) => age >= x.afterMs && !done.get(r.id)?.has(x.wave))
     if (!w) continue
     const res = await notifyMorePartners(r.id, { scope: w.scope, limit: w.limit, round: 50 + w.wave, deadline }, now).catch((err) => {

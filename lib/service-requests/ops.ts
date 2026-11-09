@@ -351,12 +351,12 @@ export function isRequestExpired(r: { status: string; expiresAt: Date | string }
 }
 
 /**
- * Reopens an expired request for 24 h (owner only, at most 3 times): back to ACTIVE, the proposals that
+ * Reopens an expired request (for the lifetime of a new one, see lib/service-requests/lifetime.ts) (owner only, at most 3 times): back to ACTIVE, the proposals that
  * expiry had closed become PENDING again, and matching partners are told once more.
  */
 export async function reactivateServiceRequest(actor: Actor, requestId: string, origin: Origin) {
   const now = new Date()
-  const sr = await prisma.serviceRequest.findUnique({ where: { id: requestId }, select: { id: true, userId: true, status: true, expiresAt: true } })
+  const sr = await prisma.serviceRequest.findUnique({ where: { id: requestId }, select: { id: true, userId: true, status: true, expiresAt: true, preferredDate: true, isUrgent: true } })
   if (!sr) throw new OpsError('Solicitud no encontrada', 404)
   // The owner, or the team from the admin
   if (sr.userId !== actor.userId && actor.role !== 'ADMIN') throw new OpsError('No autorizado', 403)
@@ -365,7 +365,9 @@ export async function reactivateServiceRequest(actor: Actor, requestId: string, 
   const done = await prisma.adminAuditLog.count({ where: { action: REQUEST_REACTIVATE_ACTION, entityType: 'ServiceRequest', entityId: requestId } })
   if (done >= MAX_REACTIVATIONS) throw new OpsError(`Ya reactivaste esta solicitud ${MAX_REACTIVATIONS} veces. Crea una nueva o escríbenos por WhatsApp.`, 400)
 
-  const expiresAt = new Date(now.getTime() + REACTIVATION_MS)
+  // The same lifetime as a new request (its date, at least 48 h): 24 h was shorter than creating it again
+  const preferredDate = sr.preferredDate && sr.preferredDate.getTime() > now.getTime() ? sr.preferredDate : null
+  const expiresAt = new Date(Math.max(now.getTime() + REACTIVATION_MS, requestExpiresAt({ preferredDate, isUrgent: sr.isUrgent }, now).getTime()))
   const updated = await prisma.serviceRequest.updateMany({
     where: { id: requestId, OR: [{ status: 'EXPIRED' }, { status: 'ACTIVE', expiresAt: { lt: now } }] },
     data: { status: 'ACTIVE', expiresAt },
@@ -474,14 +476,19 @@ export async function willAutoExtend(r: ExtendableRequest & { proposals: number 
 export async function autoExtendExpiringRequests(now: Date = new Date(), limit = 30) {
   const rows = await prisma.serviceRequest.findMany({
     where: { status: 'ACTIVE', isUrgent: false, preferredDate: { not: null }, expiresAt: { gt: now, lte: new Date(now.getTime() + AUTO_EXTEND_WINDOW_MS) }, proposals: { none: {} } },
-    select: { id: true, userId: true, preferredDate: true, preferredTime: true, isUrgent: true, expiresAt: true, service: { select: { name: true } } },
+    select: { id: true, userId: true, preferredDate: true, preferredTime: true, isUrgent: true, expiresAt: true, createdAt: true, service: { select: { name: true } } },
     orderBy: { expiresAt: 'asc' },
     take: limit,
   })
   if (!rows.length) return { extended: 0 }
   const done = await autoExtensionsDone(rows.map((r) => r.id))
+  const deadline = Date.now() + 15_000
+  // At night partners are not woken up: the request is extended and the waves tell them in the morning
+  const bogotaHour = new Date(now.getTime() - 5 * 3600_000).getUTCHours()
+  const night = bogotaHour >= 21 || bogotaHour < 7
   let extended = 0
   for (const r of rows) {
+    if (Date.now() > deadline) break
     const n = done.get(r.id) ?? 0
     const next = nextAutoExtension(r, n, now)
     if (!next) continue
@@ -492,8 +499,10 @@ export async function autoExtendExpiringRequests(now: Date = new Date(), limit =
     })
     extended++
     const round = 40 + n + 1
-    await notifyNewServiceRequest(r.id, { partnersOnly: true, round }).catch(() => 0)
-    await notifyMorePartners(r.id, { scope: 'city', limit: 20, round }, now).catch((err) => logger.warn('widen on extension failed', { requestId: r.id, err }))
+    if (!night) {
+      // Only the partners not told yet: the ones already told have it in «Oportunidades»
+      await notifyMorePartners(r.id, { scope: 'city', limit: 20, round }, now).catch((err) => logger.warn('widen on extension failed', { requestId: r.id, err }))
+    }
     const { createNotification } = await import('@/lib/notifications/notificationService')
     await createNotification({
       userId: r.userId,

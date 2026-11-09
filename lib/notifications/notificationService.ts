@@ -1,4 +1,5 @@
 import { formatCalendarDay } from '@/lib/bookings/when'
+import { firstName } from '@/lib/partners/opportunities'
 import { prisma } from "@/lib/prisma"
 import { createLogger } from '@/lib/logger'
 import type { NotificationType as PrismaNotificationType, UserRole } from '@prisma/client'
@@ -583,7 +584,7 @@ export async function sendRequestNoticeToPartner(sr: RequestForNotice, partnerUs
     userId: partnerUser.id,
     type: "NEW_SERVICE_REQUEST",
     title: opts.direct ? "Nueva solicitud directa" : "Nueva solicitud de servicio",
-    message: opts.direct ? `${sr.user.name} te ha solicitado ${sr.service.name}` : `${sr.user.name} solicita ${sr.service.name}`,
+    message: opts.direct ? `${firstName(sr.user.name)} te ha solicitado ${sr.service.name}` : `${firstName(sr.user.name)} solicita ${sr.service.name}`,
     // `reach`: told outside their zones because nobody answered; the request then shows in their «Oportunidades»
     data: { serviceRequestId: sr.id, serviceId: sr.serviceId, isDirect: opts.direct, ...(opts.reach ? { reach: opts.reach } : {}) },
   })

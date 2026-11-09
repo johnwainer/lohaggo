@@ -643,7 +643,7 @@ export default function DashboardPage() {
         setModal({
           isOpen: true,
           title: 'Solicitud reactivada',
-          message: `Tu solicitud de "${serviceName}" está activa otras 24 horas. Avisamos de nuevo a los socios.`,
+          message: `Tu solicitud de "${serviceName}" está activa de nuevo. Avisamos de nuevo a los socios.`,
           type: 'success'
         })
         fetchServiceRequests()

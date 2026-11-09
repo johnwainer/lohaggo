@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { toPartnerOpportunity } from '@/lib/partners/opportunities'
 import { createLogger } from '@/lib/logger'
 import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
 import { listOpenRequestsForPartner } from '@/lib/service-requests/ops'
@@ -15,7 +16,9 @@ export async function GET() {
     if (!actor.partnerId) return NextResponse.json({ error: 'Solo los socios pueden ver solicitudes activas' }, { status: 403 })
 
     try {
-      return NextResponse.json(await listOpenRequestsForPartner(actor.partnerId))
+      // Never the client's exact address nor full name: partners told by a reach wave see these too
+      const partnerId = actor.partnerId
+      return NextResponse.json((await listOpenRequestsForPartner(partnerId)).map((r) => toPartnerOpportunity(r, partnerId)))
     } catch (err) {
       return opsErrorResponse(err, (e) => (e.status === 403 ? { requiresVerification: true } : {}))
     }

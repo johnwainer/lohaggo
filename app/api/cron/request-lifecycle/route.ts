@@ -6,7 +6,7 @@ import { runWaLifecycle } from '@/lib/messaging/wa-scheduled'
 import { runBookingFollowups } from '@/lib/bookings/followups'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * Every 15 min: one more round to partners for requests without proposals after 2 h, more partners (bordering
@@ -19,9 +19,10 @@ export const maxDuration = 60
 export const GET = cronRoute('request-lifecycle', async () => {
   const now = new Date()
   const resend = await resendUnansweredRequests(now)
-  const reach = await widenUnansweredRequests(now).catch(() => ({ widenError: 1 }))
+  // Expiry and extension before the waves: the waves have a time budget and must not starve them
   const extension = await autoExtendExpiringRequests(now).catch(() => ({ extendError: 1 }))
   const expiry = await expireOverdueRequests(now)
+  const reach = await widenUnansweredRequests(now).catch(() => ({ widenError: 1 }))
   const whatsapp = await runWaLifecycle(now).catch(() => ({ error: 1 }))
   const followups = await runBookingFollowups(now).catch(() => ({ error: 1 }))
   return NextResponse.json({ ok: true, ...resend, ...reach, ...extension, ...expiry, whatsapp, followups })

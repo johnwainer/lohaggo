@@ -10,6 +10,7 @@ import { formatCalendarDay } from '@/lib/bookings/when'
  * `confirmado: true` within the window → runs. Copilot: the call becomes an action a person approves from
  * the inbox. Playground: nothing is written.
  */
+import { approximateAddress } from '@/lib/partners/opportunities'
 import type Anthropic from '@anthropic-ai/sdk'
 import type { BookingStatus, City, DocumentType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -950,7 +951,7 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
     if (!partner.verified || !partner.isActive) return `${status}\nMientras no esté verificado y activo no recibe solicitudes ni puede proponer.`
     const rows = await listOpenRequestsForPartner(actor.partnerId)
     if (!rows.length) return `${status}\nNo hay solicitudes abiertas que le apliquen ahora.`
-    return `${status}\nSolicitudes disponibles:\n${rows.slice(0, 8).map((r) => `- ref ${shortId(r.id)}: ${r.service?.name ?? 'servicio'} · ${r.isUrgent ? 'urgente' : (r.preferredDate ? formatCalendarDay(r.preferredDate) : 'sin fecha')}${r.preferredTime ? ` ${r.preferredTime}` : ''} · ${r.address}${r.budget ? ` · presupuesto ${cop(r.budget)}` : ''} · ${r._count?.proposals ?? 0} propuestas · vence ${fmtDate(r.expiresAt)}`).join('\n')}`
+    return `${status}\nSolicitudes disponibles:\n${rows.slice(0, 8).map((r) => `- ref ${shortId(r.id)}: ${r.service?.name ?? 'servicio'} · ${r.isUrgent ? 'urgente' : (r.preferredDate ? formatCalendarDay(r.preferredDate) : 'sin fecha')}${r.preferredTime ? ` ${r.preferredTime}` : ''} · ${approximateAddress(r.address)}${r.budget ? ` · presupuesto ${cop(r.budget)}` : ''} · ${r._count?.proposals ?? 0} propuestas · vence ${fmtDate(r.expiresAt)}`).join('\n')}`
   }
   return `Herramienta "${name}" no disponible.`
 }

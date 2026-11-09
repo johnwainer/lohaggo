@@ -10,7 +10,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { patchInboxState, readInboxState } from '@/lib/inbox/state'
 import {
-  ESCALATION_SETTINGS, holdingCaseOf, holdingMessage, insideReplyWindow, isTrivialAck, nextEscalationState, planEscalation, waitingAnchor,
+  ESCALATION_SETTINGS, teamHours, holdingCaseOf, holdingMessage, insideReplyWindow, isTrivialAck, nextEscalationState, planEscalation, waitingAnchor,
   type EscalationPlan,
 } from '@/lib/inbox/escalation-core'
 import { autopilotCandidates } from '@/lib/ai/runtime-core'
@@ -133,7 +133,8 @@ async function runSteps(conversation: Conversation, plan: EscalationPlan, anchor
       conversationId: conversation.id,
       kind: 'INBOX_UNANSWERED',
     })
-    if (!conversation.isTest) await waUnanswered({ conversationId: conversation.id, workspaceId: conversation.workspaceId, channel: conversation.channel, reason, step: step(plan.alert), adminUserId: assignee?.id ?? null })
+    // WhatsApp to the team only in its hours; at night the in-app alert waits for them
+    if (!conversation.isTest && teamHours(new Date()).open) await waUnanswered({ conversationId: conversation.id, workspaceId: conversation.workspaceId, channel: conversation.channel, reason, step: step(plan.alert), adminUserId: assignee?.id ?? null })
     notes.push(assignee ? `Avisamos a ${assignee.name || 'la persona asignada'}` : 'Avisamos a todo el equipo')
     if (plan.alert === 'escalate') {
       await ladderIncident(LADDER_INCIDENT_HIGH, 'HIGH', conversation.id, `${who} lleva ${wait} sin respuesta (${channel})`, `Nadie del equipo ha respondido. ${reason}. Abrir: ${inboxPath(conversation.id)}`)
@@ -165,9 +166,17 @@ async function runSteps(conversation: Conversation, plan: EscalationPlan, anchor
   return holding
 }
 
-/** Could the AI send the holding message now? Automations on, inside the channel window. */
-async function holdingPossible(conversation: Conversation, now: Date) {
+/**
+ * Could the AI send the holding message now? Automations on, inside the channel window, and — when it was not
+ * a handoff — no person owns the conversation or wrote in it lately (the AI never speaks over a person).
+ */
+async function holdingPossible(conversation: Conversation, now: Date, handedOff: boolean) {
   if (conversation.automationsPaused || conversation.threadOwner) return false
+  if (!handedOff) {
+    if (conversation.assignedToId) return false
+    const { humanActiveRecently } = await import('@/lib/ai/autopilot')
+    if (await humanActiveRecently(conversation.id, now)) return false
+  }
   const lastIn = await prisma.conversationMessage.findFirst({ where: { conversationId: conversation.id, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, select: { sentAt: true } })
   return Boolean(lastIn && insideReplyWindow(conversation.channel, lastIn.sentAt, now))
 }
@@ -189,13 +198,16 @@ export async function runEscalationLadder(opts: { limit?: number; now?: Date } =
         { customFields: { path: ['inbox', 'awaitingReply'], equals: true }, lastMessageAt: { gte: since } },
       ],
     },
-    orderBy: { lastMessageAt: 'asc' },
+    // Newest first: old waits the loop keeps skipping must never crowd out new ones
+    orderBy: { lastMessageAt: 'desc' },
     take: opts.limit ?? 200,
   })
+  const deadline = Date.now() + 40_000
   const counts = { checked: convs.length, alerted: 0, escalated: 0, critical: 0, holding: 0 }
   const { hit } = await import('@/lib/rate-limit-store')
 
   for (const conversation of convs) {
+    if (Date.now() > deadline) break
     try {
       const inbox = readInboxState(conversation.customFields)
       if (inbox.automatedOnly || (inbox.snoozedUntil && inbox.snoozedUntil > now.toISOString())) continue
@@ -218,11 +230,14 @@ export async function runEscalationLadder(opts: { limit?: number; now?: Date } =
         const { copilotState } = await import('@/lib/ai/copilot')
         const { timer } = await copilotState(conversation).catch(() => ({ timer: { action: 'none' as const, reason: 'error' } }))
         if (timer.action !== 'none' && timer.mode === 'takeover') continue
+        // The autopilot covers it: the AI answers, nobody tells the client «una persona te responderá»
+        const { shouldTakeOver } = await import('@/lib/ai/autopilot')
+        if ((await shouldTakeOver(conversation).catch(() => ({ take: false }))).take) continue
       }
 
       let plan = planEscalation({ anchor, now, state, holdingPossible: true })
       if (!plan.mark.length) continue
-      if (plan.holding && !(await holdingPossible(conversation, now))) plan = { ...plan, holding: false }
+      if (plan.holding && !(await holdingPossible(conversation, now, handedOff))) plan = { ...plan, holding: false }
 
       // Two runs at once: only one acts on this wait and these steps
       if ((await hit(`escalation:${conversation.id}:${anchor.getTime()}:${plan.mark.join(',')}`, 6 * HOUR, now.getTime())).count > 1) continue

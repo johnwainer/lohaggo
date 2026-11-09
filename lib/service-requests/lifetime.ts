@@ -36,7 +36,10 @@ export function preferredMoment(r: { preferredDate: Date | string; preferredTime
   return bookingWhen({ scheduledDate: new Date(r.preferredDate), scheduledTime: r.preferredTime && /\d{1,2}:\d{2}/.test(r.preferredTime) ? r.preferredTime : '09:00' })
 }
 
-export type ExtensionInput = { preferredDate: Date | string | null; preferredTime?: string | null; isUrgent?: boolean | null; expiresAt: Date | string }
+export type ExtensionInput = { preferredDate: Date | string | null; preferredTime?: string | null; isUrgent?: boolean | null; expiresAt: Date | string; createdAt?: Date | string | null }
+
+/** However many extensions, a request never stays open longer than this from its creation. */
+export const REQUEST_TOTAL_CAP_MS = 14 * 24 * H
 
 /**
  * The new deadline of a request about to expire with no proposals, or null when it must expire: no date or
@@ -46,7 +49,8 @@ export function nextAutoExtension(r: ExtensionInput, extensionsDone: number, now
   if (extensionsDone >= MAX_AUTO_EXTENSIONS || !r.preferredDate || r.isUrgent) return null
   const service = preferredMoment({ preferredDate: r.preferredDate, preferredTime: r.preferredTime })
   if (Number.isNaN(service.getTime())) return null
-  const cap = service.getTime() - EXTENSION_MARGIN_MS
+  const created = r.createdAt ? new Date(r.createdAt).getTime() : NaN
+  const cap = Math.min(service.getTime() - EXTENSION_MARGIN_MS, Number.isNaN(created) ? Infinity : created + REQUEST_TOTAL_CAP_MS)
   const target = Math.min(requestExpiresAt({ preferredDate: r.preferredDate }, now).getTime(), cap)
   const current = new Date(r.expiresAt).getTime()
   if (target - Math.max(current, now.getTime()) < MIN_EXTENSION_GAIN_MS) return null
