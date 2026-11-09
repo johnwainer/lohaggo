@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({
   bookingFindUnique: vi.fn(),
@@ -22,6 +22,7 @@ const m = vi.hoisted(() => ({
   proposalFindUnique: vi.fn(async (_a: any): Promise<any> => null),
   proposalUpdate: vi.fn(async (_a: any) => ({})),
   proposalUpdateMany: vi.fn(async (_a: any) => ({ count: 1 })),
+  proposalFindMany: vi.fn(async (_a: any): Promise<any[]> => []),
   srUpdateMany: vi.fn(async (_a: any) => ({ count: 1 })),
   auditFindFirst: vi.fn(async (_a: any): Promise<any> => null),
   auditCount: vi.fn(async (_a: any) => 0),
@@ -43,7 +44,7 @@ vi.mock('@/lib/prisma', () => ({
     paymentIncidentEvent: { create: m.incidentEventCreate },
     adminSupportCase: { create: m.supportCaseCreate },
     partnerProfile: { findUnique: m.partnerFindUnique, update: m.partnerProfileUpdate },
-    proposal: { findUnique: m.proposalFindUnique, update: m.proposalUpdate, updateMany: m.proposalUpdateMany },
+    proposal: { findUnique: m.proposalFindUnique, update: m.proposalUpdate, updateMany: m.proposalUpdateMany, findMany: m.proposalFindMany },
     serviceRequest: { updateMany: m.srUpdateMany },
     adminAuditLog: { findFirst: m.auditFindFirst, count: m.auditCount, create: m.auditCreate },
   },
@@ -303,7 +304,7 @@ describe('bookingWhen · día en Bogotá', () => {
 })
 
 describe('el socio suelta la reserva: la solicitud se reabre', () => {
-  it('pone la solicitud ACTIVE 24 h, abre a todos una directa, recupera solo las propuestas que cerró la aceptación y avisa', async () => {
+  it('pone la solicitud ACTIVE (mínimo 48 h), abre a todos una directa, recupera solo las propuestas que cerró la aceptación y avisa', async () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking({ status: 'CONFIRMED', proposalId: 'pr1' }))
     m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'ACCEPTED', partnerId: 'p1' } })
     m.auditFindFirst.mockResolvedValue({ details: JSON.stringify({ proposalIds: ['pr2', 'pr3'] }) })
@@ -311,7 +312,7 @@ describe('el socio suelta la reserva: la solicitud se reabre', () => {
     const upd = m.srUpdateMany.mock.calls[0][0]
     expect(upd.where).toEqual({ id: 'sr1', status: 'ACCEPTED' })
     expect(upd.data).toMatchObject({ status: 'ACTIVE', partnerId: null })
-    expect(upd.data.expiresAt.getTime() - Date.now()).toBeGreaterThan(23 * 3600_000)
+    expect(upd.data.expiresAt.getTime() - Date.now()).toBeGreaterThan(47 * 3600_000)
     expect(m.proposalUpdate).toHaveBeenCalledWith({ where: { id: 'pr1' }, data: { status: 'REJECTED' } })
     expect(m.proposalUpdateMany.mock.calls[0][0].where).toMatchObject({ id: { in: ['pr2', 'pr3'] }, status: 'REJECTED' })
     expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: 'REQUEST_REOPEN', entityId: 'sr1' })
@@ -333,6 +334,71 @@ describe('el socio suelta la reserva: la solicitud se reabre', () => {
     await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Ya no lo necesito' })
     expect(m.srUpdateMany).not.toHaveBeenCalled()
     expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ reopened: false }))
+  })
+
+  // Regresión (incidente del 26-oct): reserva aceptada por el agente del chat, confirmada, el socio cancela
+  // por motivo médico; la solicitud vencía a las 24 h con las 3 propuestas rechazadas y sin nuevo socio
+  describe('regresión: cancelación del socio de una reserva aceptada por el chat', () => {
+    const at = new Date('2026-10-26T18:36:00.000Z') // 13:36 en Bogotá
+    const acceptedAt = new Date('2026-10-24T15:00:00.000Z')
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at) })
+    afterEach(() => {
+      vi.useRealTimers()
+      m.auditFindFirst.mockImplementation(async () => null)
+      m.proposalFindMany.mockImplementation(async () => [])
+      m.proposalUpdateMany.mockImplementation(async () => ({ count: 1 }))
+    })
+    const booking = (over: Record<string, unknown> = {}) => baseBooking({
+      status: 'CONFIRMED', proposalId: 'pr1', origin: 'chat', createdAt: acceptedAt,
+      scheduledDate: new Date('2026-10-28T00:00:00.000Z'), scheduledTime: '09:00', ...over,
+    })
+    const accepted = { id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'ACCEPTED', partnerId: null, userId: 'u1', preferredDate: new Date('2026-10-28T00:00:00.000Z'), isUrgent: false, service: { name: 'Pintura' } } }
+
+    it('usa la marca de esa reserva, recupera las otras dos, abre hasta la víspera (mín. 48 h) y avisa al cliente y a los socios', async () => {
+      m.bookingFindUnique.mockResolvedValue(booking())
+      m.proposalFindUnique.mockResolvedValue(accepted)
+      m.auditFindFirst.mockImplementation(async (a: any) => (a.where.details?.contains === 'bk-abc123' ? { details: JSON.stringify({ bookingId: 'bk-abc123', acceptedProposalId: 'pr1', proposalIds: ['pr2', 'pr3'] }) } : null))
+      m.proposalUpdateMany.mockResolvedValue({ count: 2 })
+      await transitionBooking(partner, 'bk-abc123', 'CANCELLED', chat, { reason: 'Tengo una cita médica urgente' })
+      const upd = m.srUpdateMany.mock.calls[0][0]
+      expect(upd.where).toEqual({ id: 'sr1', status: 'ACCEPTED' })
+      expect(upd.data.status).toBe('ACTIVE')
+      // víspera del 28-oct a las 20:00 = 27-oct 20:00 Bogotá, pero nunca menos de 48 h
+      expect(upd.data.expiresAt.toISOString()).toBe('2026-10-28T18:36:00.000Z')
+      expect(upd.data).not.toHaveProperty('isUrgent')
+      expect(m.proposalUpdate).toHaveBeenCalledWith({ where: { id: 'pr1' }, data: { status: 'REJECTED' } })
+      expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['pr2', 'pr3'] }, serviceRequestId: 'sr1', status: 'REJECTED' }, data: { status: 'PENDING' } })
+      expect(m.notifyNewRequest).toHaveBeenCalledWith('sr1', { partnersOnly: true, round: 21 })
+      expect(m.createNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', type: 'NEW_PROPOSAL', title: 'Tienes 2 propuestas listas' }))
+      expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ from: 'CONFIRMED', actorRole: 'PARTNER', reopened: true }))
+    })
+
+    it('sin marca (aceptación antigua) recupera las rechazadas en la misma transacción que creó la reserva', async () => {
+      m.bookingFindUnique.mockResolvedValue(booking())
+      m.proposalFindUnique.mockResolvedValue(accepted)
+      m.auditFindFirst.mockResolvedValue(null)
+      m.proposalFindMany.mockImplementation(async (a: any) => (a.where.updatedAt ? [{ id: 'pr2' }, { id: 'pr3' }] : []))
+      m.proposalUpdateMany.mockResolvedValue({ count: 2 })
+      await transitionBooking(partner, 'bk-abc123', 'CANCELLED', chat, { reason: 'Tengo una cita médica urgente' })
+      const window = m.proposalFindMany.mock.calls[0][0].where
+      expect(window).toMatchObject({ serviceRequestId: 'sr1', status: 'REJECTED' })
+      expect(window.updatedAt.gte.getTime()).toBeLessThan(acceptedAt.getTime())
+      expect(window.updatedAt.lte.getTime()).toBeGreaterThan(acceptedAt.getTime())
+      expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['pr2', 'pr3'] }, serviceRequestId: 'sr1', status: 'REJECTED' }, data: { status: 'PENDING' } })
+      expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ reopened: true }))
+    })
+
+    it('el mismo día del servicio: socios proponen lo antes posible y una propuesta con fecha pasada se puede aceptar', async () => {
+      m.bookingFindUnique.mockResolvedValue(booking({ scheduledDate: new Date('2026-10-26T00:00:00.000Z'), scheduledTime: '14:00' }))
+      m.proposalFindUnique.mockResolvedValue({ ...accepted, serviceRequest: { ...accepted.serviceRequest, preferredDate: new Date('2026-10-26T00:00:00.000Z') } })
+      m.auditFindFirst.mockResolvedValue({ details: JSON.stringify({ proposalIds: ['pr2'] }) })
+      m.proposalFindMany.mockResolvedValue([{ id: 'pr2', proposedDate: new Date('2026-10-26T00:00:00.000Z'), proposedTime: '09:00' }])
+      await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Tengo una cita médica urgente' })
+      const upd = m.srUpdateMany.mock.calls[0][0]
+      expect(upd.data).toMatchObject({ status: 'ACTIVE', preferredDate: null, preferredTime: null, isUrgent: true })
+      expect(upd.data.expiresAt.getTime() - at.getTime()).toBe(48 * 3600_000)
+      expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['pr2'] }, status: 'PENDING' }, data: { proposedDate: null, proposedTime: null } })
+    })
   })
 
   it('si cancela el cliente no se reabre nada', async () => {

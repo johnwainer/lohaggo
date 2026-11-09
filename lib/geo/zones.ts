@@ -58,6 +58,41 @@ export function zoneFromText(...parts: Array<string | null | undefined>): string
   return best?.key ?? null
 }
 
+/** Zones that border each other (comunas and municipalities of the Valle de Aburrá); symmetric. */
+const BORDERS: Array<[string, string[]]> = [
+  ['el-poblado', ['la-candelaria', 'buenos-aires', 'guayabal', 'envigado']],
+  ['laureles', ['la-america', 'robledo', 'la-candelaria', 'belen', 'castilla']],
+  ['belen', ['la-america', 'guayabal', 'san-javier', 'itagui']],
+  ['la-america', ['san-javier', 'robledo']],
+  ['guayabal', ['itagui', 'la-candelaria']],
+  ['la-candelaria', ['villa-hermosa', 'buenos-aires', 'aranjuez', 'manrique', 'castilla']],
+  ['san-javier', ['robledo']],
+  ['robledo', ['castilla', 'doce-de-octubre']],
+  ['castilla', ['doce-de-octubre', 'aranjuez', 'bello']],
+  ['doce-de-octubre', ['bello']],
+  ['aranjuez', ['manrique', 'santa-cruz', 'popular']],
+  ['manrique', ['popular', 'villa-hermosa']],
+  ['villa-hermosa', ['buenos-aires']],
+  ['popular', ['santa-cruz']],
+  ['santa-cruz', ['bello']],
+  ['envigado', ['sabaneta', 'itagui']],
+  ['sabaneta', ['itagui', 'la-estrella', 'caldas']],
+  ['itagui', ['la-estrella']],
+  ['la-estrella', ['caldas']],
+]
+const NEARBY = new Map<string, Set<string>>()
+for (const [a, list] of BORDERS) {
+  for (const b of list) {
+    if (!NEARBY.has(a)) NEARBY.set(a, new Set())
+    if (!NEARBY.has(b)) NEARBY.set(b, new Set())
+    NEARBY.get(a)!.add(b)
+    NEARBY.get(b)!.add(a)
+  }
+}
+
+/** The zones that border `zone` (not the zone itself). */
+export const nearbyZones = (zone: string | null | undefined): string[] => (zone ? Array.from(NEARBY.get(zone) ?? []) : [])
+
 /** Partners that cover a zone: those that listed it, and those with no zones (they cover the whole city). */
 export function coversZone(coverage: string[] | null | undefined, zone: string | null | undefined) {
   if (!zone || !coverage || coverage.length === 0) return true

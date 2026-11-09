@@ -571,7 +571,7 @@ export async function requestWhenText(sr: Pick<RequestForNotice, 'isUrgent' | 'p
  * One partner told about one request: WhatsApp template (C10, or C11 when direct; once per round) and the
  * in-app notification. `round` separates repeated notices so a reminder is not taken for a duplicate.
  */
-export async function sendRequestNoticeToPartner(sr: RequestForNotice, partnerUser: { id: string; name: string }, opts: { direct: boolean; round: number; when?: string }) {
+export async function sendRequestNoticeToPartner(sr: RequestForNotice, partnerUser: { id: string; name: string }, opts: { direct: boolean; round: number; when?: string; reach?: 'nearby' | 'city' }) {
   const { waNewRequestToPartner } = await import('@/lib/messaging/wa-events')
   const when = opts.when ?? (await requestWhenText(sr))
   // Template first (C10 / C11): the free-text WhatsApp of the notification is then skipped
@@ -584,7 +584,8 @@ export async function sendRequestNoticeToPartner(sr: RequestForNotice, partnerUs
     type: "NEW_SERVICE_REQUEST",
     title: opts.direct ? "Nueva solicitud directa" : "Nueva solicitud de servicio",
     message: opts.direct ? `${sr.user.name} te ha solicitado ${sr.service.name}` : `${sr.user.name} solicita ${sr.service.name}`,
-    data: { serviceRequestId: sr.id, serviceId: sr.serviceId, isDirect: opts.direct },
+    // `reach`: told outside their zones because nobody answered; the request then shows in their «Oportunidades»
+    data: { serviceRequestId: sr.id, serviceId: sr.serviceId, isDirect: opts.direct, ...(opts.reach ? { reach: opts.reach } : {}) },
   })
   return wa
 }
@@ -604,6 +605,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
                   isActive: true,
                   verified: true,
                   isAvailable: true,
+                  user: { isActive: true },
                 },
               },
               include: {
@@ -634,9 +636,14 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
 
     const when = await requestWhenText(serviceRequest)
 
+    // One partner failing (a provider error, a bad row) never leaves the rest of the list without the notice
     const notifyPartner = async (partner: { user: { id: string; name: string; phone: string | null } }, isDirect: boolean) => {
-      notified++
-      await sendRequestNoticeToPartner(serviceRequest, partner.user, { direct: isDirect, round: opts.round ?? 0, when })
+      try {
+        await sendRequestNoticeToPartner(serviceRequest, partner.user, { direct: isDirect, round: opts.round ?? 0, when })
+        notified++
+      } catch (err) {
+        logger.error('Request notice to a partner failed', { serviceRequestId, partnerUserId: partner.user.id, error: err instanceof Error ? err.message : err })
+      }
     }
 
     const isEligible = (p: { isActive: boolean; verified: boolean; isAvailable: boolean }) =>

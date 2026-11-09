@@ -14,6 +14,7 @@ const m = vi.hoisted(() => ({
   proposalUpdateMany: vi.fn(),
   bookingCreate: vi.fn(),
   eventCreate: vi.fn(),
+  auditCreate: vi.fn(async (_a: any) => ({})),
   notifyNewProposal: vi.fn(async () => {}),
   notifyProposalAccepted: vi.fn(async () => {}),
   notifyProposalRejected: vi.fn(async () => {}),
@@ -30,6 +31,7 @@ vi.mock('@/lib/prisma', () => {
     proposal: { findUnique: m.proposalFindUnique, findMany: m.proposalFindMany, create: m.proposalCreate, update: m.proposalUpdate, updateMany: m.proposalUpdateMany },
     booking: { create: m.bookingCreate },
     bookingEvent: { create: m.eventCreate },
+    adminAuditLog: { create: m.auditCreate },
   }
   prisma.$transaction = async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)
   return { prisma }
@@ -226,6 +228,11 @@ describe('aceptar propuesta', () => {
     expect(m.srUpdateMany).toHaveBeenCalledWith({ where: { id: 'r1', status: 'ACTIVE' }, data: { status: 'ACCEPTED' } })
     expect(m.notifyProposalRejected).toHaveBeenCalledWith('pr2', { notChosen: true })
     expect(m.notifyProposalAccepted).toHaveBeenCalledWith('pr1')
+    // Accepted from the chat agent too: the mark the partner's cancellation needs is in the same transaction
+    expect(m.auditCreate).toHaveBeenCalledTimes(1)
+    const mark = m.auditCreate.mock.calls[0][0].data
+    expect(mark).toMatchObject({ action: 'PROPOSALS_CLOSED_BY_ACCEPT', entityType: 'ServiceRequest', entityId: 'r1' })
+    expect(JSON.parse(mark.details)).toEqual({ bookingId: 'b1', acceptedProposalId: 'pr1', proposalIds: ['pr2'] })
     expect(m.scheduleAutomationsForUser).toHaveBeenCalledWith('u1', 'BOOKING_CREATED', { targetRole: 'CLIENT', contextId: 'b1' })
     expect(m.scheduleAutomationsForUser).toHaveBeenCalledWith('pu1', 'BOOKING_CREATED', { targetRole: 'PARTNER', contextId: 'b1' })
   })

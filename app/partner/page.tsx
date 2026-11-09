@@ -193,7 +193,7 @@ function RequestCountdown({ expiresAt }: { expiresAt: string }) {
       const h = Math.floor(diff / 3600000)
       const m = Math.floor((diff % 3600000) / 60000)
       setUrgent(diff < 3600000)
-      setRemaining(h > 0 ? `${h}h ${m}m` : `${m} min`)
+      setRemaining(h >= 48 ? `${Math.floor(h / 24)} d ${h % 24} h` : h > 0 ? `${h}h ${m}m` : `${m} min`)
     }
     calc()
     const id = setInterval(calc, 30000)

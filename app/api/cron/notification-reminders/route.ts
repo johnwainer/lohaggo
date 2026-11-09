@@ -9,6 +9,7 @@ import { formatBookingWhen } from '@/lib/bookings/ops'
 import { REMINDER_WINDOWS, candidateScheduledRange, expiringSoonMessage, inReminderWindow } from '@/lib/notifications/reminder-window'
 import { waBookingReminder, waRatingReminder, waRequestExpiring } from '@/lib/messaging/wa-events'
 import { runWaPaymentPending } from '@/lib/messaging/wa-scheduled'
+import { willAutoExtend } from '@/lib/service-requests/ops'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,13 +73,15 @@ async function runRequestExpiringSoon(now: Date) {
       status: 'ACTIVE',
       expiresAt: { gte: in1h, lte: in2h },
     },
-    select: { id: true, userId: true, service: { select: { name: true } }, _count: { select: { proposals: true } } },
+    select: { id: true, userId: true, preferredDate: true, preferredTime: true, isUrgent: true, expiresAt: true, service: { select: { name: true } }, _count: { select: { proposals: true } } },
     take: 200,
   })
 
   let sent = 0
   for (const r of requests) {
     if (await alreadyReminded(r.userId, 'REQUEST_EXPIRING_SOON', r.id, new Date(now.getTime() - 3 * 3600_000))) continue
+    // Unanswered with its date still ahead: request-lifecycle extends it instead (B5 only when it really expires)
+    if (await willAutoExtend({ ...r, proposals: r._count.proposals }, now).catch(() => false)) continue
     await waRequestExpiring(r.id, now)
     await createNotification({
       userId: r.userId,
