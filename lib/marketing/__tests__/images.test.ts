@@ -115,3 +115,18 @@ describe('Colores reales', () => {
     for (const s of IMAGE_STYLES) expect(s.prompt, s.id).not.toMatch(/cálid|acogedor|sepia|vintage/)
   })
 })
+
+describe('Corrección del tinte sepia', () => {
+  it('solo a las imágenes de IA generadas antes del arreglo', async () => {
+    const { deliveryUrl, needsColorFix } = await import('@/lib/marketing/media')
+    const old = 'https://res.cloudinary.com/demo/image/upload/v1794250893/lohaggo/x/ia/a.png'
+    const fresh = 'https://res.cloudinary.com/demo/image/upload/v1794253028/lohaggo/x/ia/b.png'
+    expect(needsColorFix(old, { kind: 'image', source: 'ai' })).toBe(true)
+    expect(needsColorFix(old, { kind: 'image', source: 'library-ai' })).toBe(true)
+    expect(needsColorFix(fresh, { kind: 'image', source: 'ai' })).toBe(false)
+    expect(needsColorFix(old, { kind: 'image', source: 'pexels' })).toBe(false)
+    expect(deliveryUrl('INSTAGRAM', old, { kind: 'image', source: 'ai', width: 1024, height: 1536 })).toContain('/upload/e_blue:18/e_red:-8/e_saturation:-8/c_limit')
+    expect(deliveryUrl('INSTAGRAM', fresh, { kind: 'image', source: 'ai', width: 1024, height: 1536 })).not.toContain('e_blue')
+    expect(deliveryUrl('INSTAGRAM', old, { kind: 'image', source: 'ai' }, 'story')).toContain('e_blue:18')
+  })
+})

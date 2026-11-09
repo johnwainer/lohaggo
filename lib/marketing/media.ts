@@ -31,8 +31,23 @@ function withTransform(url: string, transform: string, ext?: string) {
   return `${m[1]}${transform}/${rest}`
 }
 
+/**
+ * AI images generated before 2026-11-09 came with an amber, sepia-like cast (the prompt asked for «warm»
+ * light). Their Cloudinary version (upload time) is older than this: they get a color correction on the way
+ * out. Newer ones already come with real colors.
+ */
+export const SEPIA_FIX_BEFORE_VERSION = 1794253000
+const SEPIA_FIX = 'e_blue:18/e_red:-8/e_saturation:-8'
+
+export function needsColorFix(url: string, media: Pick<MediaInfo, 'kind' | 'source'>) {
+  if (media.kind !== 'image' || !isAiSource(media.source)) return false
+  const v = url.match(/\/v(\d{9,11})\//)
+  return Boolean(v && Number(v[1]) < SEPIA_FIX_BEFORE_VERSION)
+}
+
 export function deliveryUrl(channel: MarketingChannel, url: string, media: MediaInfo, format?: string | null, options?: ScreenTextOptions | null) {
   if (!isCloudinaryUrl(url)) return url
+  const fix = needsColorFix(url, media) ? `${SEPIA_FIX}/` : ''
   const vertical = channel !== 'WEB' && (format === 'story' || format === 'reel' || format === 'trial_reel')
   const overlay = vertical ? screenOverlay(options) : ''
   if (media.kind === 'video' && isStillVideo(url)) {
@@ -50,8 +65,8 @@ export function deliveryUrl(channel: MarketingChannel, url: string, media: Media
   if (vertical) {
     // Text on screen: the photo fills the screen; otherwise the whole image fits and the rest takes its own color
     return overlay
-      ? withTransform(url, `c_fill,g_auto,w_1080,h_1920${overlay}/f_jpg,q_90`, 'jpg')
-      : withTransform(url, 'c_pad,w_1080,h_1920,b_auto,f_jpg,q_90', 'jpg')
+      ? withTransform(url, `${fix}c_fill,g_auto,w_1080,h_1920${overlay}/f_jpg,q_90`, 'jpg')
+      : withTransform(url, `${fix}c_pad,w_1080,h_1920,b_auto,f_jpg,q_90`, 'jpg')
   }
   if (channel === 'INSTAGRAM') {
     const L = LIMITS.INSTAGRAM
@@ -59,11 +74,11 @@ export function deliveryUrl(channel: MarketingChannel, url: string, media: Media
     // Out-of-range aspect ratios are padded (never cropped: the person's image stays whole)
     // AI images come 2:3: cropped to 4:5 around the subject (no white bars); other images are padded whole
     const pad = ratio && ratio < L.imageMinRatio ? (isAiSource(media.source) ? ',c_fill,g_auto,ar_4:5' : ',c_pad,ar_4:5,b_white') : ratio && ratio > L.imageMaxRatio ? ',c_pad,ar_191:100,b_white' : ''
-    return withTransform(url, `c_limit,w_${L.imageMaxWidth}${pad},f_jpg,q_90`, 'jpg')
+    return withTransform(url, `${fix}c_limit,w_${L.imageMaxWidth}${pad},f_jpg,q_90`, 'jpg')
   }
-  if (channel === 'FACEBOOK') return withTransform(url, 'c_limit,w_2048,q_auto:good')
+  if (channel === 'FACEBOOK') return withTransform(url, `${fix}c_limit,w_2048,q_auto:good`)
   // Web: sized for the article column and for Open Graph
-  return withTransform(url, 'c_limit,w_1600,f_auto,q_auto')
+  return withTransform(url, `${fix}c_limit,w_1600,f_auto,q_auto`)
 }
 
 /** 1200×630 crop for Open Graph / Twitter cards. */
