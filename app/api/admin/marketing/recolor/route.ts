@@ -18,7 +18,8 @@ export async function POST(request: NextRequest) {
   const dryRun = b.dryRun !== false
   const limit = Math.max(1, Math.min(8, Math.floor(Number(b.limit) || 4)))
   const workspaceId = typeof b.workspaceId === 'string' && b.workspaceId ? b.workspaceId : undefined
-  const result = await recolorSepiaImages({ workspaceId, dryRun, limit })
+  const skipMediaIds = Array.isArray(b.skipMediaIds) ? b.skipMediaIds.filter((x: unknown): x is string => typeof x === 'string').slice(0, 100) : []
+  const result = await recolorSepiaImages({ workspaceId, dryRun, limit, skipMediaIds })
   if (!dryRun) {
     await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'MARKETING_RECOLOR', entityType: 'MarketingMedia', entityId: workspaceId ?? 'all', details: JSON.stringify({ replaced: 'replaced' in result ? result.replaced : 0, left: 'left' in result ? result.left : null }), request })
   }

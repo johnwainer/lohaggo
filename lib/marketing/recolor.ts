@@ -50,13 +50,14 @@ async function promptFor(publicId: string | null, alt: string | null, service: s
  * Regenerates up to `limit` images within `budgetMs`. dryRun only lists them. Returns what changed and how
  * many are left (call again until none).
  */
-export async function recolorSepiaImages(opts: { workspaceId?: string; dryRun?: boolean; limit?: number; budgetMs?: number } = {}) {
-  const pending = await sepiaImagesPending(opts.workspaceId)
+export async function recolorSepiaImages(opts: { workspaceId?: string; dryRun?: boolean; limit?: number; budgetMs?: number; skipMediaIds?: string[] } = {}) {
+  const skip = new Set(opts.skipMediaIds ?? [])
+  const pending = (await sepiaImagesPending(opts.workspaceId)).filter((p) => !skip.has(p.mediaId))
   if (opts.dryRun !== false) return { dryRun: true, pending: pending.length, pieces: Array.from(new Set(pending.map((p) => p.postId))).length, items: pending.slice(0, 60) }
 
   const deadline = Date.now() + (opts.budgetMs ?? 200_000)
   const done: Array<{ postId: string; title: string; mediaId: string; url: string }> = []
-  const failed: Array<{ postId: string; title: string; error: string }> = []
+  const failed: Array<{ postId: string; mediaId: string; title: string; error: string }> = []
   for (const p of pending.slice(0, opts.limit ?? 4)) {
     if (Date.now() > deadline) break
     try {
@@ -70,7 +71,12 @@ export async function recolorSepiaImages(opts: { workspaceId?: string; dryRun?: 
       const style = styles ? resolveStyle(styles, typeof meta.imageStyle === 'string' ? meta.imageStyle : null) : null
       const orientation = m.width && m.height ? (m.height > m.width ? 'portrait' as const : m.width > m.height ? 'landscape' as const : 'square' as const) : 'portrait' as const
       const prompt = await promptFor(m.publicId, m.alt, service, post.title)
-      const [img] = await generateImages({ workspaceId: post.workspaceId, postId: post.id, prompt, style: style?.prompt ?? null, orientation, n: 1, service })
+      const generate = (text: string) => generateImages({ workspaceId: post.workspaceId, postId: post.id, prompt: text, style: style?.prompt ?? null, orientation, n: 1, service })
+      // A scene the provider's safety filter refuses (e.g. «locked out of the house»): once more with the service alone
+      const [img] = await generate(prompt).catch((err: unknown) => {
+        if (!/safety|rejected/i.test(err instanceof Error ? err.message : '')) throw err
+        return generate(servicePrompt(service || post.title))
+      })
       if (!img) throw new Error('La IA no devolvió la imagen')
       const oldOriginal = m.originalUrl || m.url
       const kit = m.branded ? await getBrandKit(post.workspaceId) : null
@@ -89,7 +95,7 @@ export async function recolorSepiaImages(opts: { workspaceId?: string; dryRun?: 
     } catch (err) {
       const error = err instanceof Error ? err.message : 'error'
       logger.warn('Recolor failed', { postId: p.postId, mediaId: p.mediaId, err: error })
-      failed.push({ postId: p.postId, title: p.title, error: error.slice(0, 200) })
+      failed.push({ postId: p.postId, mediaId: p.mediaId, title: p.title, error: error.slice(0, 200) })
     }
   }
   const left = (await sepiaImagesPending(opts.workspaceId)).length
