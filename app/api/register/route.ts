@@ -13,7 +13,7 @@ import {
   verifyTurnstileToken,
 } from '@/lib/security/bot-protection'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
-import { normalizePhone } from '@/lib/phone'
+import { normalizePhone, parseColombianMobile } from '@/lib/phone'
 import { createSessionHandoffToken, deliverPartnerAccessLink, generateStrongPassword, type AccessLinkDelivery } from '@/lib/accounts/partner-signup'
 
 const logger = createLogger('register')
@@ -52,6 +52,11 @@ async function handlePOST(request: NextRequest) {
       honeypot,
       formStartedAt,
     } = validation.data
+
+    if (phone) {
+      const mobile = parseColombianMobile(phone)
+      if (!mobile.ok) return NextResponse.json({ error: mobile.error }, { status: 400 })
+    }
 
     // Clients always choose their password; a partner without one (/unete) gets a random one and an access link
     const serverPassword = role === 'PARTNER' && !password

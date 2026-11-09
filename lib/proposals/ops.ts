@@ -12,6 +12,7 @@ import { loadPlatformConfig, preferredDateOnly } from '@/lib/service-requests/op
 import { DEFAULT_BOOKING_TIME, bogotaClockTime, bookingWhen, dateOnlyUtc } from '@/lib/bookings/when'
 import { effectiveRates } from '@/lib/payments/commission'
 import { clientCityMismatchMessage, partnerCityMismatchMessage, serviceCityMismatch } from '@/lib/proposals/city-match'
+import { PROPOSAL_FEEDBACK_ACTION, feedbackDetails, type ProposalFeedback, type ProposalReason } from '@/lib/proposals/feedback'
 
 /**
  * Proposal operations shared by the app routes and the inbox AI agents. Same contract as the other
@@ -267,20 +268,36 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   return booking
 }
 
-/** The client turns down one pending offer; the request stays open. */
-export async function rejectProposal(actor: Actor, proposalId: string, _origin: Origin) {
-  const proposal = await prisma.proposal.findUnique({ where: { id: proposalId }, select: { id: true, status: true, serviceRequest: { select: { userId: true } } } })
+/** The client turns down one pending offer; the request stays open. The reason, when given, is kept for the team. */
+export async function rejectProposal(actor: Actor, proposalId: string, origin: Origin, feedback?: { reason: ProposalReason; detail?: string | null } | null) {
+  const proposal = await prisma.proposal.findUnique({ where: { id: proposalId }, select: { id: true, status: true, serviceRequestId: true, serviceRequest: { select: { userId: true } } } })
   if (!proposal) throw new OpsError('Propuesta no encontrada', 404)
   if (proposal.serviceRequest.userId !== actor.userId) throw new OpsError('No tienes permiso para rechazar esta propuesta', 403)
   if (proposal.status !== 'PENDING') throw new OpsError('Esta propuesta ya no está pendiente', 400)
 
-  const updated = await prisma.proposal.update({ where: { id: proposalId }, data: { status: 'REJECTED' }, include: proposalInclude })
+  // Only a still-pending proposal changes: a second tap or an accept a moment earlier must not flip it
+  const claimed = await prisma.proposal.updateMany({ where: { id: proposalId, status: 'PENDING' }, data: { status: 'REJECTED' } })
+  if (claimed.count !== 1) throw new OpsError('Esta propuesta ya no está pendiente', 400)
+  const updated = await prisma.proposal.findUnique({ where: { id: proposalId }, include: proposalInclude })
+  if (!updated) throw new OpsError('Propuesta no encontrada', 404)
+  if (feedback) {
+    await saveProposalFeedback(actor, proposal.serviceRequestId, { reason: feedback.reason, detail: feedback.detail ?? null, kind: 'rejected', proposalIds: [proposalId], source: origin.via === 'chat' ? 'chat' : 'app' })
+  }
   try {
     await notifyProposalRejected(proposalId)
   } catch (err) {
     logger.warn('notifyProposalRejected failed (non-fatal)', { proposalId, err })
   }
   return updated
+}
+
+/** Why the client did not take the proposals of one of their requests (rejected or left open), for the team. */
+export async function saveProposalFeedback(actor: Actor, requestId: string, f: ProposalFeedback) {
+  const sr = await prisma.serviceRequest.findUnique({ where: { id: requestId }, select: { userId: true } })
+  if (!sr || sr.userId !== actor.userId) throw new OpsError('Solicitud no encontrada', 404)
+  await prisma.adminAuditLog.create({
+    data: { actorId: actor.userId, actorEmail: actor.email ?? null, action: PROPOSAL_FEEDBACK_ACTION, entityType: 'ServiceRequest', entityId: requestId, details: feedbackDetails(f) },
+  }).catch((err) => logger.warn('Proposal feedback not saved', { requestId, err }))
 }
 
 export async function listProposalsForClient(userId: string, requestId?: string) {

@@ -30,6 +30,8 @@ import { useDialog } from '@/components/ui/use-dialog'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import Link from 'next/link'
 import { CancelBookingSheet, RescheduleBookingSheet } from '@/components/bookings/BookingSheets'
+import RejectProposalSheet from '@/components/proposals/RejectProposalSheet'
+import { PROPOSAL_BADGE_LABEL, rankProposals } from '@/lib/proposals/ranking'
 import BookingPhotos from '@/components/bookings/BookingPhotos'
 import BookingFollowup, { type FollowupInfo } from '@/components/bookings/BookingFollowup'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
@@ -203,6 +205,7 @@ export default function DashboardPage() {
   const [mobileStatusSheetOpen, setMobileStatusSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests' | 'favorites'>('overview')
   const [cancelSheet, setCancelSheet] = useState<{ id: string; serviceName: string } | null>(null)
+  const [rejectSheet, setRejectSheet] = useState<{ id: string; partnerName: string } | null>(null)
   const [rescheduleSheet, setRescheduleSheet] = useState<{ id: string; serviceName: string; confirmed: boolean } | null>(null)
   const [imageGallery, setImageGallery] = useState<{ isOpen: boolean; photos: Array<{ id: string; url: string; order: number }>; initialIndex: number }>({ isOpen: false, photos: [], initialIndex: 0 })
 
@@ -1946,42 +1949,10 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 gap-3 sm:gap-4">
                   {filteredRequests.map((request) => {
                     const isExpired = request.status === 'EXPIRED' || (request.status === 'ACTIVE' && new Date(request.expiresAt).getTime() < Date.now())
-                    const sortedProposals = [...request.proposals].sort((a, b) => {
-                      const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
-                      const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
-
-                      const hasIdentityA = a.partner.documents?.some((d: any) =>
-                        IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
-                      )
-                      const hasEducationA = a.partner.documents?.some((d: any) =>
-                        EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
-                      )
-                      const hasBackgroundA = a.partner.documents?.some((d: any) =>
-                        d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
-                      )
-                      const isFullyVerifiedA = hasIdentityA && hasEducationA && hasBackgroundA
-
-                      const hasIdentityB = b.partner.documents?.some((d: any) =>
-                        IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
-                      )
-                      const hasEducationB = b.partner.documents?.some((d: any) =>
-                        EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
-                      )
-                      const hasBackgroundB = b.partner.documents?.some((d: any) =>
-                        d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
-                      )
-                      const isFullyVerifiedB = hasIdentityB && hasEducationB && hasBackgroundB
-
-                      // Best rated first (with reviews), then most jobs, then fully verified documents
-                      const ratingA = (a.partner.totalReviews ?? 0) > 0 ? a.partner.rating ?? 0 : 0
-                      const ratingB = (b.partner.totalReviews ?? 0) > 0 ? b.partner.rating ?? 0 : 0
-                      if (ratingA !== ratingB) return ratingB - ratingA
-                      const jobs = (b.partner.completedServicesCount ?? 0) - (a.partner.completedServicesCount ?? 0)
-                      if (jobs !== 0) return jobs
-                      if (isFullyVerifiedA && !isFullyVerifiedB) return -1
-                      if (!isFullyVerifiedA && isFullyVerifiedB) return 1
-                      return 0
-                    })
+                    // Best value first (trusted rating for a fair price, then experience); badges only when there is a choice
+                    const rankedProposals = rankProposals(request.proposals)
+                    const sortedProposals = rankedProposals.map((r) => r.proposal)
+                    const proposalBadges = new Map(rankedProposals.map((r) => [r.proposal.id, r.badges]))
 
                     return (
                       <div
@@ -2213,6 +2184,16 @@ export default function DashboardPage() {
                                       <div className="mt-1 flex items-center gap-2">
                                         {getVerificationBadges(proposal.partner.documents)}
                                       </div>
+                                      {canAccept && (proposalBadges.get(proposal.id) ?? []).length > 0 && (
+                                        <div className="mt-1 flex flex-wrap gap-1.5">
+                                          {(proposalBadges.get(proposal.id) ?? []).map((b) => (
+                                            <span key={b} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${b === 'best_rated' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                              {b === 'best_rated' ? <Star size={11} className="fill-amber-500 text-amber-500" aria-hidden="true" /> : null}
+                                              {PROPOSAL_BADGE_LABEL[b]}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
                                       <OriginBadge variant="user" origin={proposal.origin} originChannel={proposal.originChannel} className="mt-0.5" />
                                     </div>
                                     <p className="text-lg font-bold text-primary-600 shrink-0">{formatCurrency(totalAmount)}</p>
@@ -2252,6 +2233,17 @@ export default function DashboardPage() {
                                       >
                                         <CheckCircle size={16} />
                                         Aceptar propuesta
+                                      </button>
+                                    )}
+                                    {canAccept && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setRejectSheet({ id: proposal.id, partnerName: proposal.partner.user.name })}
+                                        disabled={session?.user?.isActive === false}
+                                        className="min-h-[44px] w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-full hover:bg-gray-50 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        <XCircle size={16} aria-hidden="true" />
+                                        No me sirve
                                       </button>
                                     )}
                                     {canChat && (
@@ -2335,6 +2327,15 @@ export default function DashboardPage() {
               ))}
             </div>
       </BottomSheet>
+
+      {rejectSheet && (
+        <RejectProposalSheet
+          proposalId={rejectSheet.id}
+          partnerName={rejectSheet.partnerName}
+          onClose={() => setRejectSheet(null)}
+          onDone={() => { setRejectSheet(null); fetchServiceRequests(); setModal({ isOpen: true, title: 'Propuesta rechazada', message: `Le avisamos a ${rejectSheet.partnerName}. Tu solicitud sigue abierta para recibir otras propuestas.`, type: 'success' }) }}
+        />
+      )}
 
       {cancelSheet && (
         <CancelBookingSheet

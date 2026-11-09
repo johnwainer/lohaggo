@@ -3,6 +3,7 @@
  * messages and images, the booking with its history, work photos, payment, review, guarantee, support
  * cases and where it came from), plus its attention flags. The admin page and Haggo read the same data.
  */
+import { PROPOSAL_FEEDBACK_ACTION, feedbackLine, parseFeedback } from '@/lib/proposals/feedback'
 import { paymentView } from '@/lib/payments/receipt'
 import { prisma } from '@/lib/prisma'
 import { bookingWhen } from '@/lib/bookings/when'
@@ -101,13 +102,18 @@ export function caseInputOf(sr: LoadedRequest, now = new Date()): CaseInput {
 export async function requestCase(id: string, now = new Date()) {
   const sr = await loadRaw(id)
   if (!sr) return null
-  const [touches, notices, cases, blockedLog, conversation] = await Promise.all([
+  const [touches, notices, cases, blockedLog, conversation, feedbackLog] = await Promise.all([
     prisma.serviceRequest.findUnique({ where: { id }, select: { acquisition: true, lastTouch: true } }),
     prisma.notification.findMany({ where: { type: 'NEW_SERVICE_REQUEST', data: { contains: id } }, select: { userId: true, read: true, createdAt: true }, take: 100 }).catch(() => []),
     prisma.adminSupportCase.findMany({ where: { OR: [{ requestId: id }, { booking: { proposal: { serviceRequestId: id } } }] }, select: { id: true, subject: true, status: true, priority: true, queue: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 20 }).catch(() => []),
     prisma.adminAuditLog.findMany({ where: { action: 'CHAT_CONTACT_BLOCKED', entityType: 'Chat', entityId: { in: sr.proposals.map((p) => p.chat?.id).filter((x): x is string => Boolean(x)) } }, select: { entityId: true, details: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 50 }).catch(() => []),
     sr.originConversationId ? prisma.conversation.findUnique({ where: { id: sr.originConversationId }, select: { id: true, channel: true, contactName: true } }).catch(() => null) : Promise.resolve(null),
+    prisma.adminAuditLog.findMany({ where: { action: PROPOSAL_FEEDBACK_ACTION, entityType: 'ServiceRequest', entityId: id }, select: { details: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 20 }).catch(() => []),
   ])
+  const feedback = feedbackLog.flatMap((l) => {
+    const f = parseFeedback(l.details)
+    return f ? [{ ...f, label: feedbackLine(f), at: l.createdAt }] : []
+  })
   const noticeUsers = notices.length ? await prisma.user.findMany({ where: { id: { in: notices.map((n) => n.userId) }, role: 'PARTNER' }, select: { id: true, name: true } }) : []
   const input = caseInputOf(sr, now)
   const booking = mainBooking(sr)
@@ -134,10 +140,12 @@ export async function requestCase(id: string, now = new Date()) {
       const u = noticeUsers.find((x) => x.id === n.userId)
       return u ? [{ name: u.name, read: n.read, at: n.createdAt }] : []
     }),
+    proposalFeedback: feedback.map((f) => ({ kind: f.kind, source: f.source, label: f.label, at: f.at, proposals: f.proposalIds.length })),
     proposals: sr.proposals.map((p) => ({
       id: p.id,
       ref: p.id.slice(-6),
       status: p.status,
+      rejectReason: feedback.find((f) => f.kind === 'rejected' && f.proposalIds.includes(p.id))?.label ?? null,
       price: p.price,
       notes: p.notes,
       proposedDate: p.proposedDate,

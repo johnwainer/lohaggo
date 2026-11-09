@@ -27,10 +27,12 @@ export type CreateAccountInput = {
   citySlug?: string | null
   serviceIds?: string[]
   createdBy: { type: 'user' | 'ai'; id: string; name: string }
+  /** The WhatsApp number the person is writing from: WhatsApp proved they hold it, so it is confirmed */
+  trustedPhone?: string | null
 }
 
 export type CreateAccountResult =
-  | { ok: true; userId: string; role: AccountRole; accessUrl: string; expiresAt: Date }
+  | { ok: true; userId: string; role: AccountRole; accessUrl: string; expiresAt: Date; phoneVerified: boolean }
   | { ok: false; code: 'already_linked' | 'email_taken' | 'invalid' | 'no_contact'; error: string }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -98,11 +100,13 @@ export async function createAccountFromContact(input: CreateAccountInput): Promi
   }
 
   const password = await bcrypt.hash(randomBytes(24).toString('base64url'), 10)
+  const phoneProven = Boolean(valid.phone) && toE164(input.trustedPhone ?? null) === valid.phone
   const user = await prisma.user.create({
     data: {
       email: valid.email,
       name: valid.name,
       phone: valid.phone,
+      ...(phoneProven ? { phoneVerifiedAt: new Date() } : {}),
       password,
       role: input.role,
       // Created from an inbox conversation: that is where the person came from
@@ -132,13 +136,14 @@ export async function createAccountFromContact(input: CreateAccountInput): Promi
 
   const { url, expiresAt } = await createAccessLink(user.id, input.role)
 
-  // B1 / C1 by WhatsApp. The access link goes in the button only when a person of the team created the
-  // account (they checked the phone); from an unverified chat the link travels only by email.
+  // B1 / C1 by WhatsApp. The access link goes in the button only when the phone is known to be the
+  // person's: a person of the team created the account (they checked it) or the person writes from that
+  // WhatsApp; otherwise the link travels only by email.
   const { waAccountCreated } = await import('@/lib/messaging/wa-events')
   const { urlSuffix } = await import('@/lib/messaging/wa-format')
   await waAccountCreated({
     userId: user.id, role: input.role, name: valid.name,
-    suffix: input.createdBy.type === 'user' ? urlSuffix(url) : input.role === 'PARTNER' ? 'partner/verification' : 'dashboard',
+    suffix: input.createdBy.type === 'user' || phoneProven ? urlSuffix(url) : input.role === 'PARTNER' ? 'partner/verification' : 'dashboard',
   })
 
   // Same automations as the public registration
@@ -164,7 +169,7 @@ export async function createAccountFromContact(input: CreateAccountInput): Promi
     emitInboxEvent({ type: 'status-update', conversationId: c.id, workspaceId: c.workspaceId })
   }
   logger.info('Account created from inbox contact', { userId: user.id, role: input.role, by: input.createdBy.type })
-  return { ok: true, userId: user.id, role: input.role, accessUrl: url, expiresAt }
+  return { ok: true, userId: user.id, role: input.role, accessUrl: url, expiresAt, phoneVerified: phoneProven }
 }
 
 export function accessLinkMessage(name: string, role: AccountRole, url: string) {

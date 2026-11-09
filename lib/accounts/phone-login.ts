@@ -10,7 +10,8 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { env } from '@/lib/env'
-import { normalizePhone } from '@/lib/phone'
+import { normalizePhone, parseColombianMobile, storedPhoneVariants } from '@/lib/phone'
+import { CODE_WINDOW_MS, codeResendDecision } from '@/lib/accounts/code-rate'
 import { toE164 } from '@/lib/inbox/contacts'
 import { overLimit } from '@/lib/rate-limit-store'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
@@ -36,8 +37,13 @@ const maskPhone = (e164: string) => `${e164.slice(0, 3)} ••• ${e164.slice(
 export type CodeRequestResult = { ok: true; sentTo: string } | { ok: false; status: 400 | 429 | 503; error: string }
 
 export async function requestPhoneCode(p: { phone: string; ip: string }): Promise<CodeRequestResult> {
-  const phone = phoneE164(p.phone)
-  if (!phone || !phone.startsWith('+57') || phone.length !== 13) return { ok: false, status: 400, error: 'Escribe un celular colombiano de 10 dígitos' }
+  const mobile = parseColombianMobile(p.phone)
+  if (!mobile.ok) return { ok: false, status: 400, error: mobile.error }
+  const phone = mobile.e164
+  // One code per minute and three per 15 minutes for the same number (the DB sees every instance)
+  const recent = await prisma.phoneLoginCode.findMany({ where: { phone, createdAt: { gte: new Date(Date.now() - CODE_WINDOW_MS) } }, select: { createdAt: true } })
+  const pace = codeResendDecision(recent.map((r) => r.createdAt))
+  if (!pace.ok) return { ok: false, status: 429, error: pace.error }
   const limits = await Promise.all([
     overLimit(`phonecode:ip:${p.ip}`, 3600_000, 10),
     overLimit(`phonecode:p:${phone}`, 15 * 60_000, 3),
@@ -91,7 +97,8 @@ export async function verifyPhoneCode(p: { phone: string; code: string; name?: s
   }
 
   // The code is right: from here on the person holds this phone
-  const accounts = await prisma.user.findMany({ where: { phone }, select: { id: true, role: true, isActive: true, email: true, phoneVerifiedAt: true }, take: 3 })
+  // Accounts stored before phones were normalized (without +57) count too
+  const accounts = await prisma.user.findMany({ where: { phone: { in: storedPhoneVariants(phone) } }, select: { id: true, role: true, isActive: true, email: true, phoneVerifiedAt: true }, take: 3 })
   const decision = phoneLoginDecision(accounts)
   const name = p.name?.trim().replace(/\s+/g, ' ').slice(0, 80) ?? ''
   const email = p.email?.trim().toLowerCase() ?? ''

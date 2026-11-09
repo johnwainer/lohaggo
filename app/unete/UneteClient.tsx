@@ -27,6 +27,7 @@ import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import type { PublicTrust } from '@/lib/public/trust'
 import { partnerCommission, partnerPayout, partnersJoinLine } from '@/lib/public/copy'
+import { formatNationalPhone, parseColombianMobile } from '@/lib/phone'
 
 // ─── How it works steps ────────────────────────────────────────────────────
 function howItWorks(trust: PublicTrust) {
@@ -295,18 +296,12 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
     const validateEmail = (v: string) => (!v ? 'El correo es obligatorio' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Correo inválido' : '')
     const validatePhone = (v: string) => {
         if (!v) return 'El teléfono es obligatorio'
-        const clean = v.replace(/\s/g, '')
-        if (!/^[0-9]{10}$/.test(clean)) return 'El teléfono debe tener 10 dígitos'
-        if (!clean.startsWith('3')) return 'Debe comenzar con 3 (formato colombiano)'
-        return ''
+        const mobile = parseColombianMobile(v)
+        return mobile.ok ? '' : mobile.error
     }
 
-    const formatPhoneNumber = (value: string) => {
-        const cleaned = value.replace(/\D/g, '').slice(0, 10)
-        if (cleaned.length <= 3) return cleaned
-        if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`
-        return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6)}`
-    }
+    // Autofill and paste bring «+57 300 123 4567»: the prefix goes away instead of eating the last digits
+    const formatPhoneNumber = (value: string) => formatNationalPhone(value)
 
     const handleFieldChange = (field: string, value: string) => {
         const val = field === 'phone' ? formatPhoneNumber(value) : value

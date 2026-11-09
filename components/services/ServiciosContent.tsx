@@ -299,15 +299,6 @@ export function ServiciosContent({
     }
   }
 
-  // Analítica: one event per finished search (not per keystroke), visitors included
-  const searchLogTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const logSearchEvent = (query: string, resultCount: number) => {
-    if (searchLogTimer.current) clearTimeout(searchLogTimer.current)
-    searchLogTimer.current = setTimeout(() => {
-      fetch('/api/search-events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query.trim(), resultCount, source: 'servicios' }), keepalive: true }).catch(() => null)
-    }, 1500)
-  }
-
   const trackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const trackSearch = (q: string, results: number) => {
     if (trackTimer.current) clearTimeout(trackTimer.current)
@@ -364,7 +355,9 @@ export function ServiciosContent({
       let url = '/api/services?'
       url += `city=${encodeURIComponent(citySlug)}&`
       if (selectedCategory) url += `category=${selectedCategory}&`
-      if (searchTerm) url += `search=${searchTerm}&`
+      // track=1: /api/services records the search for Analítica with its real result count (one row per
+      // search, keystrokes merged), so it does not depend on a second request from the browser
+      if (searchTerm) url += `search=${encodeURIComponent(searchTerm)}&track=1&source=${showHeading ? 'servicios' : 'home'}&`
 
       const res = await fetch(url)
       const data = await res.json()
@@ -398,7 +391,6 @@ export function ServiciosContent({
 
       if (searchTerm && searchTerm.length >= 2) {
         saveSearchHistory(searchTerm, resultServices.length > 0)
-        logSearchEvent(searchTerm, resultServices.length)
         trackSearch(searchTerm, resultServices.length)
       }
     } catch (error) {
@@ -419,7 +411,7 @@ export function ServiciosContent({
       const citySlug = typeof window !== 'undefined'
         ? (localStorage.getItem('selectedCity') || 'medellin')
         : 'medellin'
-      let url = `/api/services?city=${encodeURIComponent(citySlug)}&search=${term}`
+      let url = `/api/services?city=${encodeURIComponent(citySlug)}&search=${encodeURIComponent(term)}`
       if (selectedCategory) url += `&category=${selectedCategory}`
 
       const res = await fetch(url)

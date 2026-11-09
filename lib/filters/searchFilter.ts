@@ -44,9 +44,9 @@ const badWords = [
   'cabron', 'cabrona', 'cabrones', 'cabronas', 'cabronada', 'cabronadas',
   'cabrón', 'cabrona', 'cabrones', 'cabronas', 'cabronazo', 'cabronete',
   'zorra', 'zorras', 'zorro', 'zorros', 'zorrita', 'zorrito', 'zorrazo',
-  'perra', 'perras', 'perro', 'perros', 'perrita', 'perrito', 'perrazo',
-  'rata', 'ratas', 'ratero', 'ratera', 'rateros', 'rateras', 'ratazo',
-  'basura', 'basuras', 'basurero', 'basurera', 'basuriento', 'basurienta',
+  'perrazo', // «perro», «perrito», «perra» are pets (paseador de perros, peluquería canina): not insults here
+  'ratero', 'ratera', 'rateros', 'rateras', 'ratazo',
+  'basurero', 'basurera', 'basuriento', 'basurienta',
   'porqueria', 'porquerías', 'porquería', 'porqueroso', 'porquerosa',
 
   // Spanish body-related and crude terms
@@ -423,9 +423,12 @@ export function isInappropriate(query: string): boolean {
   if (normalized.length < 2) return true
   
   if (irrelevantTerms.includes(normalized)) return true
-  
+
+  // Whole words only: «computador» holds «puta», «techo» and «cortinas» other words of the list, and
+  // searching them must count (a substring test dropped real searches from Analítica)
+  const words = new Set(normalized.split(/[^a-záéíóúüñ0-9]+/i).filter(Boolean))
   for (const badWord of badWords) {
-    if (normalized.includes(badWord)) return true
+    if (badWord.includes(' ') ? normalized.includes(badWord) : words.has(badWord)) return true
   }
   
   for (const pattern of spamPatterns) {

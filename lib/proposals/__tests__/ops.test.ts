@@ -14,6 +14,7 @@ const m = vi.hoisted(() => ({
   proposalUpdateMany: vi.fn(),
   bookingCreate: vi.fn(),
   eventCreate: vi.fn(),
+  auditCreate: vi.fn(async () => ({})),
   notifyNewProposal: vi.fn(async () => {}),
   notifyProposalAccepted: vi.fn(async () => {}),
   notifyProposalRejected: vi.fn(async () => {}),
@@ -30,6 +31,7 @@ vi.mock('@/lib/prisma', () => {
     proposal: { findUnique: m.proposalFindUnique, findMany: m.proposalFindMany, create: m.proposalCreate, update: m.proposalUpdate, updateMany: m.proposalUpdateMany },
     booking: { create: m.bookingCreate },
     bookingEvent: { create: m.eventCreate },
+    adminAuditLog: { create: m.auditCreate },
   }
   prisma.$transaction = async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)
   return { prisma }
@@ -273,14 +275,32 @@ describe('aceptar propuesta', () => {
 describe('rechazar propuesta', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    m.proposalUpdate.mockResolvedValue({ id: 'pr1', status: 'REJECTED' })
+    m.proposalUpdateMany.mockResolvedValue({ count: 1 })
   })
 
   it('dueño y pendiente → REJECTED y aviso', async () => {
-    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', status: 'PENDING', serviceRequest: { userId: 'u1' } })
+    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', status: 'PENDING', serviceRequestId: 'sr1', serviceRequest: { userId: 'u1' } })
     await rejectProposal(client, 'pr1', APP_ORIGIN)
-    expect(m.proposalUpdate.mock.calls[0][0]).toMatchObject({ where: { id: 'pr1' }, data: { status: 'REJECTED' } })
+    // Only a still-pending proposal flips (a second tap or an accept a moment earlier do nothing)
+    expect(m.proposalUpdateMany.mock.calls[0][0]).toMatchObject({ where: { id: 'pr1', status: 'PENDING' }, data: { status: 'REJECTED' } })
     expect(m.notifyProposalRejected).toHaveBeenCalledWith('pr1')
+    expect(m.auditCreate).not.toHaveBeenCalled()
+  })
+
+  it('con motivo lo guarda para el equipo en la solicitud', async () => {
+    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', status: 'PENDING', serviceRequestId: 'sr1', serviceRequest: { userId: 'u1' } })
+    m.srFindUnique.mockResolvedValue({ userId: 'u1' })
+    await rejectProposal(client, 'pr1', APP_ORIGIN, { reason: 'precio_alto', detail: 'muy caro' })
+    const row = (m.auditCreate.mock.calls[0] as unknown as [{ data: { details: string } }])[0].data
+    expect(row).toMatchObject({ action: 'PROPOSAL_FEEDBACK', entityType: 'ServiceRequest', entityId: 'sr1', actorId: 'u1' })
+    expect(JSON.parse(row.details)).toEqual({ reason: 'precio_alto', detail: 'muy caro', kind: 'rejected', proposalIds: ['pr1'], source: 'app' })
+  })
+
+  it('si otra acción ganó antes, no la cambia', async () => {
+    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', status: 'PENDING', serviceRequestId: 'sr1', serviceRequest: { userId: 'u1' } })
+    m.proposalUpdateMany.mockResolvedValue({ count: 0 })
+    await expect(rejectProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 400 })
+    expect(m.notifyProposalRejected).not.toHaveBeenCalled()
   })
 
   it('ajena → 403; ya resuelta → 400', async () => {

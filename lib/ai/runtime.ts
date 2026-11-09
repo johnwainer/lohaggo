@@ -267,10 +267,13 @@ export const AgentRuntimeService = {
       pending = []
     }
 
-    const [commission, relay, closedBefore] = await Promise.all([
+    const [commission, relay, closedBefore, proposalChoice] = await Promise.all([
       opts.comment ? Promise.resolve('') : commissionText(),
       mode === 'autopilot' && opts.conversationId && agent.tools.includes('enviar_mensaje_reserva') ? relayContext(opts.conversationId, pending, now).catch(() => '') : Promise.resolve(''),
       mode === 'autopilot' && opts.conversationId ? lastCloseSummary(opts.conversationId).catch(() => null) : Promise.resolve(null),
+      mode === 'autopilot' && opts.conversationId && opts.userId && !pending.some((p) => p.tool === 'aceptar_propuesta')
+        ? import('@/lib/ai/platform-tools').then((m) => m.proposalChoiceContext(opts.conversationId!, opts.text, agent.tools, now)).catch(() => '')
+        : Promise.resolve(''),
     ])
     const closedText = closedBefore ? `Esta conversación ya se había cerrado (${describeNow(closedBefore.at, tz)}): ${closedBefore.detail}. La persona volvió a escribir: retómala desde ahí, sin presentarte de nuevo.` : ''
 
@@ -285,6 +288,7 @@ export const AgentRuntimeService = {
         ...done,
         pendingActionsText(pending, now),
         relay,
+        proposalChoice,
         unread ? `Tiene ${unread} mensaje${unread === 1 ? '' : 's'} sin leer en el chat de sus reservas: cuéntaselo y léeselos con ver_mensajes_reserva si quiere.` : '',
         commission,
         closedText,

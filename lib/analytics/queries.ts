@@ -345,7 +345,7 @@ export async function serviceTab(p: Period) {
 // ─── Búsquedas ──────────────────────────────────────────────────────────────
 
 export async function searchTab(p: Period) {
-  const [tot, prev, top, byRole, byHour, daily, bySource] = await Promise.all([
+  const [tot, prev, top, byRole, byHour, daily, bySource, zeroTop] = await Promise.all([
     prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT count(*)::int AS total, count(DISTINCT coalesce("userId", "visitorId"))::int AS people, count(*) FILTER (WHERE "resultCount" = 0)::int AS zero, count(DISTINCT normalized)::int AS terms
       FROM "SearchEvent" WHERE "createdAt" >= ${p.from} AND "createdAt" < ${p.to}`,
@@ -360,6 +360,9 @@ export async function searchTab(p: Period) {
     prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT ${dayOf(Prisma.sql`"createdAt"`)} AS d, count(*)::int AS n, count(*) FILTER (WHERE "resultCount" = 0)::int AS zero FROM "SearchEvent" WHERE "createdAt" >= ${p.from} AND "createdAt" < ${p.to} GROUP BY 1`,
     prisma.$queryRaw<Array<Record<string, unknown>>>`SELECT source, count(*)::int AS n FROM "SearchEvent" WHERE "createdAt" >= ${p.from} AND "createdAt" < ${p.to} GROUP BY 1`,
+    prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT normalized AS q, count(*)::int AS n, count(DISTINCT coalesce("userId", "visitorId"))::int AS people, max("createdAt") AS last, string_agg(DISTINCT source, ',') AS sources
+      FROM "SearchEvent" WHERE "createdAt" >= ${p.from} AND "createdAt" < ${p.to} AND "resultCount" = 0 GROUP BY 1 ORDER BY n DESC, last DESC LIMIT 30`,
   ])
   const t = tot[0] ?? {}
   const pv = prev[0] ?? {}
@@ -379,6 +382,7 @@ export async function searchTab(p: Period) {
     byRole: byRole.map((r) => ({ role: String(r.role), n: n(r.n) })),
     byHour: Array.from({ length: 24 }, (_, h) => ({ h, n: hourBy.get(h) ?? 0 })),
     bySource: bySource.map((s) => ({ source: String(s.source), n: n(s.n) })),
+    zeroTop: zeroTop.map((x) => ({ q: String(x.q), n: n(x.n), people: n(x.people), last: x.last instanceof Date ? x.last.toISOString() : String(x.last ?? ''), sources: String(x.sources ?? '').split(',').filter(Boolean) })),
     daily: days.map((d) => ({ d, n: n(dailyBy.get(d)?.n), zero: n(dailyBy.get(d)?.zero) })),
   }
 }

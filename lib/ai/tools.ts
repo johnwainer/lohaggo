@@ -10,6 +10,7 @@ import { TOOL_GROUPS, dailyLimitFor, type ToolGroup } from '@/lib/ai/actions-cor
 import { PLATFORM_TOOLS, runPlatformTool, type PlatformToolName } from '@/lib/ai/platform-tools'
 import { CLOSE_REASONS, CLOSE_REASON_LABEL, isCloseReason, type CloseReason } from '@/lib/ai/conversation-core'
 import { CONFIRM_WINDOW_MS } from '@/lib/ai/actions-core'
+import { linkByWhatsappNumber } from '@/lib/accounts/link'
 
 /** Account-creation attempts an AI agent may make per conversation per day (anti-abuse). */
 export const MAX_ACCOUNT_ATTEMPTS_PER_DAY = 3
@@ -402,8 +403,15 @@ async function createAccountFromChat(role: AccountRole, input: Record<string, un
 
   const convId = ctx.conversationId
   if (!convId) return ACCOUNT_TOOL_FAILURE
-  const conv = await prisma.conversation.findUnique({ where: { id: convId }, select: { contactId: true } })
+  const conv = await prisma.conversation.findUnique({ where: { id: convId }, select: { contactId: true, channel: true, contactPhone: true } })
   if (!conv?.contactId) return ACCOUNT_TOOL_FAILURE
+  // Writing from WhatsApp proves the number: an account that already has it is linked, never duplicated
+  const byNumber = conv.channel === 'WHATSAPP' ? await linkByWhatsappNumber({ conversationId: convId, actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } }).catch(() => null) : null
+  if (byNumber?.ok) {
+    ctx.userId = byNumber.userId
+    return `Esta persona ya tiene cuenta en LoHaggo con este número de WhatsApp (${byNumber.role === 'PARTNER' ? 'socio' : 'cliente'}) y la conversación quedó vinculada a ella: no crees otra ni le pidas ningún código. Sigue con lo que necesitaba usando las herramientas de su cuenta.`
+  }
+  if (byNumber && !byNumber.ok && byNumber.reason === 'ambiguous') return ACCOUNT_TOOL_FAILURE
   const attempts = await prisma.conversationEvent.count({ where: { conversationId: convId, type: 'account_attempt', createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })
   if (attempts >= MAX_ACCOUNT_ATTEMPTS_PER_DAY) return ACCOUNT_TOOL_FAILURE
   await prisma.conversationEvent.create({ data: { conversationId: convId, type: 'account_attempt', actorType: 'ai', actorId: ctx.agent.id, actorName: ctx.agent.name, detail: `${label} · ${maskEmail(check.email)}` } })
@@ -412,16 +420,21 @@ async function createAccountFromChat(role: AccountRole, input: Record<string, un
   const result = await createAccountFromContact({
     contactId: conv.contactId, role, name: check.name, email: check.email, citySlug, serviceIds,
     createdBy: { type: 'ai', id: ctx.agent.id, name: ctx.agent.name },
+    trustedPhone: conv.channel === 'WHATSAPP' ? conv.contactPhone : null,
   })
   if (!result.ok) {
     if (result.code === 'already_linked') return 'Esta persona ya tiene una cuenta en LoHaggo (está vinculada a esta conversación). Dile que entre en lohaggo.com; si no recuerda la contraseña, que use "Olvidé mi contraseña".'
     return ACCOUNT_TOOL_FAILURE
   }
+  // The conversation is linked from now on, also in this same turn: the next tool (crear_solicitud…) must
+  // act on the new account instead of asking for a link code
+  ctx.userId = result.userId
+  const linked = ' La conversación ya quedó vinculada a la cuenta: puedes seguir (por ejemplo crear la solicitud) sin pedirle ningún código.'
   const mail = await emailAccessLink(check.email, check.name, role, result.accessUrl)
-  if (!mail.ok) return `La cuenta se creó, pero no se pudo enviar el correo con el enlace. Dile que entre en lohaggo.com con "Olvidé mi contraseña" usando ${maskEmail(check.email)}.`
+  if (!mail.ok) return `La cuenta se creó, pero no se pudo enviar el correo con el enlace. Dile que entre en lohaggo.com con "Olvidé mi contraseña" usando ${maskEmail(check.email)}.${linked}`
   return role === 'PARTNER'
-    ? `Cuenta de socio creada para ${check.name}, sin verificar. Le enviamos al correo ${maskEmail(check.email)} el enlace para crear su contraseña y subir su documento de identidad (vence en ${ACCESS_LINK_TTL_HOURS} horas). Dile que revise bandeja de entrada y spam, y que empezará a recibir solicitudes cuando el equipo apruebe su documento.`
-    : `Cuenta de cliente creada para ${check.name}. Le enviamos al correo ${maskEmail(check.email)} el enlace para crear su contraseña (vence en ${ACCESS_LINK_TTL_HOURS} horas). Dile que revise su bandeja de entrada y spam.`
+    ? `Cuenta de socio creada para ${check.name}, sin verificar. Le enviamos al correo ${maskEmail(check.email)} el enlace para crear su contraseña y subir su documento de identidad (vence en ${ACCESS_LINK_TTL_HOURS} horas). Dile que revise bandeja de entrada y spam, y que empezará a recibir solicitudes cuando el equipo apruebe su documento.${linked}`
+    : `Cuenta de cliente creada para ${check.name}. Le enviamos al correo ${maskEmail(check.email)} el enlace para crear su contraseña (vence en ${ACCESS_LINK_TTL_HOURS} horas). Dile que revise su bandeja de entrada y spam.${linked}`
 }
 
 export function isWriteTool(name: string) {
@@ -452,6 +465,8 @@ export function withImplicitTools(tools: string[], p: { copilot: boolean; commen
   const extra: string[] = []
   if (!p.copilot) extra.push('cerrar_conversacion')
   if (tools.includes('ver_oportunidades') || tools.includes('consultar_crm')) extra.push('estado_de_mi_cuenta_socio')
+  // Whoever can show or accept proposals can also take a «no» and its reason
+  if (tools.includes('ver_propuestas') || tools.includes('aceptar_propuesta')) extra.push('rechazar_propuesta', 'motivo_propuestas')
   return Array.from(new Set([...tools, ...extra]))
 }
 
