@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { CHANNEL_NAME, MkChannelIcon, OBJECTIVES, api, input, type MkChannel } from '@/components/admin/marketing/shared'
-import { AGENT_FORMATS, MAX_DAILY_PER_FORMAT, MAX_PER_WEEK, AWARENESS, AWARENESS_LABEL, DEFAULT_SETTINGS, KPIS, KPI_BY_OBJECTIVE, KPI_LABEL, defaultAgentConfig } from '@/lib/marketing/agent-input'
+import { AGENT_FORMATS, MAX_DAILY_PER_FORMAT, MAX_PER_DAY, MAX_PER_WEEK, AWARENESS, AWARENESS_LABEL, DEFAULT_SETTINGS, KPIS, KPI_BY_OBJECTIVE, KPI_LABEL, defaultAgentConfig } from '@/lib/marketing/agent-input'
 import ImageStylesField from '@/components/admin/marketing/agent/ImageStylesField'
 import { defaultImageStyleConfig } from '@/lib/marketing/image-styles'
 import { MODE_INFO, type AgentConfig, type AgentDetailData, type AgentSettings, type WizardOptions } from '@/components/admin/marketing/agent/types'
@@ -398,7 +398,7 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                 <Field label="Silencio desde"><input type="number" min={0} max={23} className={input} value={config.schedule.quietFrom} onChange={(e) => setSchedule({ quietFrom: Number(e.target.value) })} /></Field>
                 <Field label="hasta"><input type="number" min={0} max={23} className={input} value={config.schedule.quietTo} onChange={(e) => setSchedule({ quietTo: Number(e.target.value) })} /></Field>
                 <Field label="Separación mínima (h)" hint="Entre piezas del mismo canal"><input type="number" min={1} max={72} className={input} value={config.schedule.minGapHours} onChange={(e) => setSchedule({ minGapHours: Number(e.target.value) })} /></Field>
-                <Field label="Máx. por día y canal"><input type="number" min={1} max={5} className={input} value={config.schedule.maxPerDay} onChange={(e) => setSchedule({ maxPerDay: Number(e.target.value) })} /></Field>
+                <Field label="Máx. por día y canal"><input type="number" min={1} max={MAX_PER_DAY} className={input} value={config.schedule.maxPerDay} onChange={(e) => setSchedule({ maxPerDay: Number(e.target.value) })} /></Field>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4 space-y-2">
                 <label className="flex items-start gap-2 text-sm text-gray-800"><input type="radio" className="mt-1" checked={config.schedule.smart} onChange={() => setSchedule({ smart: true })} /><span><strong>El agente elige la mejor hora.</strong> Empieza con los horarios que mejor funcionan en Colombia y, desde 8 publicaciones medidas, usa tus resultados (probando de vez en cuando otras franjas).</span></label>

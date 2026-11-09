@@ -82,3 +82,15 @@ describe('El mismo día', () => {
     expect(afternoon[0].dates).toEqual(['2026-11-10'])
   })
 })
+
+describe('2 posts, 2 reels y 2 historias diarios', () => {
+  it('caben en la configuración: 42 por semana y hasta 7 al día', () => {
+    const base = defaultAgentConfig()
+    const c = sanitizeAgentConfig({ ...base, schedule: { ...base.schedule, days: ALL_DAYS, maxPerDay: 7, minGapHours: 2 }, channels: { ...base.channels, INSTAGRAM: { ...base.channels.INSTAGRAM, minDaily: { feed: 2, reel: 2, story: 2 } } } })
+    expect(c.channels.INSTAGRAM.minDaily).toEqual({ feed: 2, reel: 2, story: 2 })
+    expect(c.channels.INSTAGRAM.perWeek).toBe(42)
+    expect(c.schedule.maxPerDay).toBe(7)
+    const g = dailyFormatGaps({ now: at('2026-11-09T16:00:00-05:00'), horizonDays: 1, channels: c.channels, planned: [], days: ALL_DAYS })
+    expect(g.map((x) => `${x.format}:${x.dates.length}`).sort()).toEqual(['feed:2', 'reel:2', 'story:2'])
+  })
+})

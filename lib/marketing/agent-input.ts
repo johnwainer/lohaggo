@@ -55,8 +55,10 @@ export type ChannelPlan = { enabled: boolean; perWeek: number; formats: string[]
 
 /** Most pieces of one format a day can require. */
 export const MAX_DAILY_PER_FORMAT = 3
+/** Most pieces a channel publishes in one day. */
+export const MAX_PER_DAY = 10
 /** Most pieces a channel can plan per week (3 a day plus extras). */
-export const MAX_PER_WEEK = 42
+export const MAX_PER_WEEK = 70
 
 export type AgentConfig = {
   kpi: Kpi
@@ -277,7 +279,8 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
       quietFrom: int(schedule.quietFrom, 0, 23, prev.schedule.quietFrom),
       quietTo: int(schedule.quietTo, 0, 23, prev.schedule.quietTo),
       minGapHours: int(schedule.minGapHours, 1, 72, prev.schedule.minGapHours),
-      maxPerDay: int(schedule.maxPerDay, 1, 5, prev.schedule.maxPerDay),
+      // Room for the daily minimums of a channel (up to 3 formats × 3) and an extra piece
+      maxPerDay: int(schedule.maxPerDay, 1, MAX_PER_DAY, prev.schedule.maxPerDay),
       repeatDays: int(schedule.repeatDays, 0, 120, prev.schedule.repeatDays),
       draftLeadHours: int(schedule.draftLeadHours, 12, 168, prev.schedule.draftLeadHours),
     },

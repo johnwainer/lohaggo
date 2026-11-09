@@ -23,8 +23,11 @@ import {
 
 const logger = createLogger('marketing-images')
 
-/** Generation requests per workspace per 24 h, whatever the monthly AI cap says. */
-export const DAILY_GENERATIONS = 25
+/**
+ * Generation requests per workspace per 24 h, whatever the monthly AI cap says. Sized for Instagram's daily
+ * minimums (2 posts, 2 reels, 2 stories) plus Facebook, the blog and the editor's retries.
+ */
+export const DAILY_GENERATIONS = 60
 
 export class ImageError extends Error {}
 

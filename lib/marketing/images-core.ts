@@ -8,7 +8,7 @@ import type { MarketingChannel } from '@/lib/marketing/channel-rules'
 export const IMAGE_PROVIDERS = {
   none: { label: 'Ninguno (solo fotos de Pexels)', defaultModel: '', supportsReference: false, needsAccount: false, keyHint: '' },
   gemini: { label: 'Google Gemini', defaultModel: 'gemini-2.5-flash-image', supportsReference: true, needsAccount: false, keyHint: 'Clave de Google AI Studio (aistudio.google.com → Get API key)' },
-  openai: { label: 'OpenAI', defaultModel: 'gpt-image-1', supportsReference: true, needsAccount: false, keyHint: 'Clave de la API de OpenAI (platform.openai.com → API keys)' },
+  openai: { label: 'OpenAI', defaultModel: 'gpt-image-1.5', supportsReference: true, needsAccount: false, keyHint: 'Clave de la API de OpenAI (platform.openai.com → API keys)' },
   cloudflare: { label: 'Cloudflare Workers AI (FLUX)', defaultModel: '@cf/black-forest-labs/flux-1-schnell', supportsReference: false, needsAccount: true, keyHint: 'Token de API con permiso «Workers AI» y el Account ID de Cloudflare' },
 } as const
 export type ImageProvider = keyof typeof IMAGE_PROVIDERS

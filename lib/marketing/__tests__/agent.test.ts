@@ -366,7 +366,7 @@ describe('configuración del agente', () => {
       voice: { brandHashtags: ['LoHaggo', '#Hogar Feliz'] },
       schedule: { windows: [{ from: 20, to: 10 }], days: [9, 2, 2] },
     })
-    expect(c.channels.INSTAGRAM).toMatchObject({ perWeek: 42, formats: ['feed'] })
+    expect(c.channels.INSTAGRAM).toMatchObject({ perWeek: 70, formats: ['feed'] })
     expect(c.offer.allowedDomains).toEqual(['wa.me'])
     expect(c.offer.promos).toEqual([{ text: 'LLUVIA20', endsAt: '2026-11-01T04:59:59.000Z' }])
     expect(c.offer.links).toEqual([])
