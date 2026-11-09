@@ -10,6 +10,7 @@ import { runAfterResponse } from '@/lib/ops/after'
 import type { BookingStatus } from '@prisma/client'
 import { BOOKING_STATUS_LABEL, canTransition, transitionRoleOf, type TransitionRole } from '@/lib/bookings/transitions'
 import { LATE_CANCEL_HOURS } from '@/lib/partners/strikes'
+import { requestExpiresAt } from '@/lib/service-requests/lifetime'
 
 /**
  * Booking operations shared by the API routes, the admin and the inbox AI agents. They load, check
@@ -262,36 +263,47 @@ export function schedulePurchaseConversion(bookingId: string) {
 
 export const REQUEST_REOPEN_ACTION = 'REQUEST_REOPEN'
 
+/** The accept rejected the other proposals in the transaction that created the booking: within this of it */
+const ACCEPT_TX_SLACK_MS = 2 * 60_000
+
 /**
- * The partner dropped a booking: its request opens again for 24 h so other partners can propose (the
- * proposals the client had not chosen come back), and matching partners are told. Returns whether it reopened.
+ * The partner dropped a booking: its request opens again (until the day before its date at 20:00, at least
+ * 48 h: lib/service-requests/lifetime.ts) so other partners can propose, the proposals the client had not
+ * chosen come back, and matching partners are told. When the service is already close or past, partners
+ * propose the soonest they can. Returns whether it reopened.
  */
-export async function reopenRequestAfterPartnerCancel(booking: { id: string; proposalId: string | null; partnerId: string | null }, opts: { asap?: boolean } = {}) {
+export async function reopenRequestAfterPartnerCancel(
+  booking: { id: string; proposalId: string | null; partnerId: string | null; createdAt?: Date; scheduledDate?: Date; scheduledTime?: string },
+  opts: { asap?: boolean } = {},
+) {
   try {
     if (!booking.proposalId) return false
-    const proposal = await prisma.proposal.findUnique({ where: { id: booking.proposalId }, select: { id: true, serviceRequestId: true, serviceRequest: { select: { status: true, partnerId: true, userId: true, service: { select: { name: true } } } } } })
+    const proposal = await prisma.proposal.findUnique({ where: { id: booking.proposalId }, select: { id: true, serviceRequestId: true, serviceRequest: { select: { status: true, partnerId: true, userId: true, preferredDate: true, isUrgent: true, service: { select: { name: true } } } } } })
     if (!proposal || proposal.serviceRequest.status !== 'ACCEPTED') return false
-    const expiresAt = new Date(Date.now() + 24 * 3600_000)
+    const now = new Date()
+    const close = booking.scheduledDate && booking.scheduledTime ? bookingWhen({ scheduledDate: booking.scheduledDate, scheduledTime: booking.scheduledTime }).getTime() < now.getTime() + 2 * 3600_000 : false
+    const asap = opts.asap ?? close
+    const expiresAt = requestExpiresAt({ preferredDate: asap ? null : proposal.serviceRequest.preferredDate, isUrgent: asap || proposal.serviceRequest.isUrgent }, now)
     const res = await prisma.serviceRequest.updateMany({
       where: { id: proposal.serviceRequestId, status: 'ACCEPTED' },
       // A request directed to this partner opens to everyone
       data: {
         status: 'ACTIVE', expiresAt, ...(proposal.serviceRequest.partnerId ? { partnerId: null } : {}),
-        // The original date already passed (no-show, never confirmed): partners propose the soonest they can
-        ...(opts.asap ? { preferredDate: null, preferredTime: null, isUrgent: true } : {}),
+        // The original date already passed or is too close: partners propose the soonest they can
+        ...(asap ? { preferredDate: null, preferredTime: null, isUrgent: true } : {}),
       },
     })
     if (res.count === 0) return false
     await prisma.proposal.update({ where: { id: proposal.id }, data: { status: 'REJECTED' } })
     // Only the proposals the accept closed come back (not the ones the client turned down before)
-    const closed = await prisma.adminAuditLog.findFirst({ where: { action: 'PROPOSALS_CLOSED_BY_ACCEPT', entityType: 'ServiceRequest', entityId: proposal.serviceRequestId }, orderBy: { createdAt: 'desc' }, select: { details: true } })
-    const closedIds = closedProposalIds(closed?.details).filter((id) => id !== proposal.id)
+    const closedIds = (await proposalsClosedByAccept(booking, proposal.serviceRequestId)).filter((id) => id !== proposal.id)
     const restored = closedIds.length
       ? await prisma.proposal.updateMany({ where: { id: { in: closedIds }, serviceRequestId: proposal.serviceRequestId, status: 'REJECTED' }, data: { status: 'PENDING' } })
       : { count: 0 }
+    if (restored.count > 0) await clearPassedProposalDates(closedIds, now)
     const previousReopens = await prisma.adminAuditLog.count({ where: { action: REQUEST_REOPEN_ACTION, entityType: 'ServiceRequest', entityId: proposal.serviceRequestId } })
     await prisma.adminAuditLog.create({
-      data: { action: REQUEST_REOPEN_ACTION, entityType: 'ServiceRequest', entityId: proposal.serviceRequestId, actorEmail: 'sistema', details: JSON.stringify({ bookingId: booking.id, restoredProposals: restored.count, expiresAt: expiresAt.toISOString() }) },
+      data: { action: REQUEST_REOPEN_ACTION, entityType: 'ServiceRequest', entityId: proposal.serviceRequestId, actorEmail: 'sistema', details: JSON.stringify({ bookingId: booking.id, restoredProposals: restored.count, expiresAt: expiresAt.toISOString(), asap }) },
     })
     const { notifyNewServiceRequest } = await import('@/lib/notifications/notificationService')
     await notifyNewServiceRequest(proposal.serviceRequestId, { partnersOnly: true, round: 20 + previousReopens + 1 }).catch(() => 0)
@@ -302,7 +314,7 @@ export async function reopenRequestAfterPartnerCancel(booking: { id: string; pro
         type: 'NEW_PROPOSAL',
         title: restored.count === 1 ? 'Tienes otra propuesta lista' : `Tienes ${restored.count} propuestas listas`,
         message: `Para ${proposal.serviceRequest.service?.name ?? 'tu servicio'} ya tienes ${restored.count === 1 ? 'una propuesta' : `${restored.count} propuestas`} de otros socios: elige una en «Mis solicitudes» y queda reservado al instante.`,
-        data: { serviceRequestId: proposal.serviceRequestId, kind: 'PROPOSALS_RESTORED' },
+        data: { serviceRequestId: proposal.serviceRequestId, kind: 'PROPOSALS_RESTORED', url: '/dashboard?tab=requests' },
       }).catch(() => null)
     }
     return true
@@ -310,6 +322,32 @@ export async function reopenRequestAfterPartnerCancel(booking: { id: string; pro
     logger.warn('Request not reopened after the partner cancelled (the booking is cancelled anyway)', { bookingId: booking.id, err: err instanceof Error ? err.message : err })
     return false
   }
+}
+
+/**
+ * The proposals the accept of this booking rejected: its PROPOSALS_CLOSED_BY_ACCEPT mark (the one naming the
+ * booking, else the latest). Without a mark (an accept before the mark was written in its transaction), the
+ * request's proposals rejected right when the booking was created.
+ */
+async function proposalsClosedByAccept(booking: { id: string; createdAt?: Date }, serviceRequestId: string): Promise<string[]> {
+  const where = { action: 'PROPOSALS_CLOSED_BY_ACCEPT', entityType: 'ServiceRequest', entityId: serviceRequestId }
+  const mark = (await prisma.adminAuditLog.findFirst({ where: { ...where, details: { contains: booking.id } }, orderBy: { createdAt: 'desc' }, select: { details: true } }))
+    ?? (await prisma.adminAuditLog.findFirst({ where, orderBy: { createdAt: 'desc' }, select: { details: true } }))
+  if (mark) return closedProposalIds(mark.details)
+  if (!booking.createdAt) return []
+  const at = new Date(booking.createdAt).getTime()
+  const rows = await prisma.proposal.findMany({
+    where: { serviceRequestId, status: 'REJECTED', updatedAt: { gte: new Date(at - ACCEPT_TX_SLACK_MS), lte: new Date(at + ACCEPT_TX_SLACK_MS) } },
+    select: { id: true },
+  })
+  return rows.map((r) => r.id)
+}
+
+/** A restored proposal whose own date passed (or is within the hour) loses it: accepting it then books the request's date instead of failing. */
+async function clearPassedProposalDates(ids: string[], now: Date) {
+  const rows = await prisma.proposal.findMany({ where: { id: { in: ids }, status: 'PENDING', proposedDate: { not: null } }, select: { id: true, proposedDate: true, proposedTime: true } })
+  const passed = rows.filter((p) => p.proposedDate && bookingWhen({ scheduledDate: p.proposedDate, scheduledTime: p.proposedTime || '23:59' }).getTime() < now.getTime() + 3600_000).map((p) => p.id)
+  if (passed.length) await prisma.proposal.updateMany({ where: { id: { in: passed }, status: 'PENDING' }, data: { proposedDate: null, proposedTime: null } })
 }
 
 function closedProposalIds(details?: string | null): string[] {

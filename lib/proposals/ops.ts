@@ -230,17 +230,14 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
       },
     })
 
+    // Which proposals this accept closed, in the same transaction (every accept path, app or chat, passes
+    // here): if the partner later drops the booking, exactly these come back (reopenRequestAfterPartnerCancel)
+    await tx.adminAuditLog.create({
+      data: { action: PROPOSALS_CLOSED_BY_ACCEPT, entityType: 'ServiceRequest', entityId: sr.id, actorEmail: actor.email ?? 'sistema', details: JSON.stringify({ bookingId: booking.id, acceptedProposalId: proposalId, proposalIds: rejectedIds }) },
+    })
+
     return { booking, rejectedIds }
   })
-
-  // Which proposals this accept closed: if the partner later drops the booking, only these come back
-  if (rejectedIds.length) {
-    try {
-      await prisma.adminAuditLog.create({ data: { action: PROPOSALS_CLOSED_BY_ACCEPT, entityType: 'ServiceRequest', entityId: sr.id, actorEmail: 'sistema', details: JSON.stringify({ bookingId: booking.id, proposalIds: rejectedIds }) } })
-    } catch (err) {
-      logger.warn('closed-proposals marker failed (non-fatal)', { serviceRequestId: sr.id, err })
-    }
-  }
 
   // WhatsApp templates first (B8 to the client, C12 to the partner): the notifications' free text is then skipped
   const { waProposalAccepted } = await import('@/lib/messaging/wa-events')

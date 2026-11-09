@@ -14,6 +14,8 @@ import { conversationAttribution, type RequestAttribution } from '@/lib/analytic
 import { runAfterResponse } from '@/lib/ops/after'
 import { dateOnlyUtc, formatCalendarDay } from '@/lib/bookings/when'
 import { cityName, serviceCityMismatch } from '@/lib/proposals/city-match'
+import { MAX_AUTO_EXTENSIONS, nextAutoExtension, requestExpiresAt } from '@/lib/service-requests/lifetime'
+import { notifyMorePartners, widenedRequestIdsFor } from '@/lib/service-requests/reach'
 
 /**
  * Service-request operations shared by the app routes and the inbox AI agents. They load, validate state
@@ -119,11 +121,9 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
     }
   }
 
-  const expiresAt = new Date()
-  expiresAt.setHours(expiresAt.getHours() + 24)
-
   const preferredDay = preferredDateOnly(data.preferredDate)
   if (data.preferredDate && !preferredDay) throw new OpsError('Fecha preferida inválida', 400)
+  const expiresAt = requestExpiresAt({ preferredDate: preferredDay, isUrgent: data.isUrgent })
   const zone = data.zone && isZoneKey(data.zone) ? data.zone : zoneFromText(data.address)
   const attribution = opts.attribution ?? (origin.via === 'chat' ? await conversationAttribution(origin.conversationId) : null)
   const touches = {
@@ -223,15 +223,17 @@ export async function listClientRequests(userId: string) {
 export async function listOpenRequestsForPartner(partnerId: string) {
   const partner = await prisma.partnerProfile.findUnique({
     where: { id: partnerId },
-    select: { id: true, verified: true, isActive: true, coverageZones: true, services: { where: { active: true }, select: { serviceId: true, city: true } } },
+    select: { id: true, userId: true, verified: true, isActive: true, coverageZones: true, services: { where: { active: true }, select: { serviceId: true, city: true } } },
   })
   if (!partner) throw new OpsError('Solo los socios pueden ver solicitudes activas', 403)
   if (!partner.verified || !partner.isActive) throw new OpsError('Debes estar verificado para ver solicitudes de servicio', 403)
 
   const offers = partner.services.map((s) => ({ serviceId: s.serviceId, city: s.city }))
   const zones = partner.coverageZones ?? []
-  // A partner with zones only sees open requests in them (or with no zone); direct ones always
-  const inZones = zones.length > 0 ? { AND: [{ OR: [{ zone: null }, { zone: { in: zones } }] }] } : {}
+  // A partner with zones only sees open requests in them (or with no zone), plus those we told them about
+  // outside their zones because nobody answered (lib/service-requests/reach.ts); direct ones always
+  const widened = zones.length > 0 && offers.length > 0 ? await widenedRequestIdsFor(partner.userId).catch(() => [] as string[]) : []
+  const inZones = zones.length > 0 ? { AND: [{ OR: [{ zone: null }, { zone: { in: zones } }, ...(widened.length ? [{ id: { in: widened } }] : [])] }] } : {}
   const open = { status: 'ACTIVE' as const, expiresAt: { gt: new Date() }, NOT: { proposals: { some: { partnerId } } } }
   return prisma.serviceRequest.findMany({
     where: {
@@ -440,6 +442,74 @@ export async function resendUnansweredRequests(now: Date = new Date(), limit = 5
     resent++
   }
   return { resent, partnersNotified }
+}
+
+export const REQUEST_AUTO_EXTEND_ACTION = 'REQUEST_AUTO_EXTEND'
+/** Unanswered requests this close to expiring are extended (B5 «por vencer» goes 1–2 h before, only if not) */
+export const AUTO_EXTEND_WINDOW_MS = 3 * 3600_000
+
+type ExtendableRequest = { id: string; preferredDate: Date | null; preferredTime: string | null; isUrgent: boolean; expiresAt: Date }
+
+async function autoExtensionsDone(ids: string[]) {
+  const rows = ids.length
+    ? await prisma.adminAuditLog.findMany({ where: { action: REQUEST_AUTO_EXTEND_ACTION, entityType: 'ServiceRequest', entityId: { in: ids } }, select: { entityId: true } })
+    : []
+  const done = new Map<string, number>()
+  for (const r of rows) if (r.entityId) done.set(r.entityId, (done.get(r.entityId) ?? 0) + 1)
+  return done
+}
+
+/** Whether an active request without proposals will be extended instead of expiring (then no B5 «ajustar»). */
+export async function willAutoExtend(r: ExtendableRequest & { proposals: number }, now: Date = new Date()) {
+  if (r.proposals > 0) return false
+  const done = (await autoExtensionsDone([r.id])).get(r.id) ?? 0
+  return nextAutoExtension(r, done, now) !== null
+}
+
+/**
+ * ACTIVE requests about to expire with no proposal whose preferred date is still ahead stay open longer (up
+ * to MAX_AUTO_EXTENSIONS times, see lib/service-requests/lifetime.ts): partners are told again, more of
+ * them, and the client hears it in the app. Runs before the expiry, every 15 min.
+ */
+export async function autoExtendExpiringRequests(now: Date = new Date(), limit = 30) {
+  const rows = await prisma.serviceRequest.findMany({
+    where: { status: 'ACTIVE', isUrgent: false, preferredDate: { not: null }, expiresAt: { gt: now, lte: new Date(now.getTime() + AUTO_EXTEND_WINDOW_MS) }, proposals: { none: {} } },
+    select: { id: true, userId: true, preferredDate: true, preferredTime: true, isUrgent: true, expiresAt: true, service: { select: { name: true } } },
+    orderBy: { expiresAt: 'asc' },
+    take: limit,
+  })
+  if (!rows.length) return { extended: 0 }
+  const done = await autoExtensionsDone(rows.map((r) => r.id))
+  let extended = 0
+  for (const r of rows) {
+    const n = done.get(r.id) ?? 0
+    const next = nextAutoExtension(r, n, now)
+    if (!next) continue
+    const res = await prisma.serviceRequest.updateMany({ where: { id: r.id, status: 'ACTIVE', expiresAt: r.expiresAt }, data: { expiresAt: next } })
+    if (res.count === 0) continue
+    await prisma.adminAuditLog.create({
+      data: { action: REQUEST_AUTO_EXTEND_ACTION, entityType: 'ServiceRequest', entityId: r.id, actorEmail: 'sistema', details: JSON.stringify({ n: n + 1, of: MAX_AUTO_EXTENSIONS, from: r.expiresAt.toISOString(), to: next.toISOString() }) },
+    })
+    extended++
+    const round = 40 + n + 1
+    await notifyNewServiceRequest(r.id, { partnersOnly: true, round }).catch(() => 0)
+    await notifyMorePartners(r.id, { scope: 'city', limit: 20, round }, now).catch((err) => logger.warn('widen on extension failed', { requestId: r.id, err }))
+    const { createNotification } = await import('@/lib/notifications/notificationService')
+    await createNotification({
+      userId: r.userId,
+      type: 'NEW_SERVICE_REQUEST',
+      title: 'Tu solicitud sigue activa',
+      message: autoExtendedMessage(r.service.name, next),
+      data: { serviceRequestId: r.id, recipient: 'CLIENT', kind: 'AUTO_EXTENDED', url: '/dashboard?tab=requests' },
+      // In the app (and push): the WhatsApp «por vencer» / «venció» templates are for when it really expires
+      channels: ['PUSH'],
+    }).catch((err) => logger.warn('notify client on extension failed', { requestId: r.id, err }))
+  }
+  return { extended }
+}
+
+export function autoExtendedMessage(serviceName: string, until: Date) {
+  return `Aún no llegan propuestas para tu solicitud de ${serviceName}. La dejamos activa hasta el ${formatBogota(until, true)} y les avisamos a más socios; no tienes que hacer nada.`
 }
 
 /**

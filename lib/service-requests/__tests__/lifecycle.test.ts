@@ -12,6 +12,7 @@ const m = vi.hoisted(() => ({
   notifyNewServiceRequest: vi.fn(async () => 3),
   notifyProposalRejected: vi.fn(async () => {}),
   createNotification: vi.fn(async (_a: any) => ({})),
+  notifyMorePartners: vi.fn(async (..._a: any[]) => ({ notified: 4, pending: 0 })),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -29,11 +30,12 @@ vi.mock('@/lib/notifications/notificationService', () => ({
   createNotification: m.createNotification,
 }))
 vi.mock('@/lib/pwa/adoption-strategy', () => ({ recordPromptContext: vi.fn() }))
+vi.mock('@/lib/service-requests/reach', () => ({ notifyMorePartners: m.notifyMorePartners, widenedRequestIdsFor: vi.fn(async () => []) }))
 
 import { APP_ORIGIN } from '@/lib/ops/origin'
 import {
-  MAX_REACTIVATIONS, REQUEST_EXPIRE_ACTION, REQUEST_REACTIVATE_ACTION, REQUEST_RESEND_ACTION,
-  expireOverdueRequests, isRequestExpired, reactivateServiceRequest, resendUnansweredRequests,
+  MAX_REACTIVATIONS, REQUEST_AUTO_EXTEND_ACTION, REQUEST_EXPIRE_ACTION, REQUEST_REACTIVATE_ACTION, REQUEST_RESEND_ACTION,
+  autoExtendExpiringRequests, expireOverdueRequests, isRequestExpired, reactivateServiceRequest, resendUnansweredRequests, willAutoExtend,
 } from '@/lib/service-requests/ops'
 
 const client = { userId: 'u1', role: 'CLIENT' as const }
@@ -129,5 +131,37 @@ describe('vencimiento', () => {
     m.srUpdateMany.mockResolvedValue({ count: 0 })
     expect(await expireOverdueRequests(now)).toEqual({ expired: 0, rejectedProposals: 0 })
     expect(m.createNotification).not.toHaveBeenCalled()
+  })
+})
+
+describe('extensión automática de solicitudes sin propuestas', () => {
+  const soon = new Date(now.getTime() + 2 * 3600_000)
+  const row = { id: 'r1', userId: 'u1', preferredDate: new Date('2026-12-15T00:00:00.000Z'), preferredTime: '09:00', isUrgent: false, expiresAt: soon, service: { name: 'Pintura' } }
+
+  it('con la fecha por delante: extiende (sin acortar), audita, avisa a más socios y al cliente en la app', async () => {
+    m.srFindMany.mockResolvedValue([row])
+    m.auditFindMany.mockResolvedValue([] as never)
+    expect(await autoExtendExpiringRequests(now)).toEqual({ extended: 1 })
+    const where = m.srFindMany.mock.calls[0][0].where
+    expect(where).toMatchObject({ status: 'ACTIVE', isUrgent: false, proposals: { none: {} } })
+    const upd = m.srUpdateMany.mock.calls[0][0]
+    expect(upd.where).toEqual({ id: 'r1', status: 'ACTIVE', expiresAt: soon })
+    expect(upd.data.expiresAt.toISOString()).toBe('2026-10-08T15:00:00.000Z')
+    expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: REQUEST_AUTO_EXTEND_ACTION, entityId: 'r1' })
+    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1', { partnersOnly: true, round: 41 })
+    expect(m.notifyMorePartners).toHaveBeenCalledWith('r1', { scope: 'city', limit: 20, round: 41 }, now)
+    const n = m.createNotification.mock.calls[0][0] as unknown as { userId: string; title: string; channels: string[]; data: { kind: string } }
+    expect(n).toMatchObject({ userId: 'u1', title: 'Tu solicitud sigue activa', channels: ['PUSH'], data: { kind: 'AUTO_EXTENDED' } })
+  })
+
+  it('tras 2 extensiones vence normal (y entonces sí va el B5)', async () => {
+    m.srFindMany.mockResolvedValue([row])
+    m.auditFindMany.mockResolvedValue([{ entityId: 'r1' }, { entityId: 'r1' }] as never)
+    expect(await autoExtendExpiringRequests(now)).toEqual({ extended: 0 })
+    expect(m.srUpdateMany).not.toHaveBeenCalled()
+    expect(await willAutoExtend({ ...row, proposals: 0 }, now)).toBe(false)
+    m.auditFindMany.mockResolvedValue([] as never)
+    expect(await willAutoExtend({ ...row, proposals: 0 }, now)).toBe(true)
+    expect(await willAutoExtend({ ...row, proposals: 1 }, now)).toBe(false)
   })
 })
