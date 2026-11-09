@@ -290,8 +290,8 @@ export async function serviceTab(p: Period) {
   const [byChannel, response, daily, prevCount] = await Promise.all([
     prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT c.channel::text AS channel, count(*)::int AS conversations,
-             count(*) FILTER (WHERE c."aiHandled" AND c."aiHandoffAt" IS NULL)::int AS ai_only,
-             count(*) FILTER (WHERE c."aiHandoffAt" IS NOT NULL)::int AS handoffs
+             count(*) FILTER (WHERE c."aiHandled" AND NOT EXISTS (SELECT 1 FROM "ConversationEvent" e WHERE e."conversationId" = c.id AND e.type = 'ai_handoff'))::int AS ai_only,
+             count(*) FILTER (WHERE EXISTS (SELECT 1 FROM "ConversationEvent" e WHERE e."conversationId" = c.id AND e.type = 'ai_handoff'))::int AS handoffs
       FROM "Conversation" c WHERE c."isTest" = false AND c."aiSpam" = false AND c."createdAt" >= ${p.from} AND c."createdAt" < ${p.to}
       GROUP BY 1 ORDER BY 2 DESC`,
     // First reply after the first message received: minutes, and whether the AI or a person answered

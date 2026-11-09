@@ -76,7 +76,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     safe('partners.pendingVerification', prisma.partnerProfile.count({ where: { verified: false, isActive: true } }), 0),
     safe('system', systemAlerts(now), { cronsFailing: 0, cronsLate: 0, errorsLastHour: 0, aiDown: [] as Array<{ name: string; reason: string }>, aiAnswering: null as string | null }),
     safe('overview', platformOverview(now), null),
-    safe('aiAgents.handoffs', prisma.conversation.groupBy({ by: ['aiAgentId'], where: { aiHandoffAt: { gte: today }, isTest: false, aiAgentId: { not: null } }, _count: { _all: true } }), [] as Array<{ aiAgentId: string | null; _count: { _all: number } }>),
+    safe('aiAgents.handoffs', prisma.conversationEvent.groupBy({ by: ['actorId'], where: { type: 'ai_handoff', createdAt: { gte: today }, actorId: { not: null }, conversation: { isTest: false } }, _count: { _all: true } }).then((rows) => rows.map((r) => ({ aiAgentId: r.actorId, _count: r._count }))), [] as Array<{ aiAgentId: string | null; _count: { _all: number } }>),
     safe('aiAgents.gaps', prisma.aiKnowledgeGap.groupBy({ by: ['agentId'], where: { status: 'open', agentId: { not: null } }, _count: { _all: true } }), [] as Array<{ agentId: string | null; _count: { _all: number } }>),
     safe('system.criticalIncidents', prisma.adminIncident.count({ where: { status: { in: ['OPEN', 'ACKNOWLEDGED'] }, severity: 'CRITICAL' } }), 0),
     safe('budgets', prisma.workspace.findMany({ where: { OR: [{ aiMonthlyCostCapUsd: { not: null } }, { aiMonthlyCallCap: { not: null } }] }, select: { id: true, name: true, aiMonthlyCostCapUsd: true, aiMonthlyCallCap: true } }), []),

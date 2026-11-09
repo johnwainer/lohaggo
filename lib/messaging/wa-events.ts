@@ -422,6 +422,20 @@ export function waHandoff(p: { conversationId: string; workspaceId: string; chan
   return safe('D1', () => sendWaToAdmins((a) => WA.D1({ adminName: a.name, conversationId: p.conversationId, channel: p.channel, reason: p.reason, at }), { workspaceId: p.workspaceId }))
 }
 
+/** D1 for one step of the «sin respuesta» ladder: to one admin, or to every admin of the workspace. */
+export function waUnanswered(p: { conversationId: string; workspaceId: string; channel: string; reason: string; step: string; adminUserId?: string | null }) {
+  const at = new Date()
+  const build = (a: { name: string }) => WA.D1({ adminName: a.name, conversationId: p.conversationId, channel: p.channel, reason: p.reason, at, step: p.step })
+  return safe('D1-ladder', async () => {
+    if (p.adminUserId) {
+      const u = await prisma.user.findUnique({ where: { id: p.adminUserId }, select: { name: true } })
+      const r = await sendWaToUser(p.adminUserId, build({ name: u?.name ?? '' }))
+      return { admins: 1, sent: r?.ok ? 1 : 0 }
+    }
+    return sendWaToAdmins(build, { workspaceId: p.workspaceId })
+  })
+}
+
 /** D2: a copilot action waits for approval. */
 export function waActionAwaiting(p: { actionId: string; conversationId: string; workspaceId: string; summary: string }) {
   return safe('D2', () => sendWaToAdmins((a) => WA.D2({ adminName: a.name, actionId: p.actionId, conversationId: p.conversationId, summary: p.summary.slice(0, 180) }), { workspaceId: p.workspaceId }))

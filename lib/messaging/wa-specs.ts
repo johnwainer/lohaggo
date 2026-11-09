@@ -224,8 +224,9 @@ export const WA = {
   C31: (p: { chatId: string; partnerName: string; clientName: string; service: string; ref: string }) =>
     spec('C31', [['lh_socio_mensaje_cliente', { 1: partner(p.partnerName), 2: client(p.clientName), 3: p.service, 4: `#${p.ref}`, 5: 'partner?tab=bookings' }]], E('Chat', p.chatId), { dedupeKey: `C31:Chat:${p.chatId}`, dedupeWindowMs: 30 * 60_000 }),
 
-  D1: (p: { adminName: string; conversationId: string; channel: string; reason: string; at: Date }) =>
-    spec('D1', [['lh_admin_conversacion_traspasada', { 1: admin(p.adminName), 2: CHANNEL_TEXT[p.channel] ?? p.channel, 3: p.reason, 4: `admin/inbox?c=${p.conversationId}` }]], E('Conversation', p.conversationId), { dedupeWindowMs: 2 * 3600_000 }),
+  /** `step`: a step of the «sin respuesta» ladder (lib/inbox/escalation.ts), deduped on its own */
+  D1: (p: { adminName: string; conversationId: string; channel: string; reason: string; at: Date; step?: string }) =>
+    spec('D1', [['lh_admin_conversacion_traspasada', { 1: admin(p.adminName), 2: CHANNEL_TEXT[p.channel] ?? p.channel, 3: p.reason, 4: `admin/inbox?c=${p.conversationId}` }]], E('Conversation', p.conversationId), p.step ? { dedupeKey: `D1:Conversation:${p.conversationId}:${p.step}` } : { dedupeWindowMs: 2 * 3600_000 }),
   D2: (p: { adminName: string; actionId: string; conversationId: string; summary: string }) =>
     spec('D2', [['lh_admin_accion_por_aprobar', { 1: admin(p.adminName), 2: p.summary, 3: `admin/inbox?c=${p.conversationId}` }]], E('AiAgentAction', p.actionId)),
   D3: (p: { adminName: string; claimId: string; type: string; service: string }) =>

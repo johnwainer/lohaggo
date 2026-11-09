@@ -125,7 +125,8 @@ export async function platformOverview(now = new Date()) {
     prisma.conversation.groupBy({ by: ['channel'], where: { ...convBase, status: { in: [...OPEN] } }, _count: { _all: true } }),
     prisma.conversation.count({ where: { ...convBase, status: { in: [...OPEN] }, aiHandled: true, aiHandoffAt: null } }),
     prisma.conversationMessage.groupBy({ by: ['direction'], where: { sentAt: range(w.today), isInternal: false, conversation: { isTest: false } }, _count: { _all: true } }),
-    prisma.conversation.count({ where: { ...convBase, aiHandoffAt: range(w.today) } }),
+    // Handoffs are counted by their event: aiHandoffAt is cleared when the case is closed or given back to the AI
+    prisma.conversation.count({ where: { ...convBase, events: { some: { type: 'ai_handoff', createdAt: range(w.today) } } } }),
     prisma.aiAgent.findMany({ where: { status: 'active' }, select: { id: true, name: true, autopilot: true, workspace: { select: { name: true } } } }),
     prisma.aiCall.aggregate({ where: { createdAt: range(w.today) }, _sum: { costUsd: true }, _count: { _all: true } }),
     prisma.aiCall.aggregate({ where: { period: periodOf(now) }, _sum: { costUsd: true } }),

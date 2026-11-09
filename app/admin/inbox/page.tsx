@@ -248,6 +248,9 @@ const EVENT_LABEL: Record<string, string> = {
   agent_action_review: 'Revisión de una acción del agente',
   copilot_alert: 'Cliente sin respuesta',
   copilot_skip: 'La persona atiende este mensaje',
+  escalation: 'Sin respuesta: aviso al equipo',
+  escalation_holding: 'La IA le dijo al cliente que una persona responderá',
+  stale_lead: 'Lead sin respuesta',
   assigned: 'Asignada',
   status: 'Estado',
 }

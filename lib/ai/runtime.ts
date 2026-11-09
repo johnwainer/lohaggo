@@ -492,6 +492,9 @@ export const AgentRuntimeService = {
         where: { id: conversation.id },
         data: { aiHandled: false, status: 'OPEN', priority: 'high', assignedToId: assignee, aiTurns: 0, aiHandoffAt: new Date() },
       })
+      // The handoff text just marked it as answered: a person still owes the answer, so it stays in «Por responder»
+      const { patchInboxState } = await import('@/lib/inbox/state')
+      await patchInboxState(conversation.id, { awaitingReply: true, snoozedUntil: null, snoozedBy: null })
       await prisma.aiAgent.update({ where: { id: agent.id }, data: { handoffs: { increment: 1 } } })
       const label = HANDOFF_LABEL[reason || 'model'] || 'Traspaso'
       await prisma.conversationEvent.create({ data: { conversationId: conversation.id, type: 'ai_handoff', ...actor, detail: detail ? `${label}: ${detail}` : label } })
