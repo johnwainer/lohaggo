@@ -3,6 +3,7 @@ import { cronRoute } from '@/lib/system/cron'
 import { ensureDefaultAutomationRules, processDueAutomations } from '@/lib/messaging/automation-service'
 import { createLogger } from '@/lib/logger'
 import { runWaDaily } from '@/lib/messaging/wa-scheduled'
+import { runClientWelcome } from '@/lib/accounts/welcome'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +25,10 @@ async function handle(request: NextRequest) {
     const result = await processDueAutomations(200)
     // Hourly WhatsApp templates: partner onboarding (C3, C8, C9), win-back (B23, C30), demand (C29), unfinished chat requests (B24)
     const whatsapp = await runWaDaily().catch((err) => { logger.error('WhatsApp daily templates failed', { err }); return { error: 1 } })
-    logger.info('Cron automations completed', { ...result, whatsapp })
-    return NextResponse.json({ ok: true, ...result, whatsapp, rulesCreated: defaults?.created ?? 0, rulesLinksFixed: defaults?.fixedLinks ?? 0 })
+    // Clients who signed up and asked for nothing: welcome at 24 h, reminder at 3 days (app + email)
+    const welcome = await runClientWelcome().catch((err) => { logger.error('Client welcome failed', { err }); return { error: 1 } })
+    logger.info('Cron automations completed', { ...result, whatsapp, welcome })
+    return NextResponse.json({ ok: true, ...result, whatsapp, welcome, rulesCreated: defaults?.created ?? 0, rulesLinksFixed: defaults?.fixedLinks ?? 0 })
   } catch (err) {
     logger.error('Cron automations error', { err })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

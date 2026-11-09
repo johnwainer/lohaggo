@@ -35,6 +35,8 @@ export const DAILY_ACTION_LIMITS: Record<string, number> = {
   crear_solicitud: 3,
   enviar_propuesta: 5,
   aceptar_propuesta: 3,
+  rechazar_propuesta: 6,
+  motivo_propuestas: 3,
   cancelar_reserva: 2,
   reprogramar_reserva: 3,
   cambiar_estado_reserva: 8,

@@ -4,10 +4,11 @@ type CodeRow = { id: string; contactId: string; conversationId: string; userId: 
 
 const db = vi.hoisted(() => {
   const codes: CodeRow[] = []
-  const users: Array<{ id: string; role: string; name: string; phone: string | null; email: string; isActive: boolean }> = []
+  const users: Array<{ id: string; role: string; name: string; phone: string | null; email: string; isActive: boolean; phoneVerifiedAt?: Date | null; acquisition?: unknown }> = []
+  const conv = { value: { id: 'conv1', workspaceId: 'ws1', channel: 'WHATSAPP', contactPhone: '+573001234567', contactId: 'ct1', userId: null as string | null } }
   const events: Array<Record<string, unknown>> = []
   return {
-    codes, users, events,
+    codes, users, events, conv,
     prisma: {
       contactLinkCode: {
         count: vi.fn(async ({ where }: { where: { conversationId: string; createdAt: { gte: Date } } }) =>
@@ -31,8 +32,10 @@ const db = vi.hoisted(() => {
         findFirst: vi.fn(async ({ where }: { where: { OR: Array<{ phone?: string; email?: string }> } }) =>
           users.find((u) => u.isActive && where.OR.some((o) => (o.phone && o.phone === u.phone) || (o.email && o.email === u.email))) ?? null),
         findUnique: vi.fn(async ({ where }: { where: { id: string } }) => users.find((u) => u.id === where.id) ?? null),
+        findMany: vi.fn(async ({ where }: { where: { phone: { in: string[] } } }) => users.filter((u) => u.phone && where.phone.in.includes(u.phone)).map((u) => ({ ...u, phoneVerifiedAt: u.phoneVerifiedAt ?? null }))),
+        update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => { const u = users.find((x) => x.id === where.id)!; Object.assign(u, data); return u }),
       },
-      conversation: { findUnique: vi.fn(async () => ({ id: 'conv1', workspaceId: 'ws1' })) },
+      conversation: { findUnique: vi.fn(async () => conv.value) },
       conversationEvent: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { events.push(data); return data }) },
     },
   }
@@ -55,8 +58,16 @@ vi.mock('@/lib/messaging/providers', () => ({
 }))
 vi.mock('@/lib/messaging/provider-config', () => ({ getMessagingProviderRuntimeConfig: vi.fn(async () => ({})) }))
 vi.mock('@/lib/messaging/inbox-emitter', () => ({ emitInboxEvent: vi.fn() }))
+const limits = vi.hoisted(() => ({ hits: new Map<string, number>() }))
+vi.mock('@/lib/rate-limit-store', () => ({
+  overLimit: vi.fn(async (key: string, _ms: number, max: number) => {
+    const n = (limits.hits.get(key) ?? 0) + 1
+    limits.hits.set(key, n)
+    return { blocked: n > max, retryAfterSec: 40, count: n }
+  }),
+}))
 
-import { LINK_CODES_PER_DAY, confirmLink, maskPhone, startLink } from '@/lib/accounts/link'
+import { LINK_CODES_PER_DAY, confirmLink, linkByWhatsappNumber, maskPhone, startLink } from '@/lib/accounts/link'
 
 const actor = { agentId: 'a1', agentName: 'Sofía' }
 const base = { conversationId: 'conv1', contactId: 'ct1', actor }
@@ -68,7 +79,9 @@ beforeEach(() => {
   db.events.length = 0
   sent.messages.length = 0
   sent.fail = false
+  limits.hits.clear()
   db.users.push({ id: 'u1', role: 'PARTNER', name: 'Luis Gómez', phone: '+573001234567', email: 'luis@gmail.com', isActive: true })
+  db.conv.value = { id: 'conv1', workspaceId: 'ws1', channel: 'WHATSAPP', contactPhone: '+573001234567', contactId: 'ct1', userId: null }
   vi.clearAllMocks()
 })
 
@@ -96,9 +109,34 @@ describe('startLink', () => {
   })
 
   it('tope diario por conversación', async () => {
-    for (let i = 0; i < LINK_CODES_PER_DAY; i++) expect((await startLink({ ...base, via: 'phone', phone: '+573001234567' })).ok).toBe(true)
+    for (let i = 0; i < LINK_CODES_PER_DAY; i++) {
+      expect((await startLink({ ...base, via: 'phone', phone: '+573001234567' })).ok).toBe(true)
+      // spread over the day: the per-minute pacing is tested apart
+      limits.hits.clear()
+    }
     expect(await startLink({ ...base, via: 'phone', phone: '+573001234567' })).toMatchObject({ ok: false, code: 'limit' })
     expect(db.codes).toHaveLength(LINK_CODES_PER_DAY)
+  })
+
+  it('un código por minuto: el segundo seguido espera y no se envía', async () => {
+    expect((await startLink({ ...base, via: 'phone', phone: '300-123-4567' })).ok).toBe(true)
+    const again = await startLink({ ...base, via: 'phone', phone: '300 123 4567' })
+    expect(again).toMatchObject({ ok: false, code: 'wait' })
+    expect(again.ok ? '' : again.error).toMatch(/hace un momento/)
+    expect(sent.messages).toHaveLength(1)
+  })
+
+  it('el ritmo responde igual exista o no la cuenta', async () => {
+    await startLink({ ...base, conversationId: 'c7', via: 'phone', phone: '300 999 8888' })
+    expect(await startLink({ ...base, conversationId: 'c7', via: 'phone', phone: '300 999 8888' })).toMatchObject({ ok: false, code: 'wait' })
+    expect(sent.messages).toHaveLength(0)
+  })
+
+  it('un fijo se rechaza con un mensaje claro', async () => {
+    const r = await startLink({ ...base, via: 'phone', phone: '604 444 1234' })
+    expect(r).toMatchObject({ ok: false, code: 'invalid' })
+    expect(r.ok ? '' : r.error).toMatch(/fijo/)
+    expect(sent.messages).toHaveLength(0)
   })
 
   it('si no se puede enviar, no deja código', async () => {
@@ -146,5 +184,48 @@ describe('maskPhone', () => {
   it('deja indicativo y últimos 4', () => {
     expect(maskPhone('+573001234567')).toBe('+57•••••4567')
     expect(maskPhone('3001234567')).toBe('•••••4567')
+  })
+})
+
+describe('linkByWhatsappNumber', () => {
+  it('vincula sin código cuando una sola cuenta tiene el número del WhatsApp y marca el teléfono confirmado', async () => {
+    db.users[0].phone = '3001234567' // stored before normalization was strict
+    db.users[0].acquisition = { source: 'inbox' } // the account was created from a chat
+    const r = await linkByWhatsappNumber({ conversationId: 'conv1', actor })
+    expect(r).toEqual({ ok: true, userId: 'u1', role: 'PARTNER', name: 'Luis Gómez', already: false })
+    expect(contacts.updateContact).toHaveBeenCalledWith('ct1', { userId: 'u1' })
+    expect(db.users[0].phone).toBe('+573001234567')
+    expect(db.users[0].phoneVerifiedAt).toBeInstanceOf(Date)
+    expect(db.events[0]).toMatchObject({ type: 'account_linked', detail: 'Vinculado por su número de WhatsApp a lu**@gmail.com' })
+    expect(sent.messages).toHaveLength(0)
+  })
+
+  it('una cuenta registrada en la web se vincula, pero su teléfono no queda confirmado (podría ser un error al escribirlo)', async () => {
+    db.users[0].acquisition = { source: 'google' }
+    const r = await linkByWhatsappNumber({ conversationId: 'conv1', actor })
+    expect(r).toMatchObject({ ok: true, userId: 'u1' })
+    expect(db.users[0].phoneVerifiedAt ?? null).toBeNull()
+  })
+
+  it('nunca a un admin ni a un número con varias cuentas', async () => {
+    db.users.push({ id: 'u2', role: 'CLIENT', name: 'Otra', phone: '+573001234567', email: 'otra@x.co', isActive: true })
+    expect(await linkByWhatsappNumber({ conversationId: 'conv1' })).toEqual({ ok: false, reason: 'ambiguous' })
+    db.users.splice(0, 2, { id: 'a1', role: 'ADMIN', name: 'Admin', phone: '+573001234567', email: 'a@x.co', isActive: true })
+    expect(await linkByWhatsappNumber({ conversationId: 'conv1' })).toEqual({ ok: false, reason: 'admin' })
+    expect(contacts.updateContact).not.toHaveBeenCalled()
+  })
+
+  it('solo en WhatsApp', async () => {
+    db.conv.value = { ...db.conv.value, channel: 'MESSENGER' }
+    expect(await linkByWhatsappNumber({ conversationId: 'conv1' })).toEqual({ ok: false, reason: 'not_whatsapp' })
+  })
+
+  it('una conversación ya vinculada confirma el teléfono si es el mismo número y la cuenta nació del chat', async () => {
+    db.conv.value = { ...db.conv.value, userId: 'u1' }
+    db.users[0].acquisition = { source: 'inbox' }
+    const r = await linkByWhatsappNumber({ conversationId: 'conv1' })
+    expect(r).toMatchObject({ ok: true, userId: 'u1', already: true })
+    expect(db.users[0].phoneVerifiedAt).toBeInstanceOf(Date)
+    expect(contacts.updateContact).not.toHaveBeenCalled()
   })
 })

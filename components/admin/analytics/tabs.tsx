@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ChannelIcon, channelLabel } from '@/components/admin/ChannelIcon'
+import { SEARCH_SOURCE_LABEL } from '@/lib/analytics/search-sources'
 import { BarList, CITY_LABEL, Card, Empty, Kpi, axis, dayLabel, hours, minutes, money, monthLabel, num, pct, tooltipStyle } from '@/components/admin/analytics/ui'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -320,6 +321,17 @@ export function SearchTab({ d }: { d: Data }) {
           </ResponsiveContainer>
         </div>
       </Card>
+      <Card title="Búsquedas sin resultados">
+        {!(d.zeroTop ?? []).length ? <p className="text-sm text-gray-500">Ninguna en este periodo.</p> : (
+          <div className={TABLE_WRAP}>
+            <table className={tableCls('min-w-[22rem]')}>
+              <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Término</th><th className="text-right">Veces</th><th className="text-right">Personas</th><th className="text-right">Dónde</th></tr></thead>
+              <tbody>{d.zeroTop.map((t: Data) => <tr key={t.q} className="border-t border-gray-100"><td className="py-1.5 font-medium text-amber-700 break-words">{t.q}</td><td className="text-right tabular-nums">{num(t.n)}</td><td className="text-right tabular-nums">{num(t.people)}</td><td className="text-right text-xs text-gray-500">{(t.sources as string[]).map((x) => SEARCH_SOURCE_LABEL[x] ?? x).join(', ')}</td></tr>)}</tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-gray-500">En el chat, «sin resultados» es un servicio que no está en el catálogo o sin socios disponibles en la ciudad.</p>
+      </Card>
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Lo más buscado" className="lg:col-span-2">
           <div className={TABLE_WRAP}>
@@ -331,6 +343,7 @@ export function SearchTab({ d }: { d: Data }) {
         </Card>
         <div className="space-y-4">
           <Card title="Quién busca"><BarList rows={d.byRole.map((r: Data) => ({ name: ROLE[r.role] ?? r.role, value: r.n }))} /></Card>
+          {(d.bySource ?? []).length > 0 && <Card title="Dónde buscan"><BarList rows={d.bySource.map((r: Data) => ({ name: SEARCH_SOURCE_LABEL[r.source] ?? r.source, value: r.n }))} /></Card>}
           <Card title="Hora del día (Bogotá)">
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">

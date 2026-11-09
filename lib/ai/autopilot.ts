@@ -193,12 +193,21 @@ export async function handleInbound(conversationId: string, messageId: string, o
     history.unshift(...(await privateReplyContext(conversation, history.length).catch(() => [])))
   }
 
+  // WhatsApp proves the number: a chat from the phone of exactly one client/partner account is linked to it
+  // (and that phone counts as confirmed) before the agent reads it, so it never asks for a code
+  let userId = conversation.userId
+  if (conversation.channel === 'WHATSAPP') {
+    const { linkByWhatsappNumber } = await import('@/lib/accounts/link')
+    const byNumber = await linkByWhatsappNumber({ conversationId, actor: { agentId: agent.id, agentName: agent.name } }).catch(() => null)
+    if (byNumber?.ok) userId = byNumber.userId
+  }
+
   const result = await AgentRuntimeService.reply({
     agent,
     workspaceId: conversation.workspaceId,
     channel: conversation.channel,
     conversationId,
-    userId: conversation.userId,
+    userId,
     contact: { name: conversation.contactName, phone: conversation.contactPhone, tags: conversation.tags, fields: (conversation.customFields as Record<string, unknown>) || {} },
     history,
     text: pending,

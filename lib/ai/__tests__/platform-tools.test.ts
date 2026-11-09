@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const db = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
   service: { findMany: vi.fn() },
-  conversation: { findUnique: vi.fn() },
+  conversation: { findUnique: vi.fn(), update: vi.fn(async (..._a: unknown[]) => ({})) },
   conversationMessage: { findFirst: vi.fn() },
-  proposal: { findFirst: vi.fn() },
+  proposal: { findFirst: vi.fn(), findMany: vi.fn(async (..._a: unknown[]) => [] as unknown[]) },
   serviceRequest: { findFirst: vi.fn() },
   aiAgentAction: { findUnique: vi.fn() },
   conversationEvent: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
@@ -35,7 +35,9 @@ const ops = vi.hoisted(() => ({
   rescheduleBooking: vi.fn(),
   setAvailability: vi.fn(async () => ({ previous: true })),
 }))
-vi.mock('@/lib/proposals/ops', () => ({ acceptProposal: ops.acceptProposal, createProposal: ops.createProposal, listProposalsForClient: ops.listProposalsForClient, proposalSummaryForChat: ops.proposalSummaryForChat }))
+const reject = vi.hoisted(() => ({ rejectProposal: vi.fn(async (..._a: unknown[]) => ({ id: 'prop_00xyz1', status: 'REJECTED' })), saveProposalFeedback: vi.fn(async (..._a: unknown[]) => undefined) }))
+vi.mock('@/lib/proposals/ops', () => ({ acceptProposal: ops.acceptProposal, createProposal: ops.createProposal, listProposalsForClient: ops.listProposalsForClient, proposalSummaryForChat: ops.proposalSummaryForChat, rejectProposal: reject.rejectProposal, saveProposalFeedback: reject.saveProposalFeedback }))
+vi.mock('@/lib/analytics/search-log', () => ({ recordSearch: vi.fn(async () => ({ recorded: true })) }))
 vi.mock('@/lib/bookings/ops', () => ({ bookingsFor: ops.bookingsFor, bookingSummaryForChat: ops.bookingSummaryForChat, transitionBooking: ops.transitionBooking, rescheduleBooking: ops.rescheduleBooking, bookingWhen: (b: { scheduledDate: Date }) => new Date(b.scheduledDate) }))
 const guarantee = vi.hoisted(() => ({ openGuaranteeClaim: vi.fn(async (_a: unknown, i: { type: string }) => ({ id: 'gc_00claim', type: i.type, slaDueAt: new Date(Date.now() + 72 * 3600_000) })) }))
 vi.mock('@/lib/guarantee/ops', () => guarantee)
@@ -52,7 +54,8 @@ vi.mock('@/lib/service-requests/ops', () => ({
 }))
 vi.mock('@/lib/payments/ops', () => ({ confirmPartnerPayment: vi.fn(), mercadoPagoLinkFor: vi.fn(), paymentSummaryForChat: vi.fn(() => 'Pago: pendiente'), rejectPartnerPayment: vi.fn(), reportClientPayment: vi.fn() }))
 vi.mock('@/lib/reviews/ops', () => ({ leaveReview: vi.fn() }))
-vi.mock('@/lib/accounts/link', () => ({ confirmLink: vi.fn(), startLink: vi.fn() }))
+const link = vi.hoisted(() => ({ confirmLink: vi.fn(), startLink: vi.fn(), linkByWhatsappNumber: vi.fn(async (..._a: unknown[]) => ({ ok: false, reason: 'none' }) as Record<string, unknown>) }))
+vi.mock('@/lib/accounts/link', () => link)
 const photos = vi.hoisted(() => ({ storeChatPhotos: vi.fn(async (urls: string[]) => ({ urls: urls.map((u) => u.replace('https://media.x/', 'https://res.cloudinary.com/x/')), failed: 0 })), recentInboundPhotos: vi.fn(async () => []), CHAT_PHOTO_WINDOW_MS: 86_400_000 }))
 vi.mock('@/lib/chat/photos', () => photos)
 const chatOps = vi.hoisted(() => ({
@@ -67,7 +70,7 @@ vi.mock('@/lib/chat/ops', () => chatOps)
 const login = vi.hoisted(() => ({ sendLoginLinkFromChat: vi.fn(), LOGIN_LINK_TTL_MIN: 60 }))
 vi.mock('@/lib/accounts/login-link', () => login)
 
-import { runPlatformTool } from '@/lib/ai/platform-tools'
+import { proposalChoiceContext, runPlatformTool } from '@/lib/ai/platform-tools'
 import type { ToolContext } from '@/lib/ai/tools'
 
 const ctx = (over: Partial<ToolContext> = {}): ToolContext => ({
@@ -380,5 +383,112 @@ describe('runPlatformTool · el sí no se pierde ni se repite', () => {
     const out = await runPlatformTool('enviar_enlace_acceso', { dato: '' }, ctx({ mode: 'copilot' }))
     expect(login.sendLoginLinkFromChat).not.toHaveBeenCalled()
     expect(out).toMatch(/Sugerencia/)
+  })
+})
+
+describe('propuestas en el chat · comparar, elegir con un número y rechazar con motivo', () => {
+  const options = { proposalOptions: { at: new Date(Date.now() - 10 * 60_000).toISOString(), items: [{ n: 1, id: 'prop_00aaa1', requestId: 'sr_0000r1', label: 'Luz · $150.000' }, { n: 2, id: 'prop_00xyz1', requestId: 'sr_0000r1', label: 'Darwin · $130.000' }] } }
+
+  it('ver_propuestas numera de mejor a peor y guarda la numeración en la conversación', async () => {
+    requests.listClientRequests.mockResolvedValueOnce({
+      clientCommissionRate: 0,
+      serviceRequests: [{
+        id: 'sr_0000r1', status: 'ACTIVE', expiresAt: new Date(Date.now() + 3600_000), zone: null,
+        proposals: [
+          { id: 'prop_00aaa1', status: 'PENDING', price: 150000, notes: null, proposedDate: null, proposedTime: null, partner: { rating: 4.2, totalReviews: 2, completedServicesCount: 1, coverageZones: [], user: { name: 'Luz' } } },
+          { id: 'prop_00xyz1', status: 'PENDING', price: 130000, notes: null, proposedDate: null, proposedTime: null, partner: { rating: 4.9, totalReviews: 20, completedServicesCount: 30, coverageZones: [], user: { name: 'Darwin' } } },
+        ],
+      }],
+    } as never)
+    db.conversation.findUnique.mockResolvedValue({ customFields: {} })
+    const out = await runPlatformTool('ver_propuestas', {}, ctx())
+    expect(out).toMatch(/1\) Darwin · \$\s?130\.000 · 4\.9★ \(20 reseñas\) · 30 servicios hechos/)
+    expect(out).toMatch(/2\) Luz/)
+    expect(out).toContain('Responde 1 o 2 para elegir')
+    const saved = (db.conversation.update.mock.calls[0] as unknown as [{ data: { customFields: { proposalOptions: { items: Array<{ n: number; id: string }> } } } }])[0].data.customFields.proposalOptions
+    expect(saved.items.map((i) => [i.n, i.id])).toEqual([[1, 'prop_00xyz1'], [2, 'prop_00aaa1']])
+  })
+
+  it('«2» se resuelve a la propuesta de esa opción y se guarda con su ref real', async () => {
+    db.conversation.findUnique.mockResolvedValue({ customFields: options })
+    const out = await runPlatformTool('aceptar_propuesta', { propuesta_ref: '2', fecha: '', hora: '', confirmado: false }, ctx())
+    expect(out).toMatch(/pendiente de confirmación.*Darwin/i)
+    expect(actions.recordAction).toHaveBeenCalledWith(expect.objectContaining({ tool: 'aceptar_propuesta', status: 'proposed', input: expect.objectContaining({ propuesta_ref: '00xyz1' }) }))
+  })
+
+  it('rechazar en varios turnos sin historial: propone → «sí» → ejecutada con el motivo', async () => {
+    db.conversation.findUnique.mockResolvedValue({ customFields: options })
+    // Turn 1: the model proposes with the option number
+    const first = await runPlatformTool('rechazar_propuesta', { propuesta_ref: '2', motivo: 'precio_alto', detalles: 'muy caro', confirmado: false }, ctx())
+    expect(first).toMatch(/pendiente de confirmación.*Rechazar la propuesta de Darwin.*Precio alto/i)
+    expect(reject.rejectProposal).not.toHaveBeenCalled()
+    const stored = (actions.recordAction.mock.calls[0] as unknown as [{ input: Record<string, unknown> }])[0].input
+    expect(stored).toMatchObject({ propuesta_ref: '00xyz1', motivo: 'precio_alto' })
+    // Turn 2: the person says «sí»; the model (without the history) proposes again with reworded details
+    actions.latestProposed.mockResolvedValue({ id: 'act-rej', createdAt: new Date(Date.now() - 60_000), input: stored } as never)
+    const second = await runPlatformTool('rechazar_propuesta', { propuesta_ref: '2', motivo: 'precio_alto', detalles: 'caro', confirmado: false }, ctx({ personText: 'Sí, por favor', turnStartedAt: new Date() }))
+    expect(reject.rejectProposal).toHaveBeenCalledTimes(1)
+    const [, proposalId, origin, feedback] = reject.rejectProposal.mock.calls[0] as unknown as [unknown, string, { via: string }, { reason: string; detail: string }]
+    expect(proposalId).toBe('prop_00xyz1')
+    expect(origin.via).toBe('chat')
+    expect(feedback).toEqual({ reason: 'precio_alto', detail: 'muy caro' })
+    expect(actions.settleAction).toHaveBeenCalledWith('act-rej', expect.objectContaining({ status: 'executed', entityType: 'Proposal' }))
+    expect(second).toMatch(/Propuesta rechazada/)
+  })
+
+  it('motivo_propuestas guarda por qué no eligió ninguna, sin rechazar nada', async () => {
+    db.conversation.findUnique.mockResolvedValue({ customFields: options })
+    db.proposal.findMany.mockResolvedValueOnce([{ id: 'prop_00aaa1' }, { id: 'prop_00xyz1' }])
+    const out = await runPlatformTool('motivo_propuestas', { solicitud_ref: '', motivo: 'fecha_no_sirve', detalles: 'necesito el sábado' }, ctx())
+    expect(out).toMatch(/Motivo guardado/)
+    expect(reject.saveProposalFeedback).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }), 'sr_0000r1', { reason: 'fecha_no_sirve', detail: 'necesito el sábado', kind: 'ignored', proposalIds: ['prop_00aaa1', 'prop_00xyz1'], source: 'chat' })
+    expect(reject.rejectProposal).not.toHaveBeenCalled()
+  })
+
+  it('contexto: la elección por número y la pregunta del motivo una sola vez', async () => {
+    db.conversation.findUnique.mockResolvedValue({ customFields: options })
+    db.proposal.findMany.mockResolvedValue([{ id: 'prop_00aaa1' }, { id: 'prop_00xyz1' }])
+    const picked = await proposalChoiceContext('conv1', 'la 2', ['ver_propuestas', 'aceptar_propuesta'])
+    expect(picked).toMatch(/elegir la opción 2 \(Darwin · \$130\.000\).*propuesta_ref 00xyz1/)
+    const ask = await proposalChoiceContext('conv1', 'gracias, lo pienso', ['ver_propuestas'])
+    expect(ask).toMatch(/pregúntale una sola vez/)
+    expect(db.conversation.update).toHaveBeenCalledWith(expect.objectContaining({ data: { customFields: expect.objectContaining({ proposalOptions: expect.objectContaining({ reasonAskedAt: expect.any(String) }) }) } }))
+    expect(await proposalChoiceContext('conv1', 'hola', ['consultar_catalogo'])).toBe('')
+  })
+})
+
+describe('vinculación por el número de WhatsApp', () => {
+  it('sin vincular, escribiendo desde el número de su cuenta: la herramienta corre sin pedir código', async () => {
+    link.linkByWhatsappNumber.mockResolvedValueOnce({ ok: true, userId: 'u1', role: 'CLIENT', name: 'Ana', already: false })
+    const c = ctx({ userId: null })
+    const out = await runPlatformTool('aceptar_propuesta', { propuesta_ref: '00xyz1', fecha: '', hora: '', confirmado: false }, c)
+    expect(c.userId).toBe('u1')
+    expect(out).toMatch(/pendiente de confirmación/)
+    expect(link.startLink).not.toHaveBeenCalled()
+  })
+
+  it('confirmar_codigo en una conversación ya vinculada no pide código', async () => {
+    db.conversation.findUnique.mockResolvedValue({ contactId: 'ct1', userId: 'u1', workspaceId: 'ws', channel: 'WHATSAPP', contactPhone: '+573001112233' })
+    const out = await runPlatformTool('confirmar_codigo', { codigo: '123456' }, ctx())
+    expect(out).toMatch(/ya está vinculada.*no hace falta ningún código/)
+    expect(link.confirmLink).not.toHaveBeenCalled()
+  })
+
+  it('vincular_cuenta en WhatsApp con su propio número vincula sin enviar código', async () => {
+    db.conversation.findUnique.mockResolvedValue({ contactId: 'ct1', userId: null, workspaceId: 'ws', channel: 'WHATSAPP', contactPhone: '+573001112233' })
+    link.linkByWhatsappNumber.mockResolvedValueOnce({ ok: true, userId: 'u9', role: 'CLIENT', name: 'Ana', already: false })
+    const c = ctx({ userId: null })
+    const out = await runPlatformTool('vincular_cuenta', { telefono: '300 111 2233', correo: '' }, c)
+    expect(out).toMatch(/vinculada .* sin código/)
+    expect(c.userId).toBe('u9')
+    expect(link.startLink).not.toHaveBeenCalled()
+  })
+
+  it('un segundo código seguido no se envía: le pide escribir el que ya llegó', async () => {
+    db.conversation.findUnique.mockResolvedValue({ contactId: 'ct1', userId: null, workspaceId: 'ws', channel: 'MESSENGER', contactPhone: null })
+    link.startLink.mockResolvedValueOnce({ ok: false, code: 'wait', retryAfterSec: 40, error: 'Ya te enviamos un código hace un momento.' })
+    const out = await runPlatformTool('vincular_cuenta', { telefono: '3001234567', correo: '' }, ctx({ userId: null, contact: { name: 'Ana', phone: null, channel: 'MESSENGER' } }))
+    expect(out).toMatch(/No se envió otro código/)
+    expect(actions.recordAction).not.toHaveBeenCalled()
   })
 })

@@ -1,7 +1,11 @@
 import { createHash, randomInt, randomUUID } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-import { normalizePhone } from '@/lib/phone'
+import { normalizePhone, parseColombianMobile, storedPhoneVariants } from '@/lib/phone'
+import { CODE_MAX_PER_WINDOW, CODE_RESEND_GAP_MS, CODE_WINDOW_MS, paceError } from '@/lib/accounts/code-rate'
+import { overLimit } from '@/lib/rate-limit-store'
+import { linkConfirmsPhone, whatsappLinkDecision } from '@/lib/accounts/whatsapp-trust'
+import { isPlaceholderEmail } from '@/lib/accounts/phone-login-core'
 import { toE164, updateContact } from '@/lib/inbox/contacts'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
@@ -83,6 +87,7 @@ export type StartLinkInput = {
 export type StartLinkResult =
   | { ok: true; sentTo: string }
   | { ok: false; code: 'limit' | 'invalid' | 'send_failed'; error: string }
+  | { ok: false; code: 'wait'; retryAfterSec: number; error: string }
 
 function linkCodeMessage(code: string) {
   return `Tu código para vincular tu cuenta LoHaggo es ${code}. Vence en ${LINK_CODE_TTL_MIN} minutos. Si no lo pediste, ignóralo.`
@@ -98,12 +103,27 @@ export async function startLink(p: StartLinkInput): Promise<StartLinkResult> {
   if (!given) return { ok: false, code: 'invalid', error: p.via === 'phone' ? 'Teléfono requerido' : 'Correo requerido' }
   const masked = p.via === 'phone' ? maskPhone(normalizePhone(given) ?? given) : maskEmail(given.toLowerCase())
   if (masked === '—' || masked === '•••') return { ok: false, code: 'invalid', error: p.via === 'phone' ? 'Teléfono inválido' : 'Correo inválido' }
+  if (p.via === 'phone') {
+    const mobile = parseColombianMobile(given)
+    if (!mobile.ok && mobile.reason === 'landline') return { ok: false, code: 'invalid', error: mobile.error }
+  }
 
   const since = new Date(Date.now() - 24 * 3600_000)
   const sentToday = await prisma.contactLinkCode.count({ where: { conversationId: p.conversationId, createdAt: { gte: since } } })
   if (sentToday >= LINK_CODES_PER_DAY) {
     return { ok: false, code: 'limit', error: `Ya se enviaron ${LINK_CODES_PER_DAY} códigos hoy en esta conversación. Intenta mañana.` }
   }
+  // One per minute and three per 15 minutes, per chat and per destination. Every call counts, with or
+  // without an account behind the data, so the pace never tells whether the account exists.
+  const paceKey = p.via === 'phone' ? (normalizePhone(given) ?? given) : given.toLowerCase()
+  const [gap, perChat, perDestination] = await Promise.all([
+    overLimit(`linkcode:gap:${p.conversationId}`, CODE_RESEND_GAP_MS, 1),
+    overLimit(`linkcode:win:${p.conversationId}`, CODE_WINDOW_MS, CODE_MAX_PER_WINDOW),
+    overLimit(`linkcode:dest:${paceKey}`, CODE_WINDOW_MS, CODE_MAX_PER_WINDOW),
+  ])
+  const window = perChat.blocked ? perChat : perDestination.blocked ? perDestination : null
+  if (window) return { ok: false, code: 'wait', retryAfterSec: window.retryAfterSec, error: paceError('too_many', window.retryAfterSec) }
+  if (gap.blocked) return { ok: false, code: 'wait', retryAfterSec: gap.retryAfterSec, error: paceError('too_soon', gap.retryAfterSec) }
 
   const candidate = await findLinkCandidate(p.via === 'phone' ? { phone: given } : { email: given })
   const destination = candidate?.destinations[p.via]
@@ -193,4 +213,51 @@ export async function confirmLink(p: { conversationId: string; contactId: string
 
   logger.info('Conversation linked to account by code', { conversationId: p.conversationId, userId: user.id })
   return { ok: true, userId: user.id, role: user.role, name: user.name }
+}
+
+export type WhatsappLinkResult =
+  | { ok: true; userId: string; role: 'CLIENT' | 'PARTNER'; name: string; already: boolean }
+  | { ok: false; reason: 'not_whatsapp' | 'no_contact' | 'none' | 'ambiguous' | 'admin' | 'inactive' }
+
+/**
+ * A WhatsApp chat is the proof that the person holds that number: when exactly one active client or
+ * partner account has it, the chat is linked to it without a code (as userByPhone already did when the
+ * contact was created). The phone counts as confirmed (phoneVerifiedAt) only for accounts whose phone came
+ * from a chat (linkConfirmsPhone). Phones stored in older formats (without +57) are found too.
+ */
+export async function linkByWhatsappNumber(p: { conversationId: string; actor?: { agentId: string; agentName: string } }): Promise<WhatsappLinkResult> {
+  const conv = await prisma.conversation.findUnique({ where: { id: p.conversationId }, select: { id: true, workspaceId: true, channel: true, contactPhone: true, contactId: true, userId: true } })
+  if (!conv || conv.channel !== 'WHATSAPP') return { ok: false, reason: 'not_whatsapp' }
+  const phone = toE164(conv.contactPhone)
+  if (!phone) return { ok: false, reason: 'not_whatsapp' }
+  if (!conv.contactId) return { ok: false, reason: 'no_contact' }
+
+  if (conv.userId) {
+    const linked = await prisma.user.findUnique({ where: { id: conv.userId }, select: { id: true, role: true, name: true, phone: true, email: true, isActive: true, phoneVerifiedAt: true, acquisition: true } })
+    if (!linked || linked.role === 'ADMIN') return { ok: false, reason: 'admin' }
+    if (!linked.isActive) return { ok: false, reason: 'inactive' }
+    if (!linked.phoneVerifiedAt && toE164(normalizePhone(linked.phone)) === phone && linkConfirmsPhone(linked, isPlaceholderEmail)) {
+      await prisma.user.update({ where: { id: linked.id }, data: { phoneVerifiedAt: new Date() } }).catch(() => null)
+    }
+    return { ok: true, userId: linked.id, role: linked.role, name: linked.name, already: true }
+  }
+
+  const accounts = await prisma.user.findMany({ where: { phone: { in: storedPhoneVariants(phone) } }, select: { id: true, role: true, isActive: true, name: true, email: true, phoneVerifiedAt: true, acquisition: true }, take: 3 })
+  const decision = whatsappLinkDecision(accounts)
+  if (!decision.link) return { ok: false, reason: decision.reason }
+  const user = accounts.find((a) => a.id === decision.userId)!
+
+  await updateContact(conv.contactId, { userId: user.id })
+  // The stored phone takes the canonical form so the rest of the platform (templates, login) finds it
+  await prisma.user.update({ where: { id: user.id }, data: { phone, ...(!user.phoneVerifiedAt && linkConfirmsPhone(user, isPlaceholderEmail) ? { phoneVerifiedAt: new Date() } : {}) } }).catch(() => null)
+  await prisma.conversationEvent.create({
+    data: {
+      conversationId: conv.id, type: 'account_linked', actorType: p.actor ? 'ai' : 'system',
+      actorId: p.actor?.agentId ?? null, actorName: p.actor?.agentName ?? null,
+      detail: `Vinculado por su número de WhatsApp a ${maskEmail(user.email)}`,
+    },
+  }).catch(() => null)
+  emitInboxEvent({ type: 'status-update', conversationId: conv.id, workspaceId: conv.workspaceId })
+  logger.info('Conversation linked to account by WhatsApp number', { conversationId: conv.id, userId: user.id })
+  return { ok: true, userId: user.id, role: user.role as 'CLIENT' | 'PARTNER', name: user.name, already: false }
 }

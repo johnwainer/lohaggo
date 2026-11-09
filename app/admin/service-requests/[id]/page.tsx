@@ -267,6 +267,14 @@ export default function RequestCasePage() {
 
       {/* Proposals */}
       <Section title="Propuestas" icon={<UserCheck className="h-4 w-4" />} count={c.proposals.length}>
+        {c.proposalFeedback.some((f) => f.kind === 'ignored') && (
+          <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-semibold">Por qué no eligió ninguna</p>
+            <ul className="mt-1 space-y-0.5">
+              {c.proposalFeedback.filter((f) => f.kind === 'ignored').map((f, i) => <li key={i} className="break-words">{f.label} <span className="text-xs text-amber-700">· {f.source === 'chat' ? 'por chat' : 'en la app'} · {when(f.at)}</span></li>)}
+            </ul>
+          </div>
+        )}
         {!c.proposals.length ? <p className="text-sm text-gray-400">Aún no hay propuestas.</p> : (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {c.proposals.map((p) => (
@@ -287,6 +295,7 @@ export default function RequestCasePage() {
                   <Field label="Propone">{p.proposedDate ? `${day(p.proposedDate)}${p.proposedTime ? ` · ${p.proposedTime}` : ''}` : p.proposedTime ?? '—'}</Field>
                 </div>
                 {p.notes && <p className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-gray-50 p-2 text-sm text-gray-700">{p.notes}</p>}
+                {p.rejectReason && <p className="mt-2 rounded-xl bg-rose-50 px-2 py-1.5 text-xs text-rose-800">Rechazada por el cliente · {p.rejectReason}</p>}
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                   <span>#{p.ref} · {when(p.createdAt)}{p.origin && p.origin !== 'app' ? ` · ${originLabel(p.origin)}` : ''}</span>
                   {p.partner.slug && <Link href={`/pro/${p.partner.slug}`} target="_blank" className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:underline">Perfil <ExternalLink className="h-3 w-3" /></Link>}

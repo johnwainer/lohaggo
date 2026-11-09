@@ -20,12 +20,12 @@ import { claimAction, expireStaleProposals, leaveTrail, overDailyLimit, proposed
 import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
 import { addRequestPhotos, cancelServiceRequest, createServiceRequest, isRequestExpired, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, reactivateServiceRequest, requestSummaryForChat } from '@/lib/service-requests/ops'
-import { acceptProposal, createProposal, listProposalsForClient, proposalSummaryForChat } from '@/lib/proposals/ops'
+import { acceptProposal, createProposal, listProposalsForClient, proposalSummaryForChat, rejectProposal, saveProposalFeedback } from '@/lib/proposals/ops'
 import { bookingsFor, bookingSummaryForChat, bookingWhen, transitionBooking } from '@/lib/bookings/ops'
 import { confirmPartnerPayment, mercadoPagoLinkFor, paymentSummaryForChat, rejectPartnerPayment, reportClientPayment } from '@/lib/payments/ops'
 import { leaveReview } from '@/lib/reviews/ops'
 import { addBankAccount, fetchAttachmentForDocument, partnerByUser, partnerStatusSummary, setAvailability, uploadDocument, upsertPartnerService } from '@/lib/partners/ops'
-import { confirmLink, startLink } from '@/lib/accounts/link'
+import { confirmLink, linkByWhatsappNumber, startLink } from '@/lib/accounts/link'
 import { openGuaranteeClaim } from '@/lib/guarantee/ops'
 import { CHAT_MESSAGE_MAX, chatRef, PHOTO_ONLY_TEXT, resolveChatByRef, sendChatMessage, takeUnreadMessages } from '@/lib/chat/ops'
 import { detectContactInfo } from '@/lib/chat/contact-guard'
@@ -33,9 +33,14 @@ import { CHAT_PHOTO_WINDOW_MS, recentInboundPhotos, storeChatPhotos } from '@/li
 import { LOGIN_LINK_TTL_MIN, sendLoginLinkFromChat } from '@/lib/accounts/login-link'
 import { ACCESS_LINK_TTL_H, sendAccessLink } from '@/lib/accounts/access-link'
 import { toE164 } from '@/lib/inbox/contacts'
+import { normalizePhone } from '@/lib/phone'
 import { eligibility, SLA_PROPOSAL_HOURS, SLA_RESOLUTION_HOURS, TYPE_LABEL, type GuaranteeType } from '@/lib/guarantee/policy'
 import { loadEffectiveRates } from '@/lib/payments/commission'
 import { zoneName } from '@/lib/geo/zones'
+import { rankProposals } from '@/lib/proposals/ranking'
+import { recordSearch } from '@/lib/analytics/search-log'
+import { PROPOSAL_REASONS, PROPOSAL_REASON_LABEL, isProposalReason } from '@/lib/proposals/feedback'
+import { MAX_CHAT_OPTIONS, PROPOSAL_OPTIONS_KEY, choosePrompt, compareLine, optionFromText, readProposalOptions, type ProposalOption } from '@/lib/proposals/chat-compare'
 
 export type PlatformToolName =
   | 'vincular_cuenta'
@@ -66,18 +71,22 @@ export type PlatformToolName =
   | 'enviar_enlace_acceso'
   | 'pedir_de_nuevo'
   | 'estado_de_mi_cuenta_socio'
+  | 'rechazar_propuesta'
+  | 'motivo_propuestas'
 
 const str = (description: string) => ({ type: 'string', description })
 const confirmado = { type: 'boolean', description: 'false la primera vez (para proponer); true solo después de que la persona diga claramente que sí' }
 const REF = str('Referencia de 6 caracteres tal como la devolvió la herramienta de consulta (nunca inventada)')
 const CONFIRM_RULE = 'Primero llámala con confirmado: false: te devuelve el resumen exacto; díselo a la persona y pregúntale si confirma. Solo con un sí claro la vuelves a llamar con confirmado: true y los mismos datos.'
-const NEEDS_LINK = 'Requiere que la conversación esté vinculada a su cuenta (si no lo está, usa vincular_cuenta).'
+const OPTION_REF = str('Referencia de 6 caracteres de ver_propuestas, o el número de la opción que eligió en la última comparación (1, 2, 3…)')
+const REASON = { type: 'string', enum: [...PROPOSAL_REASONS], description: 'precio_alto, fecha_no_sirve, poca_experiencia, ya_lo_resolvi, quiero_mas_opciones, otro, o sin_motivo si no quiso decir' }
+const NEEDS_LINK = 'Requiere que la conversación esté vinculada a su cuenta. En WhatsApp, si escribe desde el número de su cuenta, se vincula sola al llamar la herramienta: llámala directamente y nunca le pidas un código. Solo si la herramienta responde que no está vinculada, usa vincular_cuenta (una vez).'
 
 export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   vincular_cuenta: {
     label: 'Vincular la conversación a una cuenta',
     description: 'Envía un código de 6 dígitos al teléfono o correo registrado en la cuenta LoHaggo de la persona para vincular esta conversación a su cuenta.',
-    guidance: 'Úsala cuando la persona diga que ya tiene cuenta y la conversación no esté vinculada (el contexto lo dice). Pídele el teléfono o el correo con el que se registró y llámala. El código NUNCA llega a este chat: llega al teléfono o correo de la cuenta; pídele que lo escriba aquí y usa confirmar_codigo. La respuesta es la misma exista o no la cuenta: no afirmes que la cuenta existe. Si no tiene cuenta, usa crear_cuenta_cliente o crear_cuenta_socio.',
+    guidance: 'Úsala cuando la persona diga que ya tiene cuenta y la conversación no esté vinculada (el contexto lo dice). En WhatsApp llámala primero con teléfono y correo vacíos: si su número de WhatsApp es el de su cuenta, queda vinculada sin código. Si no, pídele el teléfono o el correo con el que se registró y llámala. Un solo código por vez: si ya enviaste uno, espera a que lo escriba; si ya lo validó, no vuelvas a pedirlo. El código NUNCA llega a este chat: llega al teléfono o correo de la cuenta; pídele que lo escriba aquí y usa confirmar_codigo. La respuesta es la misma exista o no la cuenta: no afirmes que la cuenta existe. Si no tiene cuenta, usa crear_cuenta_cliente o crear_cuenta_socio.',
     writes: true, group: 'identity', platform: true,
     schema: () => ({ type: 'object', properties: { telefono: str('Teléfono que dio la persona, o vacío'), correo: str('Correo que dio la persona, o vacío') }, required: ['telefono', 'correo'], additionalProperties: false }),
   },
@@ -121,20 +130,44 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   },
   ver_propuestas: {
     label: 'Ver propuestas recibidas',
-    description: 'Lista las solicitudes abiertas de la persona y las propuestas que le han llegado (socio, calificación, precio, nota) con su referencia.',
-    guidance: `Úsala cuando pregunte si ya le llegaron propuestas, cuánto cobran o quién le propuso, y siempre antes de aceptar_propuesta para tener la referencia. ${NEEDS_LINK}`,
+    description: 'Lista las solicitudes abiertas de la persona y una comparación numerada de las propuestas que le llegaron (precio, calificación, servicios hechos, zona, fecha propuesta), ordenadas de mejor a peor relación calidad-precio, con su referencia.',
+    guidance: `Úsala cuando pregunte si ya le llegaron propuestas, cuánto cobran o quién le propuso, y siempre antes de aceptar_propuesta. Muéstrale la comparación numerada en líneas cortas (una por propuesta, sin las [ref …], que son para ti) y termina con la frase para elegir que te da la herramienta («Responde 1, 2 o 3 para elegir»). Si responde con un número, es esa opción: llama aceptar_propuesta con ese número o su ref. ${NEEDS_LINK}`,
     writes: false, group: 'client', platform: true,
     schema: () => ({ type: 'object', properties: {}, required: [], additionalProperties: false }),
   },
   aceptar_propuesta: {
     label: 'Aceptar una propuesta',
     description: 'Acepta la propuesta elegida y crea la reserva con la fecha y hora acordadas, igual que en la app.',
-    guidance: `${CONFIRM_RULE} Usa la referencia de ver_propuestas. Si la persona quiere otra fecha u hora distinta a la de su solicitud, pásalas. ${NEEDS_LINK}`,
+    guidance: `${CONFIRM_RULE} Usa la referencia de ver_propuestas o el número de la opción que eligió (1, 2, 3…) en la última comparación. Si la persona quiere otra fecha u hora distinta a la de su solicitud, pásalas. ${NEEDS_LINK}`,
     writes: true, group: 'client', platform: true, confirm: true,
     schema: () => ({
       type: 'object',
-      properties: { propuesta_ref: REF, fecha: str('YYYY-MM-DD si cambia la fecha, o vacío'), hora: str('HH:mm si cambia la hora, o vacío'), confirmado },
+      properties: { propuesta_ref: OPTION_REF, fecha: str('YYYY-MM-DD si cambia la fecha, o vacío'), hora: str('HH:mm si cambia la hora, o vacío'), confirmado },
       required: ['propuesta_ref', 'fecha', 'hora', 'confirmado'],
+      additionalProperties: false,
+    }),
+  },
+  rechazar_propuesta: {
+    label: 'Rechazar una propuesta',
+    description: 'Rechaza una propuesta que la persona no quiere (el socio recibe el aviso) y guarda el motivo para el equipo. La solicitud sigue abierta para otras propuestas.',
+    guidance: `Úsala solo cuando la persona diga claramente que no quiere una propuesta. Si no dijo por qué, pregúntaselo una sola vez (precio, fecha, experiencia…); si no quiere decir, usa motivo sin_motivo y no insistas. ${CONFIRM_RULE} Usa la referencia o el número de la opción de ver_propuestas. ${NEEDS_LINK}`,
+    writes: true, group: 'client', platform: true, confirm: true,
+    schema: () => ({
+      type: 'object',
+      properties: { propuesta_ref: OPTION_REF, motivo: REASON, detalles: str('El motivo con sus palabras, o vacío'), confirmado },
+      required: ['propuesta_ref', 'motivo', 'detalles', 'confirmado'],
+      additionalProperties: false,
+    }),
+  },
+  motivo_propuestas: {
+    label: 'Guardar por qué no eligió ninguna propuesta',
+    description: 'Guarda para el equipo por qué la persona no eligió ninguna de las propuestas de su solicitud (las propuestas siguen abiertas; no se rechaza nada).',
+    guidance: `Úsala cuando la persona, tras ver las propuestas, diga por qué ninguna le sirve o que no le interesan (precio alto, la fecha, poca experiencia, ya lo resolvió…). Pregúntale el motivo una sola vez y no insistas. No la uses para rechazar una propuesta concreta (eso es rechazar_propuesta). ${NEEDS_LINK}`,
+    writes: true, group: 'client', platform: true,
+    schema: () => ({
+      type: 'object',
+      properties: { solicitud_ref: str('Referencia de la solicitud (de ver_propuestas), o vacío para la última comparación que le mostraste'), motivo: REASON, detalles: str('El motivo con sus palabras, o vacío') },
+      required: ['solicitud_ref', 'motivo', 'detalles'],
       additionalProperties: false,
     }),
   },
@@ -380,6 +413,11 @@ export async function findServiceByName(name: string) {
 export const PLAYGROUND_USER = '__playground__'
 
 async function actorFor(ctx: ToolContext): Promise<Actor | null> {
+  // Writing from the WhatsApp number of an account proves it is theirs: linked here, never by a code
+  if (!ctx.userId && ctx.conversationId && ctx.mode === 'autopilot' && ctx.contact.channel === 'WHATSAPP') {
+    const r = await linkByWhatsappNumber({ conversationId: ctx.conversationId, actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } }).catch(() => null)
+    if (r?.ok) ctx.userId = r.userId
+  }
   if (!ctx.userId) return null
   if (ctx.mode === 'playground' && ctx.userId === PLAYGROUND_USER) return { userId: PLAYGROUND_USER, role: 'CLIENT', partnerId: null, email: null }
   const u = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { id: true, role: true, email: true, isActive: true, partnerProfile: { select: { id: true } } } })
@@ -502,6 +540,7 @@ const n = (input: Record<string, unknown>, k: string) => Number(input[k]) || 0
 const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
   crear_solicitud: async (input, ctx, actor) => {
     const service = await findServiceByName(s(input, 'servicio'))
+    if (!service) await logChatSearch(ctx, s(input, 'servicio'), 0)
     if (!service) return { error: `El servicio «${s(input, 'servicio')}» no está en el catálogo. Consulta el catálogo y usa el nombre exacto.` }
     const city = cityFromText(s(input, 'ciudad'))
     const urgent = Boolean(input.urgente)
@@ -889,6 +928,122 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
       },
     }
   },
+
+  rechazar_propuesta: async (input, ctx, actor) => {
+    const p = await proposalByRef(actor, s(input, 'propuesta_ref'))
+    if (!p) return { error: 'Esa referencia no corresponde a ninguna propuesta de esta persona. Consulta ver_propuestas y usa la referencia o el número exacto.' }
+    if (p.status !== 'PENDING') return { error: 'Esa propuesta ya no está pendiente.' }
+    const motivo = s(input, 'motivo')
+    const reason = isProposalReason(motivo) ? motivo : 'sin_motivo'
+    const detail = s(input, 'detalles') || null
+    const partnerName = p.partner?.user?.name ?? 'el socio'
+    return {
+      summary: `Rechazar la propuesta de ${partnerName} por ${cop(p.price)} (motivo: ${PROPOSAL_REASON_LABEL[reason]})`,
+      wouldRecord: 'la propuesta rechazada (el socio recibe el aviso) y el motivo, que ve el equipo',
+      run: async () => {
+        await rejectProposal(actor, p.id, originFor(ctx), { reason, detail })
+        return { text: 'Propuesta rechazada y motivo guardado para el equipo. La solicitud sigue abierta para otras propuestas. Confírmaselo en una frase.', entityType: 'Proposal', entityId: p.id }
+      },
+    }
+  },
+
+  motivo_propuestas: async (input, ctx, actor) => {
+    const motivo = s(input, 'motivo')
+    if (!isProposalReason(motivo)) return { error: `Motivo no válido: usa ${PROPOSAL_REASONS.join(', ')}.` }
+    const ref = normRef(s(input, 'solicitud_ref'))
+    let requestId: string | null = null
+    if (ref) {
+      if (!/^[a-z0-9]{6}$/.test(ref)) return { error: 'Esa referencia de solicitud no es válida. Consulta ver_propuestas.' }
+      const row = await prisma.serviceRequest.findFirst({ where: { userId: actor.userId, id: { endsWith: ref } }, select: { id: true } })
+      requestId = row?.id ?? null
+    } else if (ctx.conversationId && ctx.mode !== 'playground') {
+      requestId = (await loadProposalOptions(ctx.conversationId))?.items[0]?.requestId ?? null
+    }
+    if (!requestId && ctx.mode === 'playground') return { summary: `Guardar el motivo por el que no eligió ninguna propuesta: ${PROPOSAL_REASON_LABEL[motivo]}`, wouldRecord: 'el motivo, que ve el equipo en la solicitud', run: async () => ({ text: 'Simulado', entityType: 'ServiceRequest', entityId: 'playground' }) }
+    if (!requestId) return { error: 'No encuentro la solicitud. Consulta ver_propuestas y pasa la referencia de la solicitud.' }
+    const id = requestId
+    const detail = s(input, 'detalles') || null
+    return {
+      summary: `Guardar por qué no eligió ninguna propuesta de la solicitud #${shortId(id)}: ${PROPOSAL_REASON_LABEL[motivo]}`,
+      wouldRecord: 'el motivo, que ve el equipo en la solicitud (las propuestas siguen abiertas)',
+      run: async () => {
+        const pending = await prisma.proposal.findMany({ where: { serviceRequestId: id, status: 'PENDING' }, select: { id: true } })
+        await saveProposalFeedback(actor, id, { reason: motivo, detail, kind: 'ignored', proposalIds: pending.map((x) => x.id), source: 'chat' })
+        if (ctx.conversationId) await markReasonAsked(ctx.conversationId)
+        return { text: 'Motivo guardado para el equipo. Agradécele en una frase y no le vuelvas a preguntar por eso; las propuestas siguen abiertas por si cambia de opinión.', entityType: 'ServiceRequest', entityId: id }
+      },
+    }
+  },
+}
+
+/** What people ask for in the chat counts as a search in Analítica (source chat; 0 = nobody can serve it). */
+async function logChatSearch(ctx: ToolContext, query: string, resultCount: number, city?: string) {
+  if (ctx.mode !== 'autopilot' || !ctx.conversationId || !query.trim()) return
+  await recordSearch({ query, resultCount, source: 'chat', userId: ctx.userId ?? null, visitorId: `conv:${ctx.conversationId}`, city: city ?? null }).catch(() => null)
+}
+
+// ─── Proposal comparison in the chat («responde 1, 2 o 3») ──────────────────
+
+async function conversationFields(conversationId: string) {
+  const c = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true } })
+  return c?.customFields && typeof c.customFields === 'object' ? { ...(c.customFields as Record<string, unknown>) } : {}
+}
+
+async function saveProposalOptions(conversationId: string, items: ProposalOption[]) {
+  const fields = await conversationFields(conversationId)
+  fields[PROPOSAL_OPTIONS_KEY] = { at: new Date().toISOString(), items, reasonAskedAt: null }
+  await prisma.conversation.update({ where: { id: conversationId }, data: { customFields: fields as object } }).catch(() => null)
+}
+
+async function loadProposalOptions(conversationId: string) {
+  return readProposalOptions(await conversationFields(conversationId))
+}
+
+async function markReasonAsked(conversationId: string) {
+  const fields = await conversationFields(conversationId)
+  const current = readProposalOptions(fields)
+  if (!current) return
+  fields[PROPOSAL_OPTIONS_KEY] = { ...current, reasonAskedAt: new Date().toISOString() }
+  await prisma.conversation.update({ where: { id: conversationId }, data: { customFields: fields as object } }).catch(() => null)
+}
+
+/** «2» (an option of the last comparison) → that proposal's 6-character ref; anything else unchanged. */
+async function resolveOptionRef(input: Record<string, unknown>, ctx: ToolContext) {
+  const raw = s(input, 'propuesta_ref')
+  if (!/^#?\d{1,2}$/.test(raw) || !ctx.conversationId || ctx.mode === 'playground') return input
+  const opts = await loadProposalOptions(ctx.conversationId)
+  const hit = opts?.items.find((i) => i.n === Number(raw.replace('#', '')))
+  return hit ? { ...input, propuesta_ref: shortId(hit.id) } : input
+}
+
+/**
+ * What the agent must know about the last comparison it showed (it does not see that tool call on the next
+ * turn): the numbering, the option the person just picked, and — once, when they answered without picking —
+ * the hint to ask why none fits.
+ */
+export async function proposalChoiceContext(conversationId: string, personText: string, tools: string[], now: Date = new Date()) {
+  if (!tools.includes('ver_propuestas') && !tools.includes('aceptar_propuesta')) return ''
+  const fields = await conversationFields(conversationId)
+  const opts = readProposalOptions(fields, now)
+  if (!opts) return ''
+  const still = await prisma.proposal.findMany({ where: { id: { in: opts.items.map((i) => i.id) }, status: 'PENDING' }, select: { id: true } })
+  const open = new Set(still.map((x) => x.id))
+  const items = opts.items.filter((i) => open.has(i.id))
+  if (!items.length) return ''
+  const mins = Math.max(0, Math.round((now.getTime() - new Date(opts.at).getTime()) / 60_000))
+  const lines = [`Última comparación de propuestas que le mostraste (hace ${mins} min; ref para ti): ${items.map((i) => `${i.n}) ${i.label} [ref ${shortId(i.id)}]`).join('; ')}.`]
+  const pick = optionFromText(personText, Math.max(...opts.items.map((i) => i.n)))
+  const chosen = pick !== null ? items.find((i) => i.n === pick) : null
+  if (chosen) {
+    lines.push(`La persona acaba de elegir la opción ${chosen.n} (${chosen.label}). Llama aceptar_propuesta con propuesta_ref ${shortId(chosen.id)} y confirmado: false para mostrarle el resumen exacto y pedirle su sí; no le vuelvas a mostrar la comparación.`)
+  } else if (pick !== null) {
+    lines.push(`Eligió la opción ${pick}, pero esa propuesta ya no está disponible: díselo y ofrécele las que siguen abiertas.`)
+  } else if (!opts.reasonAskedAt && mins >= 2) {
+    lines.push('Si en este mensaje no elige ninguna ni pregunta por ellas, pregúntale una sola vez, sin insistir, por qué no le sirvieron (precio, fecha, experiencia del socio…) y guarda su respuesta con motivo_propuestas (o rechazar_propuesta si no quiere una en concreto). Si ya respondió el motivo, guárdalo y no preguntes más.')
+    fields[PROPOSAL_OPTIONS_KEY] = { ...opts, reasonAskedAt: now.toISOString() }
+    await prisma.conversation.update({ where: { id: conversationId }, data: { customFields: fields as object } }).catch(() => null)
+  }
+  return lines.join('\n')
 }
 
 // ─── Reads ──────────────────────────────────────────────────────────────────
@@ -896,9 +1051,13 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
 async function runRead(name: PlatformToolName, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   if (name === 'ver_socios_disponibles') {
     const service = await findServiceByName(s(input, 'servicio'))
-    if (!service) return `El servicio «${s(input, 'servicio')}» no está en el catálogo.`
+    if (!service) {
+      await logChatSearch(ctx, s(input, 'servicio'), 0)
+      return `El servicio «${s(input, 'servicio')}» no está en el catálogo.`
+    }
     const city = cityFromText(s(input, 'ciudad'))
     const [summary, list] = await Promise.all([partnerAvailabilitySummary(service.id, city), partnersForService(service.id, city)])
+    await logChatSearch(ctx, s(input, 'servicio'), summary.total, city)
     if (!summary.total) return `Por ahora no hay socios verificados de ${service.name} en ${city}. Igual puede crear la solicitud: le avisaremos cuando alguno la tome.`
     const lines = list.slice(0, 8).map((p) => `- ref ${shortId(p.partnerId)}: ${p.name} · ${p.rating ? `${p.rating.toFixed(1)}★ (${p.totalReviews})` : 'sin reseñas'} · desde ${cop(p.price)} · ${p.completedServicesCount} servicios · ${p.isAvailable ? 'disponible' : 'no disponible ahora'}`)
     return `${service.name} en ${city}: ${summary.total} socios verificados, ${summary.available} disponibles ahora, desde ${cop(summary.fromPrice ?? 0)}${summary.avgRating ? `, calificación promedio ${summary.avgRating.toFixed(1)}` : ''}.\n${lines.join('\n')}`
@@ -922,16 +1081,34 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
     return rows.map((m) => `- ${m.from} · ${m.service} (ref ${m.ref}) · ${fmtDate(m.at)}: ${m.content === PHOTO_ONLY_TEXT ? '(envió una foto; puede verla en la app)' : `«${m.content}»${m.imageUrl ? ' (con una foto; puede verla en la app)' : ''}`}`).join('\n')
   }
   if (name === 'ver_propuestas') {
-    const { serviceRequests: requests } = await listClientRequests(actor.userId)
+    const { serviceRequests: requests, clientCommissionRate } = await listClientRequests(actor.userId)
     const open = requests.filter((r) => r.status === 'ACTIVE' || r.status === 'ACCEPTED').slice(0, 5)
     if (!open.length) return 'No tiene solicitudes abiertas.'
     const parts: string[] = []
+    const options: ProposalOption[] = []
     for (const r of open) {
       parts.push(await requestSummaryForChat(r.id))
-      const props = (r.proposals ?? []).filter((p) => p.status === 'PENDING' || p.status === 'ACCEPTED')
-      parts.push(props.length ? props.map((p) => `  - ref ${shortId(p.id)}: ${proposalSummaryForChat(p)}`).join('\n') : '  (aún sin propuestas)')
+      const accepted = (r.proposals ?? []).filter((p) => p.status === 'ACCEPTED')
+      if (accepted.length) parts.push(accepted.map((p) => `  - aceptada, ref ${shortId(p.id)}: ${proposalSummaryForChat(p)}`).join('\n'))
+      const pending = r.status === 'ACTIVE' && !isRequestExpired(r) ? (r.proposals ?? []).filter((p) => p.status === 'PENDING') : []
+      if (!pending.length) {
+        if (!accepted.length) parts.push('  (aún sin propuestas)')
+        continue
+      }
+      for (const { proposal: p, badges } of rankProposals(pending)) {
+        if (options.length >= MAX_CHAT_OPTIONS) break
+        const n = options.length + 1
+        const zone = r.zone && p.partner.coverageZones?.includes(r.zone) ? zoneName(r.zone) ?? null : null
+        const when = p.proposedDate ? `${formatCalendarDay(p.proposedDate, { weekday: 'short', day: 'numeric', month: 'short' })}${p.proposedTime ? ` ${p.proposedTime}` : ''}` : null
+        const line = compareLine({ n, ref: shortId(p.id), partnerName: p.partner.user?.name || 'Socio', price: cop(p.price), rating: p.partner.rating ?? 0, reviews: p.partner.totalReviews ?? 0, jobs: p.partner.completedServicesCount ?? 0, zone, when, badges })
+        options.push({ n, id: p.id, requestId: r.id, label: `${p.partner.user?.name || 'Socio'} · ${cop(p.price)}` })
+        parts.push(`  ${line}${p.notes?.trim() ? ` · nota: «${p.notes.trim().slice(0, 160)}»` : ''}`)
+      }
     }
-    return parts.join('\n')
+    if (!options.length) return parts.join('\n')
+    if (ctx.conversationId && ctx.mode === 'autopilot') await saveProposalOptions(ctx.conversationId, options)
+    const fee = clientCommissionRate > 0 ? ` Los precios son del servicio; al aceptar se suma la tarifa de servicio de ${clientCommissionRate} %.` : ''
+    return `${parts.join('\n')}\nMuéstrale esta comparación (una línea corta por opción, sin las [ref …]) en este orden, que va de mejor a peor relación calidad-precio, y termina con: «${choosePrompt(options.length)}».${fee} Si responde un número, es esa opción.`
   }
   if (name === 'ver_mis_reservas') {
     const rows = await bookingsFor(actor, { upcomingOnly: Boolean(input.solo_proximas), take: 10 })
@@ -1048,18 +1225,30 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
       : `Si esos datos corresponden a una cuenta de LoHaggo, el enlace llegó ${where} (vence en ${LOGIN_LINK_TTL_MIN} minutos, un solo uso). Dile que revise ese correo y spam. No confirmes ni niegues que la cuenta existe.`
   }
   if (!conv?.contactId) return 'No se pudo vincular: esta conversación no tiene contacto. Pasa el caso a una persona.'
+  const linkedText = 'Esta conversación ya está vinculada a su cuenta: no hace falta ningún código. No le pidas código; sigue con lo que necesitaba usando las herramientas de su cuenta.'
   if (name === 'vincular_cuenta') {
-    if (conv.userId) return 'Esta conversación ya está vinculada a una cuenta.'
-    if (await overDailyLimit(ctx.conversationId, 'vincular_cuenta')) { ctx.state.handoff = { reason: 'Tope de códigos de vinculación' }; return LIMIT_REACHED_TEXT }
+    if (conv.userId) { ctx.userId = ctx.userId ?? conv.userId; return linkedText }
     const phone = s(input, 'telefono')
     const email = s(input, 'correo')
+    // The number they write from is the proof: when the account has it, no code is sent
+    if (conv.channel === 'WHATSAPP' && ((phone && toE164(normalizePhone(phone)) === toE164(conv.contactPhone)) || (!phone && !email))) {
+      const byNumber = await linkByWhatsappNumber({ conversationId: ctx.conversationId, actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } }).catch(() => null)
+      if (byNumber?.ok) {
+        ctx.userId = byNumber.userId
+        return `Conversación vinculada a la cuenta de ${byNumber.name} (${byNumber.role === 'PARTNER' ? 'socio' : 'cliente'}) por su número de WhatsApp, sin código. No le pidas ningún código; sigue con lo que necesitaba.`
+      }
+    }
+    if (await overDailyLimit(ctx.conversationId, 'vincular_cuenta')) { ctx.state.handoff = { reason: 'Tope de códigos de vinculación' }; return LIMIT_REACHED_TEXT }
     if (!phone && !email) return 'Falta el teléfono o el correo con el que se registró.'
     const r = await startLink({ conversationId: ctx.conversationId, contactId: conv.contactId, phone: phone || undefined, email: email || undefined, via: phone ? 'phone' : 'email', actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } })
+    if (!r.ok && r.code === 'wait') return `No se envió otro código: ${r.error} Díselo así y pídele que escriba aquí el código que ya le llegó; no llames vincular_cuenta otra vez en este momento.`
+    if (!r.ok && r.code === 'invalid') return `${r.error} Pídele el dato correcto.`
     await recordAction({ workspaceId: ctx.workspaceId, conversationId: ctx.conversationId, agent: ctx.agent, tool: name, summary: `Enviar código de vinculación a ${r.ok ? r.sentTo : 'la cuenta'}`, input, status: r.ok ? 'executed' : 'failed', result: r.ok ? `Enviado a ${r.sentTo}` : r.code })
     if (!r.ok) return r.code === 'limit' ? LIMIT_REACHED_TEXT : 'No se pudo enviar el código ahora. Pasa el caso a una persona.'
-    return `Si esos datos corresponden a una cuenta de LoHaggo, el código llegó a ${r.sentTo} (vence en 10 minutos). Pídele que lo escriba aquí. No confirmes ni niegues que la cuenta existe.`
+    return `Si esos datos corresponden a una cuenta de LoHaggo, el código llegó a ${r.sentTo} (vence en 10 minutos). Pídele que lo escriba aquí. No confirmes ni niegues que la cuenta existe. No pidas otro código mientras tanto.`
   }
-  // confirmar_codigo
+  // confirmar_codigo: a chat already linked (by its number, or a code validated before) never needs one
+  if (conv.userId) { ctx.userId = ctx.userId ?? conv.userId; return linkedText }
   const r = await confirmLink({ conversationId: ctx.conversationId, contactId: conv.contactId, code: s(input, 'codigo') })
   await recordAction({ workspaceId: ctx.workspaceId, conversationId: ctx.conversationId, agent: ctx.agent, tool: name, summary: 'Confirmar código de vinculación', input: { codigo: '••••••' }, status: r.ok ? 'executed' : 'failed', result: r.ok ? 'Vinculada' : r.code, entityType: r.ok ? 'User' : null, entityId: r.ok ? r.userId : null })
   if (!r.ok) {
@@ -1074,8 +1263,10 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
 
 // ─── Executor ───────────────────────────────────────────────────────────────
 
-export async function runPlatformTool(name: PlatformToolName, rawInput: Record<string, unknown>, ctx: ToolContext): Promise<string> {
+export async function runPlatformTool(name: PlatformToolName, givenInput: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   const entry = PLATFORM_TOOLS[name]
+  // «2» from the comparison becomes that proposal's ref before anything compares or stores the input
+  const rawInput = name === 'aceptar_propuesta' || name === 'rechazar_propuesta' ? await resolveOptionRef(givenInput, ctx) : givenInput
   let input = rawInput
   if (entry.group === 'identity') return runIdentity(name, input, ctx)
   if (!entry.writes) return runRead(name, input, ctx)

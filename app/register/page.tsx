@@ -11,6 +11,7 @@ import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import { safeInternalPath, withRedirect } from '@/lib/navigation/safe-redirect'
+import { formatNationalPhone, parseColombianMobile } from '@/lib/phone'
 
 function RegisterForm() {
   const router = useRouter()
@@ -214,14 +215,8 @@ function RegisterForm() {
     if (!phone) {
       return 'El teléfono es obligatorio'
     }
-    const cleanPhone = phone.replace(/\s/g, '')
-    if (!/^[0-9]{10}$/.test(cleanPhone)) {
-      return 'El teléfono debe tener 10 dígitos'
-    }
-    if (!cleanPhone.startsWith('3')) {
-      return 'El teléfono debe comenzar con 3 (formato colombiano)'
-    }
-    return ''
+    const mobile = parseColombianMobile(phone)
+    return mobile.ok ? '' : mobile.error
   }
 
   type ValidatableField = keyof typeof fieldErrors
@@ -246,18 +241,8 @@ function RegisterForm() {
   const isFieldValid = (field: ValidatableField) =>
     touched[field] && hasFieldValue(field) && !fieldErrors[field]
 
-  const formatPhoneNumber = (value: string) => {
-    const cleaned = value.replace(/\D/g, '')
-    const limited = cleaned.slice(0, 10)
-
-    if (limited.length <= 3) {
-      return limited
-    } else if (limited.length <= 6) {
-      return `${limited.slice(0, 3)} ${limited.slice(3)}`
-    } else {
-      return `${limited.slice(0, 3)} ${limited.slice(3, 6)} ${limited.slice(6)}`
-    }
-  }
+  // Autofill and paste bring «+57 300 123 4567»: the prefix goes away instead of eating the last digits
+  const formatPhoneNumber = (value: string) => formatNationalPhone(value)
 
   const handleFieldChange = (field: string, value: string) => {
     let processedValue = value
