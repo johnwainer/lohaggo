@@ -31,7 +31,7 @@ export const KPI_BY_OBJECTIVE: Record<string, Kpi> = {
 
 export const AGENT_CHANNELS: MarketingChannel[] = ['INSTAGRAM', 'FACEBOOK', 'WEB']
 
-/** Formats the agent can produce without a person: it has photos, not video (reels need an uploaded video). */
+/** Formats the agent can produce without a person (reels from a stock or uploaded video, or a photo animated by Cloudinary). */
 export const AGENT_FORMATS: Record<MarketingChannel, readonly string[]> = {
   INSTAGRAM: ['feed', 'carousel', 'reel', 'story'],
   FACEBOOK: ['foto', 'texto', 'enlace', 'reel', 'historia'],
