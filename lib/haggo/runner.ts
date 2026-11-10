@@ -6,7 +6,7 @@ import { callAI, describeApiError, type CallResult, type Effort } from '@/lib/ai
 import { getAiSettings } from '@/lib/ai/settings'
 import type { AiCallKind } from '@/lib/ai/calls'
 import type { HaggoConfig } from '@/lib/haggo/config'
-import { detect, novelDetections, type Detection, type Snapshot } from '@/lib/haggo/detect'
+import { detect, novelDetections, staleHaggoItems, type Detection, type Snapshot } from '@/lib/haggo/detect'
 import { dueJobs, type LastRuns } from '@/lib/haggo/schedule'
 import { takeSnapshot } from '@/lib/haggo/snapshot'
 import { configStatusBlock } from '@/lib/haggo/config-status'
@@ -166,6 +166,18 @@ async function syncRuleFindings(runId: string, detections: Detection[], opts: { 
   return createdCritical
 }
 
+/** AI findings and Haggo incidents whose condition cleared are resolved (staleHaggoItems). */
+async function resolveStale(now: Date, detectionKeys: string[] | null) {
+  const [findings, incidents] = await Promise.all([
+    prisma.haggoFinding.findMany({ where: { status: { in: ['new', 'seen'] } }, select: { id: true, fingerprint: true, title: true, lastSeenAt: true }, take: 300 }),
+    prisma.adminIncident.findMany({ where: { source: 'haggo', status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, select: { id: true, type: true, title: true, lastSeenAt: true }, take: 100 }),
+  ])
+  const stale = staleHaggoItems({ now, detectionKeys, findings, incidents })
+  if (stale.findings.length) await prisma.haggoFinding.updateMany({ where: { id: { in: stale.findings }, status: { in: ['new', 'seen'] } }, data: { status: 'resolved' } })
+  if (stale.incidents.length) await prisma.adminIncident.updateMany({ where: { id: { in: stale.incidents }, status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, data: { status: 'RESOLVED', resolvedBy: 'Haggo (la condición ya no se ve)', resolvedAt: now } })
+  return stale
+}
+
 /** Error text of runs closed because they outlived the lock */
 export const TIMEOUT_ERROR = 'timeout: la ejecución se cortó antes de terminar'
 /** A timed-out report is retried at most this many times a day, then it waits for its next turn */
@@ -207,6 +219,7 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
     const prevDetections = prevRuns.flatMap((r) => (r.detections as Array<Pick<Detection, 'key' | 'severity'>> | null) ?? [])
     const novel = force ? detections : novelDetections(detections, prevDetections)
     const newCritical = await syncRuleFindings(run.id, detections, { resolveMissing: !snapshot.unavailable?.length })
+    await resolveStale(now, snapshot.unavailable?.length ? null : detections.map((d) => d.key)).catch((err) => logger.warn('Stale resolution failed', { err: err instanceof Error ? err.message : err }))
     // Request-attention flags come in bursts: one email per cycle for all of them
     const attention = newCritical.filter((d) => d.key.startsWith('ops:attention:'))
     for (const d of newCritical.filter((x) => !attention.includes(x))) await notify('critical', `critical:${d.key}:${bogotaKey(now)}`, { title: d.title, lines: [d.detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })

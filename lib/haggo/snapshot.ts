@@ -90,13 +90,19 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     safe('webhooks', systemOverview(now), null),
   ])
   // What the inbox agents did today on the platform, and the day's cancellations by origin
-  const [actionRows, chatCancellationsToday, cancellationsToday, metaConns, preflightRows] = await Promise.all([
+  const [actionRows, chatCancellationsToday, cancellationsToday, metaConns, preflightRows, draftingRows] = await Promise.all([
     safe('aiActions', prisma.aiAgentAction.groupBy({ by: ['agentId', 'status'], where: { createdAt: { gte: today } }, _count: { _all: true } }), [] as Array<{ agentId: string; status: string; _count: { _all: number } }>),
     safe('aiActions.chatCancellations', prisma.bookingEvent.count({ where: { type: 'status', toStatus: 'CANCELLED', origin: 'chat', createdAt: { gte: today } } }), 0),
     safe('aiActions.cancellations', prisma.bookingEvent.count({ where: { type: 'status', toStatus: 'CANCELLED', createdAt: { gte: today } } }), 0),
     safe('marketing.metaAccounts', prisma.channelConnection.findMany({ where: { channel: { in: ['MESSENGER', 'INSTAGRAM'] }, enabled: true }, select: { id: true, channel: true, name: true, capabilities: true, commentSettings: true } }), []),
     // Pieces Meta refused in the preflight (reels and stories are tested before their time)
     safe('marketing.preflight', prisma.marketingPost.findMany({ where: { updatedAt: { gte: new Date(now.getTime() - 14 * 24 * H) }, status: { in: ['draft', 'review', 'approved', 'scheduled'] } }, orderBy: { updatedAt: 'desc' }, select: { id: true, title: true, agentMeta: true }, take: 200 }), []),
+    // Active agents with an approved strategy and how many pieces they wrote in 48 h (counted, not a sample of runs)
+    safe('marketing.drafting', prisma.marketingAgent.findMany({
+      where: { status: 'active', strategyApprovedAt: { not: null } },
+      select: { id: true, createdAt: true, campaign: { select: { name: true } }, _count: { select: { runs: { where: { type: 'draft', status: 'ok', startedAt: { gte: new Date(now.getTime() - 48 * H) } } } } } },
+      take: 20,
+    }), []),
   ])
   const preflightFailed = preflightRows.flatMap((p) => {
     const rows = ((p.agentMeta as { preflight?: Array<{ status: string; channel: string; format: string; detail: string }> } | null)?.preflight ?? []).filter((r) => r.status === 'failed')
@@ -195,6 +201,8 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
       editorial: { held: editorial[0], reviewedWeek: editorial[1], notApprovedWeek: editorial[2], failedWeek: editorial[3] },
       metaAccounts,
       preflightFailed,
+      // Agents older than 48 h only: a new one has not had the time to write
+      drafting: draftingRows.filter((a) => now.getTime() - a.createdAt.getTime() > 48 * H).map((a) => ({ id: a.id, campaign: a.campaign.name, drafts48h: a._count.runs })),
     },
     quality: { rating: o?.quality.rating ?? null, casesOpen: o?.quality.casesOpen ?? 0, casesSla: o?.quality.casesSla ?? 0 },
     channels: { problems: (o?.channels.problems ?? []).map((c) => c.name) },

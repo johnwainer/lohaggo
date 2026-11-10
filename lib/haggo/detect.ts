@@ -22,7 +22,7 @@ export type Snapshot = {
   aiActions: { actionsToday: { executed: number; failed: number; awaiting: number }; chatCancellationsToday: number; cancellationsToday: number; awaitingApproval?: number; oldestAwaitingMinutes?: number }
   aiCost: { today: number; month: number; avg7d?: number }
   aiProviders: { down: Array<{ name: string; reason: string }>; answering: string | null }
-  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number }; metaAccounts?: Array<{ id: string; name: string; channel: 'MESSENGER' | 'INSTAGRAM'; missingPublish: string[]; noInsights: boolean; quotaUsed: number | null; quotaTotal: number | null }>; preflightFailed?: Array<{ id: string; title: string; detail: string }> }
+  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number }; metaAccounts?: Array<{ id: string; name: string; channel: 'MESSENGER' | 'INSTAGRAM'; missingPublish: string[]; noInsights: boolean; quotaUsed: number | null; quotaTotal: number | null }>; preflightFailed?: Array<{ id: string; title: string; detail: string }>; drafting?: Array<{ id: string; campaign: string; drafts48h: number }> }
   quality: { rating: number | null; casesOpen: number; casesSla: number }
   channels: { problems: string[] }
   system: { cronsFailing: number; cronsLate: number; errorsLastHour: number; criticalIncidents: number }
@@ -180,6 +180,10 @@ export function detect(s: Snapshot): Detection[] {
   }
   const blind = accounts.filter((x) => x.noInsights && !x.missingPublish.length)
   if (blind.length) add({ key: 'mk:no-insights', domain: 'marketing', severity: 'info', title: `${plural(blind.length, 'cuenta de Meta no tiene', 'cuentas de Meta no tienen')} permiso de estadísticas`, detail: `${blind.map((a) => a.name).join(', ')}: el alcance y las métricas de historias no se pueden leer. Agregar read_insights / instagram_manage_insights en la app de Meta y reconectar con estadísticas.` })
+  // Counted per agent (not read from a sample of runs): resolves by itself as soon as the agent writes again
+  for (const a of s.marketing.drafting ?? []) {
+    if (!a.drafts48h) add({ key: `mk:no-drafts:${a.id}`, domain: 'marketing', severity: 'warning', title: `El agente de marketing de «${a.campaign}» no redactó ninguna pieza en 48 h`, detail: 'Revisar sus ejecuciones (agentes_marketing): presupuesto, estrategia sin aprobar, ideas vencidas o errores de la IA.', entityType: 'MarketingAgent', entityId: a.id })
+  }
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 
   // One finding per channel: a second channel failing does not reopen the first one's
@@ -214,4 +218,45 @@ export function novelDetections(current: Detection[], previous: Array<Pick<Detec
   const rank: Record<Severity, number> = { info: 0, warning: 1, critical: 2 }
   const prev = new Map(previous.map((d) => [d.key, d.severity]))
   return current.filter((d) => !prev.has(d.key) || rank[d.severity] > rank[prev.get(d.key)!])
+}
+
+// ─── What clears by itself ──────────────────────────────────────────────────
+
+/** An AI finding or a Haggo incident not seen again for this long is stale. */
+export const STALE_AFTER_MS = 48 * 3600_000
+
+const titleWords = (t: string) => new Set(t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 3))
+
+/** Share of the shorter title's words the other one has (0..1). */
+export function titleOverlap(a: string, b: string) {
+  const A = titleWords(a)
+  const B = titleWords(b)
+  if (!A.size || !B.size) return 0
+  let n = 0
+  A.forEach((w) => { if (B.has(w)) n++ })
+  return n / Math.min(A.size, B.size)
+}
+
+/**
+ * Stored notices must not stay stuck. What Haggo opened closes when its condition clears: an incident
+ * linked to a rule (type `haggo:rule:<key>`) as soon as the rule stops detecting it (`detectionKeys`
+ * null = a source failed this cycle, nothing is resolved by rule); an AI finding the model has not
+ * reported again in 48 h; an incident Haggo opened by hand after 48 h when no live finding still
+ * describes it. Pure.
+ */
+export function staleHaggoItems(p: {
+  now: Date
+  detectionKeys: string[] | null
+  findings: Array<{ id: string; fingerprint: string | null; title: string; lastSeenAt: Date }>
+  incidents: Array<{ id: string; type: string; title: string; lastSeenAt: Date }>
+}) {
+  const cutoff = p.now.getTime() - STALE_AFTER_MS
+  const findings = p.findings.filter((f) => f.fingerprint?.startsWith('ai:') && f.lastSeenAt.getTime() < cutoff).map((f) => f.id)
+  const live = p.findings.filter((f) => !findings.includes(f.id))
+  const incidents = p.incidents.filter((i) => {
+    if (i.type.startsWith('haggo:rule:')) return p.detectionKeys !== null && !p.detectionKeys.includes(i.type.slice('haggo:rule:'.length))
+    if (i.type !== 'haggo' || i.lastSeenAt.getTime() >= cutoff) return false
+    return !live.some((f) => titleOverlap(f.title, i.title) >= 0.5)
+  }).map((i) => i.id)
+  return { findings, incidents }
 }

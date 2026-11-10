@@ -503,10 +503,17 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   agentes_marketing: {
-    def: { name: 'agentes_marketing', description: 'Ejecuciones de los agentes de marketing en 48 h (estrategia, plan, redacción, revisión editorial, programación, aprendizaje) con resultado, error y costo, y su gasto del mes.', input_schema: { type: 'object', properties: {} } },
+    def: { name: 'agentes_marketing', description: 'Ejecuciones de los agentes de marketing en 48 h: el conteo completo por tipo (estrategia, plan, redacción = draft, revisión editorial = review, programación, aprendizaje) y estado, y las 30 más recientes con resultado, error y costo. Para decir cuántas hubo de un tipo usa el conteo, no la lista (es solo una muestra).', input_schema: { type: 'object', properties: {} } },
     run: async () => {
-      const runs = await prisma.marketingAgentRun.findMany({ where: { startedAt: { gte: new Date(Date.now() - 48 * H) } }, orderBy: { startedAt: 'desc' }, take: 30, select: { agentId: true, type: true, status: true, summary: true, error: true, costUsd: true, startedAt: true, agent: { select: { campaign: { select: { name: true } } } } } })
-      return runs.map((r) => ({ campana: r.agent.campaign.name, tipo: r.type, estado: r.status, resumen: r.summary?.slice(0, 160) ?? null, error: r.error?.slice(0, 200) ?? null, costo_usd: r.costUsd, fecha: r.startedAt }))
+      const since = new Date(Date.now() - 48 * H)
+      const [runs, counts] = await Promise.all([
+        prisma.marketingAgentRun.findMany({ where: { startedAt: { gte: since } }, orderBy: { startedAt: 'desc' }, take: 30, select: { agentId: true, type: true, status: true, summary: true, error: true, costUsd: true, startedAt: true, agent: { select: { campaign: { select: { name: true } } } } } }),
+        prisma.marketingAgentRun.groupBy({ by: ['type', 'status'], where: { startedAt: { gte: since } }, _count: { _all: true } }),
+      ])
+      return {
+        conteo_48h: counts.map((c) => ({ tipo: c.type, estado: c.status, ejecuciones: c._count._all })),
+        recientes: runs.map((r) => ({ campana: r.agent.campaign.name, tipo: r.type, estado: r.status, resumen: r.summary?.slice(0, 160) ?? null, error: r.error?.slice(0, 200) ?? null, costo_usd: r.costUsd, fecha: r.startedAt })),
+      }
     },
   },
   publicidad: {
