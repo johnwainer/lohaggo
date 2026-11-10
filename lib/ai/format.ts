@@ -47,7 +47,37 @@ export function formatForChannel(text: string, channel: string): string {
   out = out.replace(/^(\s*)[-*+]\s+/gm, '$1• ')
   // Inline code / fences
   out = out.replace(/```[a-z]*\n?([\s\S]*?)```/g, '$1').replace(/`([^`\n]+)`/g, '$1')
-  return out.replace(/\n{3,}/g, '\n\n').trim()
+  return fitChannelLength(out.replace(/\n{3,}/g, '\n\n').trim(), channel)
+}
+
+/**
+ * Meta rejects a longer text with (#100) and the whole reply is lost (the conversation goes to a person):
+ * Instagram takes up to 1000 bytes (UTF-8), Messenger up to 2000 characters.
+ */
+const META_TEXT_LIMIT: Record<string, { max: number; bytes: boolean }> = {
+  INSTAGRAM: { max: 1000, bytes: true },
+  MESSENGER: { max: 2000, bytes: false },
+}
+
+const utf8 = new TextEncoder()
+const sizeOf = (s: string, bytes: boolean) => (bytes ? utf8.encode(s).length : Array.from(s).length)
+
+/** Over the channel's limit, the text is cut at the last paragraph, line or sentence that fits, with «…». */
+export function fitChannelLength(text: string, channel: string): string {
+  const limit = META_TEXT_LIMIT[channel]
+  if (!limit || sizeOf(text, limit.bytes) <= limit.max) return text
+  const room = limit.max - sizeOf(' …', limit.bytes)
+  let cut = ''
+  let used = 0
+  for (const ch of Array.from(text)) {
+    used += sizeOf(ch, limit.bytes)
+    if (used > room) break
+    cut += ch
+  }
+  const boundary = Math.max(cut.lastIndexOf('\n\n'), cut.lastIndexOf('\n'), cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '))
+  const space = cut.lastIndexOf(' ')
+  const kept = boundary > cut.length * 0.5 ? cut.slice(0, boundary + 1) : space > cut.length * 0.5 ? cut.slice(0, space) : cut
+  return `${kept.trimEnd()} …`
 }
 
 export function applySignature(text: string, mode: string, signature: string | null | undefined, isFinal: boolean) {
