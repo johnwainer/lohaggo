@@ -84,6 +84,10 @@
 - ✅ Los tiempos de la bandeja (escalamiento, horario, vencido, cierre, encuesta, visión, recordatorio) se editan en «Configuración de la bandeja» (`InboxSettings`, `lib/inbox/settings.ts`); el código siempre cae a los valores por defecto.
 - ❌ **NUNCA** enviar correo a una dirección `@clientes.lohaggo.com` (cuentas nacidas por WhatsApp): `isPlaceholderEmail` antes de cada envío.
 
+#### Reglas duras aprendidas (incidente del 2026-11-10 — la base de datos «de solo lectura»)
+- ❌ **NUNCA** correr `SET SESSION …` (ni `SET` sin `LOCAL`) contra prod por `DATABASE_URL`: va por el pooler de Supabase y la conexión «sucia» la recibe después la app. Un `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY` de una consulta de diagnóstico hizo fallar ~30 min las escrituras (marcar leído, cerrar chats) con «cannot execute UPDATE in a read-only transaction».
+- ✅ Para consultas de solo lectura: `BEGIN READ ONLY; …; ROLLBACK;` (alcance de transacción). Si pasa de nuevo: cerrar las conexiones de la app (`pg_terminate_backend`) y `RESET ALL` en la propia antes de soltarla.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).

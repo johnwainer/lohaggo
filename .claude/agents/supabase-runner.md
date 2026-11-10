@@ -32,6 +32,17 @@ psql "$POSTGRES_URL_NON_POOLING" -c "SELECT count(*) FROM \"User\";"
 
 If `POSTGRES_URL_NON_POOLING` is not set, fall back to `DATABASE_URL` but warn the user.
 
+### NEVER change session settings (incident 2026-11-10)
+
+`DATABASE_URL` goes through Supabase's pooler: the server connection you get is later handed to the app.
+`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY` (or any `SET`/`SET SESSION`) stays on that pooled
+connection, and the app's writes then failed with «cannot execute UPDATE in a read-only transaction».
+
+- ❌ Never run `SET`, `SET SESSION …`, `ALTER ROLE/DATABASE … SET`, or change `default_transaction_read_only`.
+- ✅ For a read-only guard, scope it to the transaction only:
+  `psql "$URL" -c "BEGIN READ ONLY;" -c "SELECT …;" -c "ROLLBACK;"` (or one `-c "BEGIN READ ONLY; SELECT …; ROLLBACK;"`).
+- ✅ Before disconnecting, if anything session-level might have changed, run `RESET ALL;`.
+
 ## Output
 
 - Tabular results, redacted PII (`***`).
