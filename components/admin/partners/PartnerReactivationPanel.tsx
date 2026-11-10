@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Pause, Play, RefreshCw } from 'lucide-react'
+import { Pause, Play, RefreshCw, Send } from 'lucide-react'
 import {
   CONVERSION_KEYS, CONVERSION_LABEL, DEFAULT_REACTIVATION_CONFIG, pct, sanitizeReactivationConfig,
   type GroupStats, type ReactivationConfig,
@@ -143,6 +143,21 @@ export default function PartnerReactivationPanel() {
 
   useEffect(() => { void loadConfig(); void loadPreview(); void loadReport() }, [loadConfig, loadPreview, loadReport])
 
+  const [running, setRunning] = useState(false)
+  const [runNote, setRunNote] = useState<string | null>(null)
+  const runNow = async () => {
+    setRunning(true)
+    setRunNote(null)
+    const res = await fetch('/api/admin/partners/reactivation/run', { method: 'POST' }).catch(() => null)
+    const data = res ? await res.json().catch(() => null) : null
+    const r = (data?.result ?? {}) as Record<string, number | string>
+    const sent = Object.entries(r).filter(([k]) => k.startsWith('sent_')).reduce((n, [, v]) => n + Number(v || 0), 0)
+    setRunNote(!res?.ok ? (data?.error ?? 'No se pudo ejecutar') : r.skipped === 'already_running' ? 'Ya hubo una corrida en esta media hora: espera unos minutos.' : r.skipped === 'outside_window' ? 'Fuera del horario de envío (lun–sáb, según la configuración).' : r.skipped ? `No se envió: ${r.skipped}` : `Listo: ${sent} mensajes enviados en esta corrida.`)
+    setRunning(false)
+    void loadPreview()
+    void loadReport()
+  }
+
   const send = async (method: 'PUT' | 'PATCH', body: unknown) => {
     setSaving(true)
     setFeedback(null)
@@ -189,10 +204,18 @@ export default function PartnerReactivationPanel() {
       <div className={`${card} space-y-4`}>
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-semibold text-gray-900">Qué pasa ahora</h3>
+          <div className="flex items-center gap-2">
+          {canEdit && (
+            <button type="button" onClick={() => void runNow()} disabled={running} className="inline-flex items-center gap-1 rounded-full bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+              <Send className={`h-3.5 w-3.5 ${running ? 'animate-pulse' : ''}`} /> {running ? 'Enviando…' : 'Enviar ahora'}
+            </button>
+          )}
           <button type="button" onClick={() => void loadPreview()} className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium text-gray-700">
             <RefreshCw className={`h-3.5 w-3.5 ${loading.preview ? 'animate-spin' : ''}`} /> Actualizar
           </button>
+          </div>
         </div>
+        {runNote && <p className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">{runNote}</p>}
         {loading.preview && !preview ? <p className="text-sm text-gray-500">Calculando…</p> : !preview ? <p className="text-sm text-red-600">No se pudo calcular la vista previa.</p> : (
           <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

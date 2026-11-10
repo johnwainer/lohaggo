@@ -26,7 +26,8 @@ import {
 
 const logger = createLogger('partner-reactivation')
 const DAY = 24 * 3600_000
-const RUN_BUDGET_MS = 40_000
+/** Inside the hourly automations cron (maxDuration 300 s, after the other jobs) or a manual «Enviar ahora» run. */
+const RUN_BUDGET_MS = 150_000
 export const REVIEW_SLA_INCIDENT = 'partners:docs-review-sla'
 
 // ─── Loading ────────────────────────────────────────────────────────────────
