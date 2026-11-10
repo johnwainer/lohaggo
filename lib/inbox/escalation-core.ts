@@ -5,10 +5,7 @@
  */
 import { isHumanMessage, type OutboundLike } from '@/lib/ai/runtime-core'
 
-/**
- * Times of the ladder and of the sweep. There is no inbox settings model (AiSettings and HaggoSettings have no
- * free JSON for this): to change them, edit these values and deploy.
- */
+/** Times of the ladder and of the sweep. These are the defaults; the admin edits them in InboxSettings (lib/inbox/settings.ts). */
 export type EscalationSettings = {
   notifyMinutes: number
   escalateMinutes: number

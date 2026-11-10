@@ -9,8 +9,10 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { patchInboxState, readInboxState } from '@/lib/inbox/state'
-import { ESCALATION_SETTINGS, STALE_LEAD_TAG, insideReplyWindow, staleLeadDecision, type StaleLeadDecision } from '@/lib/inbox/escalation-core'
+import { STALE_LEAD_TAG, insideReplyWindow, staleLeadDecision, type StaleLeadDecision } from '@/lib/inbox/escalation-core'
 import { notifyAdminsInApp, workspaceAdminIds } from '@/lib/inbox/escalation'
+import { getInboxSettings } from '@/lib/inbox/settings'
+import type { InboxConfig } from '@/lib/inbox/settings-core'
 
 const logger = createLogger('inbox-stale-leads')
 
@@ -41,8 +43,7 @@ const utc = (d: Date) => Prisma.sql`(${d.toISOString()}::timestamptz AT TIME ZON
  * Open conversations whose contact waits: the last real message is the contact's, or the AI handed off /
  * only said «una persona te responderá» and no person wrote after it.
  */
-function candidatesQuery(now: Date) {
-  const s = ESCALATION_SETTINGS
+function candidatesQuery(now: Date, s: Pick<InboxConfig['escalation'], 'staleAfterHours' | 'staleLookbackDays'>) {
   const staleBefore = utc(new Date(now.getTime() - s.staleAfterHours * HOUR))
   const lookback = utc(new Date(now.getTime() - s.staleLookbackDays * 24 * HOUR))
   return Prisma.sql`
@@ -82,7 +83,8 @@ export type StaleLeadItem = { id: string; channel: string; contact: string; wait
  */
 export async function sweepStaleLeads(opts: { dryRun: boolean; notify?: boolean; now?: Date }) {
   const now = opts.now ?? new Date()
-  const rows = await prisma.$queryRaw<Row[]>(candidatesQuery(now))
+  const settings = (await getInboxSettings()).escalation
+  const rows = await prisma.$queryRaw<Row[]>(candidatesQuery(now, settings))
   const items: StaleLeadItem[] = []
   const counts = { candidates: rows.length, aiReplied: 0, reopened: 0, alreadyFlagged: 0, skipped: 0 }
   const reopenedBy = new Map<string, StaleLeadItem[]>()
@@ -103,7 +105,7 @@ export async function sweepStaleLeads(opts: { dryRun: boolean; notify?: boolean;
       const decision = staleLeadDecision({
         channel: r.channel, status: r.status, isTest: r.isTest, aiSpam: r.aiSpam, automatedOnly: Boolean(inbox.automatedOnly),
         snoozed: Boolean(inbox.snoozedUntil && inbox.snoozedUntil > now.toISOString()), unanswered: r.unanswered, lastInboundAt,
-      }, { now, aiCovers })
+      }, { now, aiCovers, settings })
       if (decision.action === 'skip') {
         counts.skipped++
         items.push({ ...base, decision: 'skip', reason: decision.reason })

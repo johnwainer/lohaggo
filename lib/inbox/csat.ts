@@ -3,7 +3,8 @@ import { createLogger } from '@/lib/logger'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { sendToConversation } from '@/lib/inbox/send'
 import { patchInboxState, readInboxState } from '@/lib/inbox/state'
-import { CSAT_COOLDOWN_MS, CSAT_QUESTION, CSAT_SENDER, CSAT_THANKS, csatSkipReason } from '@/lib/inbox/csat-core'
+import { getInboxSettings } from '@/lib/inbox/settings'
+import { CSAT_QUESTION, CSAT_SENDER, CSAT_THANKS, csatSkipReason } from '@/lib/inbox/csat-core'
 
 const logger = createLogger('inbox-csat')
 
@@ -13,6 +14,9 @@ const logger = createLogger('inbox-csat')
  */
 export async function askCsatOnClose(conversationId: string, reason: string): Promise<boolean> {
   try {
+    const { csat } = await getInboxSettings()
+    if (!csat.enabled) return false
+    const cooldownMs = csat.cooldownDays * 24 * 3600_000
     const conv = await prisma.conversation.findUnique({ where: { id: conversationId } })
     if (!conv) return false
     const state = readInboxState(conv.customFields)
@@ -29,11 +33,11 @@ export async function askCsatOnClose(conversationId: string, reason: string): Pr
     const skip = csatSkipReason({
       channel: conv.channel, status: conv.status, reason, automatedOnly: Boolean(state.automatedOnly), aiSpam: conv.aiSpam, isTest: conv.isTest,
       optedOut, csatAskedAt: state.csatAskedAt, lastInboundAt, replied,
-    })
+    }, Date.now(), { enabled: csat.enabled, cooldownMs })
     if (skip) return false
 
     const now = new Date()
-    const cutoff = new Date(now.getTime() - CSAT_COOLDOWN_MS).toISOString()
+    const cutoff = new Date(now.getTime() - cooldownMs).toISOString()
     const claimed = await prisma.$executeRaw`
       UPDATE "Conversation"
       SET "customFields" = (CASE WHEN jsonb_typeof("customFields") = 'object' THEN "customFields" ELSE '{}'::jsonb END)

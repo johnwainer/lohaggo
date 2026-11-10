@@ -4,6 +4,7 @@
  * no row at all) always yields a complete, safe config.
  */
 import { ESCALATION_SETTINGS, type EscalationSettings } from '@/lib/inbox/escalation-core'
+import type { WaitingRule } from '@/lib/inbox/waiting'
 
 export type InboxConfig = {
   /** Escalation ladder and the daily sweep of unanswered leads (lib/inbox/escalation-core.ts) */
@@ -74,5 +75,16 @@ export function sanitizeInboxConfig(raw: unknown): InboxConfig {
     aiFailure: { backToQueue: bool(f.backToQueue, d.aiFailure.backToQueue), incident: bool(f.incident, d.aiFailure.incident) },
     vision: { enabled: bool(v.enabled, d.vision.enabled), maxImages: int(v.maxImages, d.vision.maxImages, 1, 8) },
     funnel: { nudgeEnabled: bool(n.nudgeEnabled, d.funnel.nudgeEnabled), nudgeAfterHours: int(n.nudgeAfterHours, d.funnel.nudgeAfterHours, 1, 48) },
+  }
+}
+
+/** What the inbox list needs to color «espera hace…» with the same numbers the ladder uses. */
+export function waitingRuleOf(c: InboxConfig): WaitingRule {
+  return {
+    overdueMinutes: c.overdueMinutes,
+    criticalMinutes: c.escalation.criticalMinutes,
+    openHour: c.escalation.teamOpenHour,
+    closeHour: c.escalation.teamCloseHour,
+    timezone: c.escalation.teamTimezone,
   }
 }

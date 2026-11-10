@@ -9,8 +9,10 @@ import { createLogger } from '@/lib/logger'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { patchInboxState, readInboxState } from '@/lib/inbox/state'
+import { getInboxSettings } from '@/lib/inbox/settings'
+import type { InboxConfig } from '@/lib/inbox/settings-core'
 import {
-  ESCALATION_SETTINGS, teamHours, holdingCaseOf, holdingMessage, insideReplyWindow, isTrivialAck, nextEscalationState, planEscalation, waitingAnchor,
+  teamHours, holdingCaseOf, holdingMessage, insideReplyWindow, isTrivialAck, nextEscalationState, planEscalation, waitingAnchor,
   type EscalationPlan,
 } from '@/lib/inbox/escalation-core'
 import { autopilotCandidates } from '@/lib/ai/runtime-core'
@@ -87,11 +89,11 @@ async function holdingCase(userId: string | null) {
 }
 
 /** Sends the holding message as the agent; the conversation stays in «Por responder» (a person still owes the answer). */
-async function sendHolding(conversation: Conversation, agent: AiAgent, now: Date) {
+async function sendHolding(conversation: Conversation, agent: AiAgent, now: Date, settings: InboxConfig['escalation']) {
   const { sendToConversation } = await import('@/lib/inbox/send')
   const { applySignature, formatForChannel } = await import('@/lib/ai/format')
   const kind = await holdingCase(conversation.userId)
-  const text = holdingMessage({ firstName: conversation.contactName, kind, now, appUrl: appUrl() })
+  const text = holdingMessage({ firstName: conversation.contactName, kind, now, appUrl: appUrl(), settings })
   const result = await sendToConversation({
     conversation,
     message: applySignature(formatForChannel(text, conversation.channel), agent.signatureMode, agent.signatureText, false),
@@ -113,7 +115,7 @@ async function lastHandoffReason(conversationId: string) {
 
 const waitText = (minutes: number) => (minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`)
 
-async function runSteps(conversation: Conversation, plan: EscalationPlan, anchor: Date, now: Date) {
+async function runSteps(conversation: Conversation, plan: EscalationPlan, anchor: Date, now: Date, settings: InboxConfig['escalation']) {
   const { CHANNEL_TEXT } = await import('@/lib/messaging/wa-specs')
   const { waUnanswered } = await import('@/lib/messaging/wa-events')
   const channel = CHANNEL_TEXT[conversation.channel] ?? conversation.channel
@@ -134,7 +136,7 @@ async function runSteps(conversation: Conversation, plan: EscalationPlan, anchor
       kind: 'INBOX_UNANSWERED',
     })
     // WhatsApp to the team only in its hours; at night the in-app alert waits for them
-    if (!conversation.isTest && teamHours(new Date()).open) await waUnanswered({ conversationId: conversation.id, workspaceId: conversation.workspaceId, channel: conversation.channel, reason, step: step(plan.alert), adminUserId: assignee?.id ?? null })
+    if (!conversation.isTest && teamHours(new Date(), settings).open) await waUnanswered({ conversationId: conversation.id, workspaceId: conversation.workspaceId, channel: conversation.channel, reason, step: step(plan.alert), adminUserId: assignee?.id ?? null })
     notes.push(assignee ? `Avisamos a ${assignee.name || 'la persona asignada'}` : 'Avisamos a todo el equipo')
     if (plan.alert === 'escalate') {
       await ladderIncident(LADDER_INCIDENT_HIGH, 'HIGH', conversation.id, `${who} lleva ${wait} sin respuesta (${channel})`, `Nadie del equipo ha respondido. ${reason}. Abrir: ${inboxPath(conversation.id)}`)
@@ -149,7 +151,7 @@ async function runSteps(conversation: Conversation, plan: EscalationPlan, anchor
   let holding: { at: Date; messageId: string | null } | null = null
   if (plan.holding) {
     const agent = await holdingAgent(conversation)
-    const messageId = agent ? await sendHolding(conversation, agent, now) : null
+    const messageId = agent ? await sendHolding(conversation, agent, now, settings) : null
     if (messageId) {
       holding = { at: now, messageId }
       notes.push('la IA le dijo al cliente que una persona le responderá')
@@ -183,11 +185,12 @@ async function holdingPossible(conversation: Conversation, now: Date, handedOff:
 
 /**
  * Every minute: open conversations not handled by the AI whose contact waits for a person. Stops as soon as a
- * person answers, it is closed or snoozed, or the AI takes it (copilot takeover).
+ * person answers, it is closed or snoozed, or the AI takes it (copilot takeover). A failed AI reply leaves the
+ * conversation with aiHandled false and aiHandoffAt set (lib/inbox/ai-failure.ts), so it enters here too.
  */
 export async function runEscalationLadder(opts: { limit?: number; now?: Date } = {}) {
   const now = opts.now ?? new Date()
-  const s = ESCALATION_SETTINGS
+  const s = (await getInboxSettings()).escalation
   const since = new Date(now.getTime() - s.maxAgeHours * HOUR - 10 * MIN)
   const convs = await prisma.conversation.findMany({
     where: {
@@ -235,7 +238,7 @@ export async function runEscalationLadder(opts: { limit?: number; now?: Date } =
         if ((await shouldTakeOver(conversation).catch(() => ({ take: false }))).take) continue
       }
 
-      let plan = planEscalation({ anchor, now, state, holdingPossible: true })
+      let plan = planEscalation({ anchor, now, state, holdingPossible: s.holdingEnabled, settings: s })
       if (!plan.mark.length) continue
       if (plan.holding && !(await holdingPossible(conversation, now, handedOff))) plan = { ...plan, holding: false }
 
@@ -243,7 +246,7 @@ export async function runEscalationLadder(opts: { limit?: number; now?: Date } =
       if ((await hit(`escalation:${conversation.id}:${anchor.getTime()}:${plan.mark.join(',')}`, 6 * HOUR, now.getTime())).count > 1) continue
       await patchInboxState(conversation.id, { escalation: nextEscalationState(state, anchor, plan) })
 
-      const holding = await runSteps(conversation, plan, anchor, now)
+      const holding = await runSteps(conversation, plan, anchor, now, s)
       if (holding) await patchInboxState(conversation.id, { escalation: nextEscalationState(state, anchor, plan, holding) })
 
       if (plan.alert === 'notify') counts.alerted++

@@ -58,7 +58,7 @@ export type InactivityInput = {
  * last, the contact has been silent for 24 h and nothing waits: no person in charge, no handoff, no
  * action waiting for a yes, no answer owed from outside hours.
  */
-export function inactivityCloseDecision(c: InactivityInput, now = new Date()): { close: true } | { close: false; why: string } {
+export function inactivityCloseDecision(c: InactivityInput, now = new Date(), inactivityMs: number = INACTIVITY_CLOSE_MS): { close: true } | { close: false; why: string } {
   if (c.isTest) return { close: false, why: 'test' }
   if (c.status !== 'OPEN' && c.status !== 'IN_PROGRESS') return { close: false, why: 'not_open' }
   if (!c.aiHandled) return { close: false, why: 'not_ai' }
@@ -69,7 +69,7 @@ export function inactivityCloseDecision(c: InactivityInput, now = new Date()): {
   const m = c.lastMessage
   if (!m) return { close: false, why: 'no_messages' }
   if (m.direction !== 'OUTBOUND' || m.senderType !== 'AI') return { close: false, why: 'contact_spoke_last' }
-  if (now.getTime() - m.sentAt.getTime() < INACTIVITY_CLOSE_MS) return { close: false, why: 'too_recent' }
+  if (now.getTime() - m.sentAt.getTime() < inactivityMs) return { close: false, why: 'too_recent' }
   return { close: true }
 }
 

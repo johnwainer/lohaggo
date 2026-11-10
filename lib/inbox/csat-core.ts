@@ -51,7 +51,8 @@ export type CsatAskInput = {
 }
 
 /** Why the survey is not sent, or null when it goes out. */
-export function csatSkipReason(input: CsatAskInput, now: number = Date.now()): string | null {
+export function csatSkipReason(input: CsatAskInput, now: number = Date.now(), opts: { enabled?: boolean; cooldownMs?: number } = {}): string | null {
+  if (opts.enabled === false) return 'disabled'
   if (input.reason !== 'gestionada') return 'reason'
   if (!(CSAT_CHANNELS as readonly string[]).includes(input.channel)) return 'channel'
   if (input.status !== 'RESOLVED' && input.status !== 'CLOSED') return 'open'
@@ -62,7 +63,7 @@ export function csatSkipReason(input: CsatAskInput, now: number = Date.now()): s
   if (input.optedOut) return 'opted_out'
   if (input.csatAskedAt) {
     const asked = new Date(input.csatAskedAt).getTime()
-    if (!Number.isNaN(asked) && now - asked < CSAT_COOLDOWN_MS) return 'recent'
+    if (!Number.isNaN(asked) && now - asked < (opts.cooldownMs ?? CSAT_COOLDOWN_MS)) return 'recent'
   }
   if (!isWindowOpen(input.lastInboundAt, now)) return 'window_closed'
   return null

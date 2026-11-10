@@ -28,7 +28,7 @@ describe('waiting time', () => {
   })
 
   it('labels and flags late answers only during business hours', () => {
-    expect(waitingState(minutesAgo(MORNING, 5), MORNING)).toEqual({ label: 'espera hace 5 min', minutes: 5, overdue: false })
+    expect(waitingState(minutesAgo(MORNING, 5), MORNING)).toEqual({ label: 'espera hace 5 min', minutes: 5, overdue: false, level: 'waiting' })
     expect(waitingState(minutesAgo(MORNING, 16), MORNING)?.overdue).toBe(true)
     expect(waitingState(minutesAgo(MORNING, 15), MORNING)?.overdue).toBe(false)
     expect(waitingState(minutesAgo(MORNING, 130), MORNING)?.label).toBe('espera hace 2 h')

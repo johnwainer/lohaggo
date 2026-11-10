@@ -18,7 +18,8 @@ import InboxToolsDialog, { type InboxTool } from '@/components/admin/inbox/Inbox
 import InboxMetricsDialog from '@/components/admin/inbox/InboxMetricsDialog'
 import LinkAccountDialog from '@/components/admin/inbox/LinkAccountDialog'
 import SavedRepliesPicker from '@/components/admin/inbox/SavedRepliesPicker'
-import { isWindowOpen, waitingState } from '@/lib/inbox/waiting'
+import { DEFAULT_WAITING_RULE, isWindowOpen, waitingState, type WaitingRule } from '@/lib/inbox/waiting'
+import InboxSettingsDialog from '@/components/admin/inbox/InboxSettingsDialog'
 import { needsTranscriptionLabel } from '@/lib/inbox/audio'
 import { DEFAULT_TAB, INBOX_TABS, TAB_LABELS, leftTabLabel, parseTab, type InboxTab } from '@/lib/inbox/tabs'
 import {
@@ -217,14 +218,6 @@ function displayName(conv: Conversation) {
   return conv.user?.name || conv.contactName || conv.contactPhone
 }
 
-function slaLabel(conv: Conversation): { label: string; level: 'ok' | 'warn' | 'critical' } | null {
-  if (!conv.lastMessageAt || conv.unreadCount === 0) return null
-  const mins = Math.floor((Date.now() - new Date(conv.lastMessageAt).getTime()) / 60000)
-  if (mins < 30) return null
-  const label = mins < 60 ? `${mins}m sin respuesta` : `${Math.floor(mins / 60)}h sin respuesta`
-  return { label, level: mins >= 120 ? 'critical' : 'warn' }
-}
-
 /** The 24 h window: the latest of the loaded messages and the inbox bookkeeping (older pages may not be loaded). */
 function isWaWindowClosed(messages: Message[], lastInboundAt?: string | null): boolean {
   const lastInbound = [...messages].reverse().find((m) => m.direction === 'INBOUND')?.sentAt ?? null
@@ -250,6 +243,7 @@ const EVENT_LABEL: Record<string, string> = {
   copilot_skip: 'La persona atiende este mensaje',
   escalation: 'Sin respuesta: aviso al equipo',
   escalation_holding: 'La IA le dijo al cliente que una persona responderá',
+  ai_failure: 'La IA no pudo responder',
   stale_lead: 'Lead sin respuesta',
   assigned: 'Asignada',
   status: 'Estado',
@@ -327,6 +321,9 @@ export default function InboxPage() {
   const [usedSuggestionId, setUsedSuggestionId] = useState<string | null>(null)
   const [suggesting, setSuggesting] = useState(false)
   const [nowTick, setNowTick] = useState(() => Date.now())
+  // «espera hace…» uses the same numbers as the escalation ladder (inbox settings)
+  const [waitingRule, setWaitingRule] = useState<WaitingRule>(DEFAULT_WAITING_RULE)
+  const [showSettings, setShowSettings] = useState(false)
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; isDefault: boolean }[]>([])
   const [filterWorkspace, setFilterWorkspace] = useState('')
   const [selected, setSelected] = useState<Conversation | null>(null)
@@ -660,6 +657,10 @@ export default function InboxPage() {
       refreshTimerRef.current = null
     }
   }, [handleInboxEvent])
+
+  useEffect(() => {
+    fetch('/api/admin/inbox/settings').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.waitingRule) setWaitingRule(d.waitingRule) }).catch(() => null)
+  }, [])
 
   const workspaceKey = workspaces.map((w) => w.id).sort().join(',')
   // Channel names come from the server (derived with a secret): they can't be guessed from a workspace id
@@ -1501,6 +1502,10 @@ export default function InboxPage() {
                         <button role="menuitem" onClick={() => { setShowTools(false); setTool('backfill') }} className="block w-full px-3 py-2.5 md:py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
                           Recalcular «Por responder»…
                         </button>
+                        <div className="my-1 border-t" role="separator" />
+                        <button role="menuitem" onClick={() => { setShowTools(false); setShowSettings(true) }} className="block w-full px-3 py-2.5 md:py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
+                          Configuración de la bandeja…
+                        </button>
                       </div>
                     </>
                   )}
@@ -1751,8 +1756,7 @@ export default function InboxPage() {
             const unreadMark = conv.unreadCount === 0 && Boolean(conv.inbox?.unreadForMe)
             const unread = conv.unreadCount > 0 || unreadMark
             const awaitingNow = Boolean(conv.inbox?.awaitingReply) && (conv.status === 'OPEN' || conv.status === 'IN_PROGRESS') && !conv.inbox?.snoozedUntil
-            const waiting = awaitingNow ? waitingState(conv.inbox?.lastInboundAt || conv.lastMessageAt, nowTick) : null
-            const sla = tab === 'awaiting' || waiting ? null : slaLabel(conv)
+            const waiting = awaitingNow ? waitingState(conv.inbox?.lastInboundAt || conv.lastMessageAt, nowTick, waitingRule) : null
             const touched = touchedIds.includes(conv.id)
             return (
               <div key={conv.id} className={`flex items-stretch transition-colors ${checkedIds.includes(conv.id) ? 'bg-primary-50/60' : touched ? 'bg-amber-50/70' : ''}`}>
@@ -1805,15 +1809,10 @@ export default function InboxPage() {
                         : <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[conv.status]}`}>{STATUS_LABELS[conv.status]}</span>}
                       {waiting && !left && (
                         <span
-                          className={`text-[10px] font-semibold ${waiting.overdue ? 'rounded-full bg-red-100 px-1.5 py-0.5 text-red-700' : 'text-orange-600'}`}
-                          title={waiting.overdue ? 'Más de 15 min sin respuesta en horario de atención' : undefined}
+                          className={`text-[10px] font-semibold ${waiting.level === 'critical' ? 'rounded-full bg-red-600 px-1.5 py-0.5 text-white' : waiting.level === 'overdue' ? 'rounded-full bg-red-100 px-1.5 py-0.5 text-red-700' : 'text-orange-600'}`}
+                          title={waiting.level === 'critical' ? `${waitingRule.criticalMinutes} min o más sin respuesta: incidente crítico` : waiting.overdue ? `Más de ${waitingRule.overdueMinutes} min sin respuesta en horario de atención` : undefined}
                         >
                           {waiting.label}
-                        </span>
-                      )}
-                      {sla && (
-                        <span className={`text-[10px] font-medium ${sla.level === 'critical' ? 'text-red-600' : 'text-orange-500'}`}>
-                          · {sla.label}
                         </span>
                       )}
                       {conv.inbox?.snoozedUntil && (
@@ -2770,6 +2769,8 @@ export default function InboxPage() {
                       rows={1}
                       disabled={(windowClosed && !isInternalNote) || aiLocked}
                       onChange={(e) => {
+                        // «/» in an empty composer opens the saved replies (their search takes the rest)
+                        if (!messageText && e.target.value === '/' && !isInternalNote) { setShowCannedPicker(true); return }
                         setMessageText(e.target.value)
                         e.target.style.height = 'auto'
                         e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`
@@ -3017,6 +3018,7 @@ export default function InboxPage() {
       )}
 
       <InboxToolsDialog tool={tool} onClose={() => setTool(null)} onDone={() => loadConversations({ silent: true, keepScroll: true })} />
+      <InboxSettingsDialog open={showSettings} onClose={() => setShowSettings(false)} onSaved={setWaitingRule} />
       <InboxMetricsDialog open={showMetrics} onClose={() => setShowMetrics(false)} />
       {selected && (
         <LinkAccountDialog

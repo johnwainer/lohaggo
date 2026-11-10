@@ -36,9 +36,11 @@ async function handle(request: NextRequest) {
 
 /** At the sweep hour (Bogotá), the first run of the day claims it; the others skip. */
 async function dailyStaleLeads(now = new Date()) {
-  if (!isSweepHour(now)) return null
+  const { getInboxSettings } = await import('@/lib/inbox/settings')
+  const s = (await getInboxSettings()).escalation
+  if (!s.staleSweepEnabled || !isSweepHour(now, s)) return null
   const { hit } = await import('@/lib/rate-limit-store')
-  if ((await hit(`cron:stale-leads:${bogotaDateKey(now)}`, 24 * 3600_000, now.getTime())).count > 1) return null
+  if ((await hit(`cron:stale-leads:${bogotaDateKey(now, s.teamTimezone)}`, 24 * 3600_000, now.getTime())).count > 1) return null
   try {
     const { sweepStaleLeads } = await import('@/lib/inbox/stale-leads')
     const r = await sweepStaleLeads({ dryRun: false, notify: true, now })
