@@ -2763,7 +2763,7 @@ model MarketingAdSpend {
 
 // ─── Haggo: master agent ─────────────────────────────────────────────────────
 
-/// Single row: how Haggo works (mode per domain, limits, budget, schedule). Only the superadmin edits it.
+
 /// Inbox settings editable from the admin (escalation ladder, team hours, auto close, CSAT, AI vision…).
 /// One row ("platform"); `config` is sanitized by lib/inbox/settings-core.ts, missing keys take the defaults.
 model InboxSettings {
@@ -2773,6 +2773,7 @@ model InboxSettings {
   updatedAt      DateTime @updatedAt
 }
 
+/// Single row: how Haggo works (mode per domain, limits, budget, schedule). Only the superadmin edits it.
 model HaggoSettings {
   id                  String    @id @default("platform")
   enabled             Boolean   @default(true)

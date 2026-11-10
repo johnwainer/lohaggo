@@ -11,6 +11,7 @@ import { renderNotificationChannelTemplate, resolveNotificationChannelTemplate }
 import { mapUserChannelPreference } from '@/lib/notifications/user-preferences'
 import { env } from '@/lib/env'
 import { emitUserNotificationBroadcast } from '@/lib/supabase-admin'
+import { isPlaceholderEmail } from '@/lib/accounts/phone-login-core'
 
 const logger = createLogger('notification-service')
 
@@ -346,6 +347,16 @@ async function dispatchAutomaticNotificationChannels(params: {
     }
 
     const destination = channel === 'PUSH' ? `user:${params.user.id}` : channel === 'EMAIL' ? params.user.email : params.user.phone
+    // Accounts born from WhatsApp have an internal address that never receives mail (bounces hurt the sender)
+    if (channel === 'EMAIL' && isPlaceholderEmail(params.user.email)) {
+      await (prisma as any).notificationDispatchLog.create({
+        data: {
+          notificationId: params.notificationId, userId: params.user.id, channel, status: 'SKIPPED', destination: null,
+          errorCode: 'PLACEHOLDER_EMAIL', errorMessage: 'Account without a real email', metadata: params.data ? JSON.stringify(params.data) : null,
+        },
+      }).catch(() => null)
+      continue
+    }
     if (channel === 'PUSH' && !params.user.pushSubscription) {
       await (prisma as any).notificationDispatchLog.create({
         data: {

@@ -118,10 +118,11 @@ export async function runFunnelNudges(limit = 20, now = new Date()) {
       const fresh = await stillOurs(conv.id, agent.id)
       if (!fresh) continue
 
+      // Stamped before sending (a failed send is not retried every 15 minutes) and claimed atomically: two overlapping cron runs never both send
+      const claim = await prisma.conversation.updateMany({ where: { id: fresh.id, reengagedAt: null }, data: { reengagedAt: new Date() } })
+      if (claim.count !== 1) continue
       const body = await nudgeText(fresh, agent, progress, hours)
       const text = applySignature(formatForChannel(body, fresh.channel), agent.signatureMode, agent.signatureText, false)
-      // Stamped before sending: a failed send is not retried every 15 minutes
-      await prisma.conversation.update({ where: { id: fresh.id }, data: { reengagedAt: new Date() } })
       await prisma.conversationEvent.create({ data: { conversationId: fresh.id, type: FUNNEL_NUDGE_EVENT, actorType: 'ai', actorId: agent.id, actorName: agent.name, detail: decision.missing.slice(0, 200) } })
       const res = await sendToConversation({ conversation: fresh, message: text, sender: { type: 'AI', agentId: agent.id, agentName: agent.name } })
       if (!res.ok) {

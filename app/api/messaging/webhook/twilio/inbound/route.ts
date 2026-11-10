@@ -174,22 +174,42 @@ export async function POST(request: NextRequest) {
     csatScore = !button && !media.length && !optingOut ? csatReplyScore(readInboxState(conversation.customFields), body, Date.now(), conversation.status) : null
   }
 
-  // The unique providerMessageId is the idempotency key: a Twilio retry racing this one loses here and stops
+  // The unique providerMessageId is the idempotency key: a Twilio retry racing this one loses here and stops.
+  // Message and counters go together, so a crash in between never leaves a stored message without its unread count
   let inbound
   try {
-    inbound = await prisma.conversationMessage.create({
-      data: {
-        conversationId: conversation.id,
-        direction: 'INBOUND',
-        senderType: 'CONTACT',
-        // A photo without a caption still reads as one: the AI agent only sees message text
-        body: body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : ''),
-        mediaUrl: mediaUrl || null,
-        mediaType,
-        providerMessageId: messageSid || null,
-        status: 'DELIVERED',
-        deliveredAt: new Date(),
-      },
+    inbound = await prisma.$transaction(async (tx) => {
+      const msg = await tx.conversationMessage.create({
+        data: {
+          conversationId: conversation.id,
+          direction: 'INBOUND',
+          senderType: 'CONTACT',
+          // A photo without a caption still reads as one: the AI agent only sees message text
+          body: body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : ''),
+          mediaUrl: mediaUrl || null,
+          mediaType,
+          providerMessageId: messageSid || null,
+          status: 'DELIVERED',
+          deliveredAt: new Date(),
+        },
+      })
+      await tx.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          status: !csatScore && (conversation.status === 'CLOSED' || conversation.status === 'RESOLVED') ? 'OPEN' : conversation.status,
+          lastMessageAt: new Date(),
+          lastMessageBody: preview,
+          ...(csatScore ? {} : { unreadCount: { increment: 1 } }),
+          ...(isNew ? {} : {
+            userId: user?.id ?? conversation.userId,
+            contactName: conversation.contactName || contact.name || user?.name || null,
+            ...(conversation.contactId ? {} : { contactId: contact.id }),
+          }),
+          // Only auto-assign if currently unassigned
+          ...(conversation.assignedToId == null && autoAssignId ? { assignedToId: autoAssignId } : {}),
+        },
+      })
+      return msg
     })
   } catch (err) {
     if ((err as { code?: string })?.code === 'P2002') {
@@ -198,23 +218,6 @@ export async function POST(request: NextRequest) {
     }
     throw err
   }
-
-  await prisma.conversation.update({
-    where: { id: conversation.id },
-    data: {
-      status: !csatScore && (conversation.status === 'CLOSED' || conversation.status === 'RESOLVED') ? 'OPEN' : conversation.status,
-      lastMessageAt: new Date(),
-      lastMessageBody: preview,
-      ...(csatScore ? {} : { unreadCount: { increment: 1 } }),
-      ...(isNew ? {} : {
-        userId: user?.id ?? conversation.userId,
-        contactName: conversation.contactName || contact.name || user?.name || null,
-        ...(conversation.contactId ? {} : { contactId: contact.id }),
-      }),
-      // Only auto-assign if currently unassigned
-      ...(conversation.assignedToId == null && autoAssignId ? { assignedToId: autoAssignId } : {}),
-    },
-  })
 
   // The agent answers the whole burst once, from its last part (a photo album arrives as several parts)
   let lastMessageId = inbound.id

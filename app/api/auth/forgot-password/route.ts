@@ -6,6 +6,7 @@ import { getMessagingProviderRuntimeConfig } from "@/lib/messaging/provider-conf
 import { buildEmailHtml } from "@/lib/email-layout"
 import { createLogger } from "@/lib/logger"
 import { forgotPasswordRateLimiter } from "@/lib/rate-limit"
+import { isPlaceholderEmail } from "@/lib/accounts/phone-login-core"
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,8 @@ async function handlePOST(request: NextRequest) {
       select: { id: true, email: true, name: true, updatedAt: true, phone: true }
     })
 
-    if (!user) {
+    // Accounts born from WhatsApp have no real mailbox: same answer, nothing sent (they sign in with their phone)
+    if (!user || isPlaceholderEmail(user.email)) {
       // Return success anyway to avoid email enumeration
       return NextResponse.json({ success: true, message: "Si el correo está registrado, te hemos enviado las instrucciones." })
     }
