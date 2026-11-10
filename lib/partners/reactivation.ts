@@ -14,7 +14,7 @@ import { WA } from '@/lib/messaging/wa-specs'
 import { NO_MARKETING_TAG, WA_SENT_ACTION, sendWaToUser, type WaOutcome, type WaSpec } from '@/lib/messaging/wa-send'
 import { cityLabel, isMarketingQuietHour } from '@/lib/messaging/wa-format'
 import { isApproved } from '@/lib/messaging/wa-core'
-import { getReactivationSettings } from '@/lib/partners/reactivation-settings'
+import { getReactivationSettings, isReactivationStopped } from '@/lib/partners/reactivation-settings'
 import { docsEmail, tipsEmail } from '@/lib/partners/reactivation-emails'
 import {
   CAMPAIGN_SEGMENTS, EXIT_LABEL, RX_ACTION, SEGMENT_LABEL, STEP_LABEL, TEMPLATE_NAME,
@@ -391,7 +391,8 @@ export async function runPartnerReactivation(now = new Date()): Promise<RunTally
   const today = todayCounts(w.history, now)
   let sendBudget = Math.min(cfg.perRunLimit, Math.max(0, cfg.dailyLimit - today.sends))
   let enrollBudget = Math.min(cfg.perRunLimit, Math.max(0, cfg.dailyLimit - today.enrolls))
-  const outOfTime = () => Date.now() - started > RUN_BUDGET_MS
+  let stopped = false
+  const outOfTime = () => stopped || Date.now() - started > RUN_BUDGET_MS
 
   const act = async (s: PartnerSnapshot): Promise<void> => {
     for (let i = 0; i < 6; i++) {
@@ -410,11 +411,29 @@ export async function runPartnerReactivation(now = new Date()): Promise<RunTally
       if (plan.kind !== 'send') return
       const counts = plan.step.channel !== 'email'
       if (counts && sendBudget <= 0) return
+      if (await isReactivationStopped()) { stopped = true; return }
+      // Email and SMS have no provider dedupe: the step is marked as sent before it goes out, so an overlapping
+      // or retried run never sends it twice (a failed send is then recorded as skipped, never retried)
+      if (plan.step.channel !== 'whatsapp') {
+        await record(w, s.userId, { step: plan.step.key, status: 'sent', segment: plan.segment, channel: plan.step.channel, template: plan.step.key, reason: 'intent' }, now)
+      }
       const res = plan.step.channel === 'whatsapp'
         ? await runWaStep(w, s, plan.segment, plan.step, plan.template!, now)
         : plan.step.channel === 'sms' ? await runSmsStep(s) : await runEmailStep(s, plan.step)
       if (res.counts) sendBudget--
+      // An error from the provider may still have delivered it: never retried, recorded as skipped
+      if (res.status === 'retry' && res.counts) {
+        await record(w, s.userId, { step: plan.step.key, status: 'skipped', segment: plan.segment, channel: plan.step.channel, template: plan.template ?? null, reason: `error:${res.reason}` }, now)
+        bump(t, `failed_${plan.step.key}`)
+        return
+      }
       if (res.status === 'retry') { bump(t, `retry_${res.reason}`); return }
+      if (plan.step.channel !== 'whatsapp') {
+        if (res.status !== 'sent') await record(w, s.userId, { step: plan.step.key, status: 'skipped', segment: plan.segment, channel: plan.step.channel, reason: res.status === 'skipped' ? res.reason ?? null : 'exit' }, now)
+        if (res.status === 'exit') { await record(w, s.userId, { step: 'exit', status: 'exit', segment: plan.segment, reason: res.reason }, now); bump(t, `exit_${res.reason}`); return }
+        bump(t, `${res.status}_${plan.step.key}`)
+        continue
+      }
       if (res.status === 'exit') {
         await record(w, s.userId, { step: 'exit', status: 'exit', segment: plan.segment, reason: res.reason }, now)
         bump(t, `exit_${res.reason}`)

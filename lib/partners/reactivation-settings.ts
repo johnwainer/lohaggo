@@ -26,10 +26,35 @@ export async function getReactivationSettingsMeta() {
     const row = t ? await t.findUnique({ where: { id: 'platform' }, select: { config: true, updatedAt: true, updatedByEmail: true } }) : null
     cache = { at: Date.now(), value: sanitizeReactivationConfig(row?.config ?? null), updatedAt: row?.updatedAt ?? null, updatedByEmail: row?.updatedByEmail ?? null }
   } catch (err) {
-    logger.warn('Partner reactivation settings unavailable, using defaults', { err: err instanceof Error ? err.message : String(err) })
-    cache = { at: Date.now(), value: sanitizeReactivationConfig(null), updatedAt: null, updatedByEmail: null }
+    // Only a missing table (SQL not applied yet) runs on the defaults; any other read error stops the campaign
+    const missing = isMissingTable(err)
+    logger.warn(missing ? 'Partner reactivation settings table missing, using defaults' : 'Partner reactivation settings unreadable, campaign paused', { err: err instanceof Error ? err.message : String(err) })
+    const value = sanitizeReactivationConfig(null)
+    cache = { at: Date.now(), value: missing ? value : { ...value, paused: true }, updatedAt: null, updatedByEmail: null }
   }
   return cache
+}
+
+const isMissingTable = (err: unknown) => {
+  const e = err as { code?: string; message?: string }
+  return e?.code === 'P2021' || /does not exist|no existe/i.test(e?.message ?? '')
+}
+
+/**
+ * Uncached check before every send: the admin's pause applies at once, also in the middle of a run and on other
+ * instances. Fails closed (an unreadable row counts as paused).
+ */
+export async function isReactivationStopped(): Promise<boolean> {
+  try {
+    const t = table()
+    if (!t) return false
+    const row = await t.findUnique({ where: { id: 'platform' }, select: { config: true, updatedAt: true, updatedByEmail: true } })
+    if (!row) return false
+    const c = sanitizeReactivationConfig(row.config)
+    return !c.enabled || c.paused
+  } catch (err) {
+    return !isMissingTable(err)
+  }
 }
 
 export async function getReactivationSettings(): Promise<ReactivationConfig> {
