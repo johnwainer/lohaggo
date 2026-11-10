@@ -72,7 +72,8 @@ export function sanitizeInboxConfig(raw: unknown): InboxConfig {
     overdueMinutes: int(r.overdueMinutes, d.overdueMinutes, 1, 240),
     autoClose: { enabled: bool(a.enabled, d.autoClose.enabled), inactivityHours: int(a.inactivityHours, d.autoClose.inactivityHours, 2, 168) },
     csat: { enabled: bool(c.enabled, d.csat.enabled), cooldownDays: int(c.cooldownDays, d.csat.cooldownDays, 1, 90) },
-    aiFailure: { backToQueue: bool(f.backToQueue, d.aiFailure.backToQueue), incident: bool(f.incident, d.aiFailure.incident) },
+    // Always on: an AI failure with a contact must reach the team (CLAUDE.md, incident of 2026-10-13)
+    aiFailure: { backToQueue: bool(f.backToQueue, d.aiFailure.backToQueue), incident: true },
     vision: { enabled: bool(v.enabled, d.vision.enabled), maxImages: int(v.maxImages, d.vision.maxImages, 1, 8) },
     funnel: { nudgeEnabled: bool(n.nudgeEnabled, d.funnel.nudgeEnabled), nudgeAfterHours: int(n.nudgeAfterHours, d.funnel.nudgeAfterHours, 1, 48) },
   }

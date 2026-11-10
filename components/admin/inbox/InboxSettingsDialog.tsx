@@ -56,7 +56,6 @@ const GROUPS: Group[] = [
     title: 'Fallas de la IA',
     fields: [
       { kind: 'bool', path: 'aiFailure.backToQueue', label: 'Volver a «Por responder»', help: 'Si la IA falla al responder, la conversación pasa a una persona y entra al escalamiento.' },
-      { kind: 'bool', path: 'aiFailure.incident', label: 'Incidente crítico', help: 'Abre o suma al incidente «la IA no puede responder» (aviso por WhatsApp).' },
     ],
   },
   {
