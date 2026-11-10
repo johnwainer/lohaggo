@@ -189,6 +189,7 @@ export const BUTTON_GUIDANCE = `Respuestas rápidas de nuestras plantillas de Wh
 - doc_upload_chat: pide la foto del documento y usa subir_documento. services_setup: pregunta qué servicios ofrece y usa gestionar_servicio. bank_setup: pide los datos y usa registrar_cuenta_bancaria.
 - reorder / new_request: ayúdale a crear la solicitud (crear_solicitud). resume_request: retoma la solicitud que dejó a medias.
 - rebook_yes / rebook_wait / rebook_no / arrived_yes / arrived_no / service_done / service_not_done / arrival_started / arrival_on_way / partner_cant_go / partner_paid_cash / partner_paid_transfer / partner_not_paid: el seguimiento automático de la reserva ya los aplica y responde solo. Si te llegan a ti es porque no se pudo (cuenta no vinculada o reserva distinta): pregunta qué pasó y ayúdale con las herramientas de reservas y pagos, o pásalo a una persona.
+- help_docs: la persona necesita ayuda con sus documentos de socio: explícale paso a paso cómo sacar el certificado de antecedentes (gratis, en la página de la Policía Nacional con su número de cédula, descarga el PDF) y que envíe aquí la foto de la cédula y el PDF o una captura; si aun así no puede, asígnala a una persona.
 - optout_soft: la persona no quiere más avisos de este tipo; ya quedó registrada. Agradece en una frase y no insistas.`
 
 /**

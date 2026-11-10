@@ -121,6 +121,15 @@ export const WA = {
   /** Invite a verified partner to share their public profile (at most once a month) */
   C33: (p: { partnerId: string; name: string; slug: string }) =>
     spec('C33', [['lh_socio_compartir_perfil', { 1: partner(p.name), 2: `pro/${p.slug}?utm_source=whatsapp&utm_medium=socio&utm_campaign=compartir_perfil` }]], E('PartnerProfile', p.partnerId), { marketing: true, dedupeKey: `C33:PartnerProfile:${p.partnerId}`, dedupeWindowMs: 30 * DAY }),
+  /** Partner reactivation campaign (lib/partners/reactivation.ts): one key per partner and step, so a step is never sent twice */
+  C46: (p: { userId: string; name: string; service: string; city: string; step: string }) =>
+    spec('C46', [['lh_socio_reactivar_documentos', { 1: partner(p.name), 2: p.service, 3: p.city, 4: 'partner/verification?utm_source=whatsapp&utm_medium=socio&utm_campaign=reactivar_socios' }]], E('User', p.userId), { marketing: true, dedupeKey: `C46:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
+  C47: (p: { userId: string; name: string; step: string }) =>
+    spec('C47', [['lh_socio_antecedentes_guia', { 1: partner(p.name) }]], E('User', p.userId), { marketing: true, dedupeKey: `C47:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
+  C48: (p: { userId: string; name: string; service: string; step: string }) =>
+    spec('C48', [['lh_socio_ultimo_aviso', { 1: partner(p.name), 2: p.service }]], E('User', p.userId), { marketing: true, dedupeKey: `C48:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
+  C49: (p: { userId: string; partnerId: string; name: string; service: string; slug: string; step: string }) =>
+    spec('C49', [['lh_socio_verificado_activar', { 1: partner(p.name), 2: p.service, 3: `pro/${p.slug}?utm_source=whatsapp&utm_medium=socio&utm_campaign=reactivar_socios` }]], E('PartnerProfile', p.partnerId), { marketing: true, dedupeKey: `C49:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
   C4: (p: { documentId: string; name: string; type: string }) => spec('C4', [['lh_socio_documento_recibido', { 1: partner(p.name), 2: docLabel(p.type) }]], E('VerificationDocument', p.documentId)),
   C5: (p: { documentId: string; name: string; type: string }) => spec('C5', [['lh_socio_documento_aprobado', { 1: partner(p.name), 2: docLabel(p.type) }]], E('VerificationDocument', p.documentId)),
   C6: (p: { documentId: string; name: string; type: string; reason: string }) =>

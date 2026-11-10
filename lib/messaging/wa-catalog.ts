@@ -1847,7 +1847,95 @@ export const WA_CATALOG: WaCatalogEntry[] = [
   "variables": { "1": "Carlos", "2": "Ana", "3": "Plomería", "4": "A1B2C3" },
   "quickReplies": [],
   "url": null
-}
+},
+  {
+    "code": "C46",
+    "name": "lh_socio_reactivar_documentos",
+    "category": "MARKETING",
+    "body": "👋 Hola {{1}}, tu perfil de socio en LoHaggo para ofrecer {{2}} está casi listo. Solo falta tu cédula y el certificado de antecedentes para empezar a recibir solicitudes de clientes en {{3}}. Puedes hacerlo aquí mismo: envía una foto de tu cédula por este chat y te ayudamos con el resto. Toma menos de 5 minutos.",
+    "variables": {
+      "1": "Carlos",
+      "2": "plomería",
+      "3": "Medellín",
+      "4": "partner/verification?utm_source=whatsapp&utm_medium=socio&utm_campaign=reactivar_socios"
+    },
+    "quickReplies": [
+      {
+        "title": "Enviar foto aquí",
+        "id": "doc_upload_chat"
+      },
+      {
+        "title": "No me interesa",
+        "id": "optout_soft"
+      }
+    ],
+    "url": {
+      "title": "Hacerlo en la web",
+      "url": "https://www.lohaggo.com/{{4}}"
+    }
+  },
+{
+    "code": "C47",
+    "name": "lh_socio_antecedentes_guia",
+    "category": "MARKETING",
+    "body": "📄 {{1}}, el certificado de antecedentes es gratis y sale en 2 minutos en la página de la Policía Nacional: ingresas tu número de cédula y descargas el PDF. Envíalo por este chat junto con la foto de tu cédula y revisamos tu perfil en menos de 24 horas.",
+    "variables": {
+      "1": "Carlos"
+    },
+    "quickReplies": [
+      {
+        "title": "Enviar documentos",
+        "id": "doc_upload_chat"
+      },
+      {
+        "title": "Necesito ayuda",
+        "id": "help_docs"
+      }
+    ],
+    "url": null
+  },
+{
+    "code": "C48",
+    "name": "lh_socio_ultimo_aviso",
+    "category": "MARKETING",
+    "body": "⏳ Hola {{1}}, vamos a pausar los perfiles de socio que no han terminado su registro. Si aún quieres recibir clientes de {{2}} con LoHaggo, envía tu cédula por este chat esta semana. Si ya no te interesa, toca el botón y no te escribiremos más.",
+    "variables": {
+      "1": "Carlos",
+      "2": "plomería"
+    },
+    "quickReplies": [
+      {
+        "title": "Sí, quiero seguir",
+        "id": "doc_upload_chat"
+      },
+      {
+        "title": "Ya no me interesa",
+        "id": "optout_soft"
+      }
+    ],
+    "url": null
+  },
+{
+    "code": "C49",
+    "name": "lh_socio_verificado_activar",
+    "category": "MARKETING",
+    "body": "✅ {{1}}, ya eres socio verificado de LoHaggo. Para que te lleguen más solicitudes de {{2}}: confirma que estás disponible, revisa tus zonas y comparte tu perfil con tus clientes. Los clientes que te contratan desde tu perfil llegan directo a ti.",
+    "variables": {
+      "1": "Carlos",
+      "2": "plomería",
+      "3": "pro/carlos-perez-medellin?utm_source=whatsapp&utm_medium=socio&utm_campaign=reactivar_socios"
+    },
+    "quickReplies": [
+      {
+        "title": "Revisar mi perfil",
+        "id": "services_setup"
+      }
+    ],
+    "url": {
+      "title": "Compartir mi perfil",
+      "url": "https://www.lohaggo.com/{{3}}"
+    }
+  }
 ]
 
 /** The Twilio Content «types» object for an entry: text, quick replies, URL, both (card) or authentication. */
