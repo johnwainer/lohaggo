@@ -16,13 +16,20 @@ export type ArbiterCase = {
   blocks: string[]
   /** A person asked for this version: it goes back to that person */
   requestedByPerson: boolean
+  /** The editorial review is mandatory for this piece: without a verdict (failed or never run) nothing is published */
+  reviewRequired?: boolean
 }
+
+/** Reason of the arbiter's «not now» when the mandatory review could not run (the agent runs it again). */
+export const REVIEW_MISSING_REASON = 'La revisión editorial obligatoria no se pudo hacer: se reintenta antes de decidir'
 
 /** What the rules alone decide, or null when it is a judgment call for the arbiter. */
 export function arbiterPrecheck(c: ArbiterCase): { decision: ArbiterDecision; reason: string } | null {
   if (c.requestedByPerson) return { decision: 'human', reason: 'Una persona pidió esta versión: vuelve a esa persona' }
   if (c.blocks.length) return { decision: 'human', reason: `Tiene un bloqueo que no se publica sin una persona: ${c.blocks.slice(0, 2).join(' · ')}` }
   if (c.editorStatus === 'approved') return { decision: 'publish', reason: 'El editor la aprobó' }
+  // A mandatory review that did not run is not a disagreement: publishing it would skip the editor
+  if ((c.editorStatus === 'failed' || c.editorStatus === null) && c.reviewRequired) return { decision: 'human', reason: REVIEW_MISSING_REASON }
   if (c.editorStatus === 'failed') return null
   if (c.editorStatus === 'rejected') return { decision: 'discard', reason: 'El editor rechazó el enfoque' }
   // Far below the bar: not worth publishing; the planner proposes another idea

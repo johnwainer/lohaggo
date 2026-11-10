@@ -312,6 +312,22 @@ export function hasUtm(url: string) {
   return /[?&]utm_source=/.test(url) && /[?&]utm_campaign=/.test(url)
 }
 
+/** Instagram captions do not open links: the WhatsApp link of each post lives in the bio page. */
+export const IG_WHATSAPP_LINE = '📲 Escríbenos por WhatsApp: el enlace está en nuestra bio.'
+
+/**
+ * Every piece drives a measurable conversation: Facebook and the blog get the post's WhatsApp short link
+ * (`/w/post-<id>`, which prefills `(ref: post-<id>)` for the inbox attribution); an Instagram caption gets
+ * the «link en la bio» line (its links are not clickable). Stories and empty texts stay as they are.
+ * Never added twice. Pure.
+ */
+export function withWhatsappCta(channel: MarketingChannel, body: string, waLink: string) {
+  if (!body.trim() || body.includes('/w/post-')) return body
+  if (channel === 'INSTAGRAM') return /whats\s?app/i.test(body) ? body : `${body.trimEnd()}\n\n${IG_WHATSAPP_LINE}`
+  if (channel === 'FACEBOOK') return `${body.trimEnd()}\n\n📲 Pídelo por WhatsApp: ${waLink}`
+  return `${body.trimEnd()}\n\n**¿Necesitas este servicio?** [Escríbenos por WhatsApp](${waLink}) y te ayudamos a pedirlo.`
+}
+
 // ─── Repetition and quotas ──────────────────────────────────────────────────
 
 const words = (s: string) => new Set(norm(s).split(' ').filter((w) => w.length > 3))
@@ -387,8 +403,35 @@ export const sameDayPossible = (now: Date) => bogota(now).hour < 15
 /** A required «post» (feed) is also met by a carousel: both are regular posts of the profile grid. */
 export const sameDailyFormat = (have: string | null | undefined, required: string) => Boolean(have) && (have === required || (required === 'feed' && have === 'carousel'))
 
+/**
+ * Whether a piece of `channel` with format `have` (an agent format or the variant's: Facebook «historia» is
+ * published as «story») meets the required agent format `required`.
+ */
+export const isDailyFormat = (channel: MarketingChannel, have: string | null | undefined, required: string) => sameDailyFormat(have, required) || (Boolean(have) && have === variantFormat(channel, required))
+
+/** Stories (Instagram «story», Facebook «historia»): they do not show in the feed, so they are spaced on their own. */
+export const isStoryFormat = (f: string | null | undefined) => f === 'story' || f === 'historia'
+
 /** Whether a planned piece is of the agent format `format` in its channel. */
-const isFormat = (x: PlannedPiece, format: string) => sameDailyFormat(x.format, format) || (Boolean(x.format) && x.format === variantFormat(x.channel, format))
+const isFormat = (x: PlannedPiece, format: string) => isDailyFormat(x.channel, x.format, format)
+
+/**
+ * How a version is spaced in its channel. Stories go in their own lane (they do not crowd the feed): spaced
+ * 1 h from other stories, not from posts and reels. A lane's daily cap never stops its required minimum
+ * (minDaily) from fitting. `fill`: the piece is one of the required daily formats, so the slot search may
+ * use every allowed day and hour, not only the baseline ones.
+ */
+export function slotLane(channel: MarketingChannel, format: string | null | undefined, plan: Pick<ChannelPlan, 'minDaily'>, schedule: { minGapHours: number; maxPerDay: number }) {
+  const story = isStoryFormat(format)
+  const daily = Object.entries(plan.minDaily ?? {})
+  const required = daily.filter(([f]) => isStoryFormat(f) === story).reduce((a, [, n]) => a + n, 0)
+  return {
+    story,
+    fill: daily.some(([f]) => isDailyFormat(channel, format, f)),
+    minGapHours: story ? Math.min(1, schedule.minGapHours) : schedule.minGapHours,
+    maxPerDay: Math.max(schedule.maxPerDay, required),
+  }
+}
 
 /**
  * Days of the horizon still missing a required format (channels[c].minDaily, e.g. one reel a day): from
@@ -420,30 +463,136 @@ export function dailyFormatGaps(p: { now: Date; horizonDays: number; channels: R
 
 /**
  * Makes the planned ideas honour the daily quotas: on a day still short of the format, an idea of that
- * channel takes the format, or one of that day adds the channel with it. What stays uncovered is returned
- * (the next planning run asks again). Mutates and returns the ideas. Pure.
+ * channel takes the format, or one of that day adds the channel with it. The formats of a day take turns
+ * (one piece each per round), so the last required format (often the story) is not the one always left
+ * without ideas. An idea keeps a required format it already has while that format needs it. What stays
+ * uncovered is returned (the next planning run, or the watchdog, fills it). Mutates and returns the ideas. Pure.
  */
 export function enforceDailyFormats(ideas: IdeaDraft[], gaps: Array<{ channel: MarketingChannel; format: string; dates: string[] }>, enabled: MarketingChannel[]) {
   const uncovered: string[] = []
-  for (const g of gaps) {
-    if (!enabled.includes(g.channel)) continue
-    const need = new Map<string, number>()
-    for (const d of g.dates) need.set(d, (need.get(d) ?? 0) + 1)
-    need.forEach((count, day) => {
-      let left = count - ideas.filter((i) => i.targetDate === day && i.channels.includes(g.channel) && sameDailyFormat(i.formats[g.channel], g.format)).length
-      for (const idea of ideas) {
-        if (left <= 0) break
-        if (idea.targetDate !== day || sameDailyFormat(idea.formats[g.channel], g.format)) continue
-        // Another required format of the same channel keeps its piece
-        if (idea.channels.includes(g.channel) && idea.formats[g.channel] && gaps.some((o) => o !== g && o.channel === g.channel && sameDailyFormat(idea.formats[g.channel], o.format) && o.dates.includes(day))) continue
+  const active = gaps.filter((g) => enabled.includes(g.channel))
+  const days = Array.from(new Set(active.flatMap((g) => g.dates)))
+  for (const day of days) {
+    const here = active.filter((g) => g.dates.includes(day))
+    const has = (i: IdeaDraft, g: (typeof here)[number]) => i.channels.includes(g.channel) && sameDailyFormat(i.formats[g.channel], g.format)
+    // Missing pieces of each format this day (negative: more ideas than needed)
+    const left = new Map(here.map((g) => [g, g.dates.filter((d) => d === day).length - ideas.filter((i) => i.targetDate === day && has(i, g)).length]))
+    const ownOf = (i: IdeaDraft, g: (typeof here)[number]) => (i.channels.includes(g.channel) && i.formats[g.channel] ? here.find((o) => o !== g && o.channel === g.channel && sameDailyFormat(i.formats[g.channel], o.format)) : undefined)
+    const need = new Map(here.map((g) => [g, g.dates.filter((d) => d === day).length]))
+    const assigned = (g: (typeof here)[number]) => (need.get(g) ?? 0) - (left.get(g) ?? 0)
+    const stuck = new Set<(typeof here)[number]>()
+    // Bounded: every move takes from a format with more ideas than the one it gives to
+    for (let progress = true, guard = 0; progress && guard < 1000; guard++) {
+      progress = false
+      for (const g of here) {
+        if ((left.get(g) ?? 0) <= 0 || stuck.has(g)) continue
+        // An idea of that day without this format; one whose format is required too keeps it unless that
+        // format has ideas to spare or clearly more than this one (each format gets one before any gets two)
+        const idea = ideas.find((i) => {
+          if (i.targetDate !== day || sameDailyFormat(i.formats[g.channel], g.format)) return false
+          const own = ownOf(i, g)
+          return !own || (left.get(own) ?? 0) < 0 || assigned(own) > assigned(g) + 1
+        })
+        if (!idea) { stuck.add(g); continue }
+        const own = ownOf(idea, g)
+        if (own) left.set(own, (left.get(own) ?? 0) + 1)
         if (!idea.channels.includes(g.channel)) idea.channels.push(g.channel)
         idea.formats[g.channel] = g.format
-        left--
+        left.set(g, (left.get(g) ?? 0) - 1)
+        progress = true
       }
-      if (left > 0) uncovered.push(`${day} ${CHANNEL_LABEL[g.channel]} ${g.format}`)
-    })
+    }
+    for (const g of here) for (let i = 0; i < (left.get(g) ?? 0); i++) uncovered.push(`${day} ${CHANNEL_LABEL[g.channel]} ${g.format}`)
   }
   return { ideas, uncovered }
+}
+
+/**
+ * The required daily pieces still missing on the given days (keys YYYY-MM-DD, Bogotá), per channel and
+ * format, from what is planned (scheduled or published sends, written pieces, open ideas). Days outside
+ * the allowed weekdays are skipped. Pure: the watchdog fills exactly this.
+ */
+export function dailyShortfall(p: { days: string[]; channels: Record<MarketingChannel, ChannelPlan>; planned: PlannedPiece[]; allowedDays: number[] }) {
+  const out: Array<{ day: string; channel: MarketingChannel; format: string; have: number; need: number }> = []
+  for (const day of p.days) {
+    if (!p.allowedDays.includes(weekdayOf(day))) continue
+    for (const channel of AGENT_CHANNELS) {
+      const plan = p.channels[channel]
+      if (!plan.enabled) continue
+      for (const [format, need] of Object.entries(plan.minDaily ?? {})) {
+        if (!need) continue
+        const have = p.planned.filter((x) => x.channel === channel && bogota(x.at).key === day && isFormat(x, format)).length
+        if (have < need) out.push({ day, channel, format, have, need })
+      }
+    }
+  }
+  return out
+}
+
+/** Days the watchdog keeps filled: today while a piece can still go out (before 19:00 Bogotá) and the next `lookahead` days. */
+export function watchdogDays(now: Date, lookahead: number) {
+  const today = bogota(now).key
+  const out = bogota(now).hour < 19 ? [today] : []
+  for (let i = 1; i <= lookahead; i++) out.push(addDays(today, i))
+  return out
+}
+
+/** Marks the ideas the watchdog created (their rationale starts with it): they reuse the library first. */
+export const WATCHDOG_RATIONALE = 'Vigilante de publicación'
+
+/**
+ * Ideas for missing daily pieces, without the model: a service that brought conversations or requests
+ * (or one of the catalog not used lately), the pillar furthest below its share, and an angle that reuses
+ * what worked. The drafter writes each piece from its idea through the normal path (editorial review,
+ * guardrails, slots, budget). Pure.
+ */
+export function fillIdeas(p: {
+  missing: Array<{ day: string; channel: MarketingChannel; format: string; have: number; need: number }>
+  /** In the order to use them (furthest below their share first) */
+  pillars: string[]
+  services: string[]
+  /** Services ordered by what their pieces brought (best first), with the title of their best piece */
+  worked: Array<{ service: string; title: string; conversations: number; requests: number }>
+  recentServices: string[]
+  formatLabel: (channel: MarketingChannel, format: string) => string
+}): IdeaDraft[] {
+  const ideas: IdeaDraft[] = []
+  const fresh = p.services.filter((s) => !p.recentServices.includes(s))
+  const pool = Array.from(new Set([...p.worked.map((w) => w.service).filter((s) => p.services.includes(s)), ...fresh, ...p.services]))
+  let k = 0
+  for (const m of p.missing) {
+    for (let i = m.have; i < m.need; i++) {
+      const service = pool.length ? pool[k % pool.length] : null
+      const pillar = p.pillars.length ? p.pillars[k % p.pillars.length] : 'General'
+      k++
+      const best = service ? p.worked.find((w) => w.service === service) : undefined
+      const label = p.formatLabel(m.channel, m.format)
+      const result = best ? [best.requests ? `${best.requests} solicitud(es)` : '', best.conversations ? `${best.conversations} conversación(es)` : ''].filter(Boolean).join(' y ') : ''
+      ideas.push({
+        pillar, service, channels: [m.channel], formats: { [m.channel]: m.format }, targetDate: m.day, slotHint: null, explore: false, confidence: 0.6,
+        angle: (best
+          ? `${label} que retoma «${best.title}»${result ? `, que trajo ${result}` : ''}: ${service}, con una invitación clara a escribir por WhatsApp`
+          : `${label} de ${service ?? 'nuestros servicios'}: un problema concreto del cliente y cómo se resuelve pidiéndolo por WhatsApp`).slice(0, 300),
+        hypothesis: best ? 'Lo que ya trajo conversaciones, en otro formato, vuelve a traerlas' : 'Un problema concreto con llamado a WhatsApp abre conversaciones',
+        rationale: `${WATCHDOG_RATIONALE}: faltaba ${label.toLowerCase()} el ${m.day} (mínimo diario ${m.need})`,
+      })
+    }
+  }
+  return ideas
+}
+
+/**
+ * Pieces written but not scheduled that hold a place in the calendar: approved ones, and those in review
+ * moved in the last day, on their idea's day. Drafts that need a person, or reviews nobody touched for a
+ * day, no longer count: otherwise one stuck piece keeps «tomorrow» looking full forever. Pure.
+ */
+export function draftsInCalendar<T extends { status: string; ideaId: string | null; updatedAt: Date }>(drafts: T[], ideaDate: Map<string, Date>, now: Date) {
+  return drafts.flatMap((d) => {
+    const at = d.ideaId ? ideaDate.get(d.ideaId) : undefined
+    if (!at) return []
+    if (d.status === 'approved' || (d.status === 'review' && now.getTime() - d.updatedAt.getTime() < DAY)) return [{ draft: d, at }]
+    return []
+  })
 }
 
 // ─── Smart scheduling ───────────────────────────────────────────────────────
@@ -492,6 +641,8 @@ export type SlotInput = {
   explore: number
   /** 0..1, injected so tests are deterministic */
   random: number
+  /** A required daily piece: every allowed day and hour may be used (baseline hours first), not only the baseline ones */
+  fill?: boolean
 }
 export type SlotChoice = { at: Date; reason: string; kind: 'base' | 'custom' | 'learned' | 'explore' }
 
@@ -533,8 +684,13 @@ export function pickSlot(i: SlotInput): SlotChoice | null {
   if (i.smart && !learned) {
     const d = base.days.filter((x) => i.allowedDays.includes(x))
     const h = base.hours.filter((x) => allowedHours.includes(x))
-    if (d.length) days = d
-    if (h.length) hours = h
+    // The baseline (e.g. Instagram Tuesday to Friday, 5 hours) cannot hold several pieces a day: a required
+    // daily piece keeps the baseline hours as its first choice and may use the rest of the window
+    if (i.fill) hours = [...h, ...allowedHours.filter((x) => !h.includes(x))]
+    else {
+      if (d.length) days = d
+      if (h.length) hours = h
+    }
   }
   const gap = i.minGapHours * 3600_000
   const perDay = new Map<string, number>()
@@ -668,20 +824,33 @@ function dimValue(d: Dimension, r: LearningRow): string | null {
 export type DimensionStat = { value: string; n: number; lift: number; smoothedLift: number; meanValue: number; lowData: boolean }
 export type Rejection = { kind: 'idea' | 'post'; pillar: string | null; service: string | null; reason: string | null; what?: string }
 
+/** What a send brought the business: a booking weighs more than a request, a request more than a chat. */
+export const outcomeOf = (m: RowMetrics) => m.conversations + 3 * (m.requests ?? 0) + 5 * (m.bookings ?? 0)
+
 /**
  * What worked: each send's KPI compared with the channel's average (lift 1 = average), grouped by
  * every variable the agent controls. Smoothed toward 1 so two lucky posts do not make a rule.
+ * `outcomeWeight` (0..1) blends in what the send brought (conversations, requests, bookings) against the
+ * channel's average, so a piece that opened chats beats one that only got likes.
  */
-export function learningStats(rows: LearningRow[], kpi: Kpi, rejections: Rejection[] = []) {
+export function learningStats(rows: LearningRow[], kpi: Kpi, rejections: Rejection[] = [], opts: { outcomeWeight?: number } = {}) {
+  const w = Math.min(1, Math.max(0, opts.outcomeWeight ?? 0))
   const valued = rows.map((r) => ({ r, v: kpiValue(kpi, r.channel, r.metrics) })).filter((x): x is { r: LearningRow; v: number } => x.v !== null)
   const channelMean = new Map<MarketingChannel, number>()
+  const outcomeMean = new Map<MarketingChannel, number>()
   for (const c of AGENT_CHANNELS) {
-    const vs = valued.filter((x) => x.r.channel === c).map((x) => x.v)
-    if (vs.length) channelMean.set(c, vs.reduce((a, b) => a + b, 0) / vs.length)
+    const of = valued.filter((x) => x.r.channel === c)
+    if (of.length) {
+      channelMean.set(c, of.reduce((a, b) => a + b.v, 0) / of.length)
+      outcomeMean.set(c, of.reduce((a, b) => a + outcomeOf(b.r.metrics), 0) / of.length)
+    }
   }
   const lifted = valued.map((x) => {
     const mean = channelMean.get(x.r.channel) ?? 0
-    return { ...x, lift: mean > 0 ? x.v / mean : 1 }
+    const kpiLift = mean > 0 ? x.v / mean : 1
+    const om = outcomeMean.get(x.r.channel) ?? 0
+    const outcomeLift = om > 0 ? outcomeOf(x.r.metrics) / om : 1
+    return { ...x, lift: (1 - w) * kpiLift + w * outcomeLift }
   })
 
   const byDimension = {} as Record<Dimension, DimensionStat[]>
@@ -713,8 +882,26 @@ export function learningStats(rows: LearningRow[], kpi: Kpi, rejections: Rejecti
   const reasons = new Map<string, number>()
   for (const r of rejections) if (r.reason) reasons.set(r.reason, (reasons.get(r.reason) ?? 0) + 1)
 
+  // Conversations, requests and bookings by format and by topic (service): what the learnings must name
+  const outcomes = (key: (r: LearningRow) => string | null) => {
+    const m = new Map<string, { value: string; n: number; conversations: number; requests: number; bookings: number }>()
+    for (const r of rows) {
+      const k = key(r)
+      if (!k) continue
+      const g = m.get(k) ?? { value: k, n: 0, conversations: 0, requests: 0, bookings: 0 }
+      g.n++
+      g.conversations += r.metrics.conversations
+      g.requests += r.metrics.requests ?? 0
+      g.bookings += r.metrics.bookings ?? 0
+      m.set(k, g)
+    }
+    return Array.from(m.values()).filter((g) => g.conversations + g.requests + g.bookings > 0).sort((a, b) => (b.bookings * 5 + b.requests * 3 + b.conversations) - (a.bookings * 5 + a.requests * 3 + a.conversations)).slice(0, 8)
+  }
+
   return {
     kpi,
+    outcomeWeight: w,
+    outcomes: { byFormat: outcomes((r) => dimValue('format', r)), byService: outcomes((r) => dimValue('service', r)) },
     measured: valued.length,
     posts: perPost.size,
     channelMean: Object.fromEntries(channelMean) as Partial<Record<MarketingChannel, number>>,

@@ -116,7 +116,16 @@ export type AgentConfig = {
   /** reuse: when the agent takes images from the resource library (lib/marketing/library-core) and how long an image rests between uses */
   images: { source: (typeof IMAGE_SOURCES)[number]; logo: boolean; carouselSize: number; styles: ImageStyleConfig; reuse: ReuseConfig }
   notify: { email: boolean }
+  /** autoFill: the watchdog creates the missing daily pieces itself (not only an incident); lookaheadDays: days ahead it keeps filled (today included) */
+  watchdog: { autoFill: boolean; lookaheadDays: number }
+  /** whatsapp: every piece carries a WhatsApp link tagged with the post (Facebook and blog) or the «link en la bio» line (Instagram) */
+  cta: { whatsapp: boolean }
+  /** outcomeWeight: 0 = learn only from the KPI; 1 = only from conversations, requests and bookings the pieces brought */
+  learning: { outcomeWeight: number }
 }
+
+/** Days ahead the watchdog may fill (today counts as day 0). */
+export const MAX_LOOKAHEAD_DAYS = 7
 
 /** Autonomy and limits kept in their own columns (filtered and enforced in code). */
 export type AgentSettings = {
@@ -151,6 +160,9 @@ export function defaultAgentConfig(objective = 'reach'): AgentConfig {
     schedule: { smart: true, days: [1, 2, 3, 4, 5, 6], windows: [{ from: 8, to: 21 }], quietFrom: 21, quietTo: 7, minGapHours: 3, maxPerDay: 1, repeatDays: 21, draftLeadHours: 72 },
     images: { source: 'ai', logo: true, carouselSize: 2, styles: defaultImageStyleConfig(), reuse: { ...DEFAULT_REUSE } },
     notify: { email: true },
+    watchdog: { autoFill: true, lookaheadDays: 2 },
+    cta: { whatsapp: true },
+    learning: { outcomeWeight: 0.5 },
   }
 }
 
@@ -200,6 +212,10 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
   const prevReuse = prev.images.reuse ?? DEFAULT_REUSE
   const notify = obj(b.notify ?? prev.notify)
   const budget = obj(b.budget ?? prev.budget)
+  const watchdog = obj(b.watchdog ?? prev.watchdog)
+  const cta = obj(b.cta ?? prev.cta)
+  const learning = obj(b.learning ?? prev.learning)
+  const prevWatchdog = prev.watchdog ?? { autoFill: true, lookaheadDays: 2 }
   const emojis = obj(voice.emojis)
 
   const allowedDays = Array.isArray(schedule.days) ? schedule.days.length : prev.schedule.days.length
@@ -295,6 +311,9 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
       reuse: { mode: oneOf(reuse.mode, REUSE_MODES, prevReuse.mode), afterDays: int(reuse.afterDays, MIN_REUSE_DAYS, MAX_REUSE_DAYS, prevReuse.afterDays) },
     },
     notify: { email: bool(notify.email, prev.notify.email) },
+    watchdog: { autoFill: bool(watchdog.autoFill, prevWatchdog.autoFill), lookaheadDays: int(watchdog.lookaheadDays, 0, MAX_LOOKAHEAD_DAYS, prevWatchdog.lookaheadDays) },
+    cta: { whatsapp: bool(cta.whatsapp, prev.cta?.whatsapp ?? true) },
+    learning: { outcomeWeight: float(learning.outcomeWeight, 0, 1, prev.learning?.outcomeWeight ?? 0.5) },
   }
   for (const c of AGENT_CHANNELS) if (config.channels[c].enabled && !config.channels[c].formats.length) config.channels[c].formats = [AGENT_FORMATS[c][0]]
   if (!config.schedule.days.length) config.schedule.days = [1, 2, 3, 4, 5]

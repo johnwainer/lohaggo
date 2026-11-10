@@ -64,20 +64,21 @@ const notifyPartners: HaggoActionDef<{ serviceRequestId: string }> = {
   },
 }
 
-const openInc: HaggoActionDef<{ title: string; description: string; severity: string }> = {
+const openInc: HaggoActionDef<{ title: string; description: string; severity: string; ruleKey?: string | null }> = {
   id: 'operations.open_incident',
   domain: 'operations',
   risk: 'low',
   label: 'Abrir un incidente',
-  hint: 'Registra en Casos e incidentes un problema que alguien del equipo debe atender.',
-  schema: { type: 'object', properties: { title: { type: 'string' }, description: { type: 'string' }, severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] } }, required: ['title', 'description', 'severity'] },
+  hint: 'Registra en Casos e incidentes un problema que alguien del equipo debe atender. Si sale de una situación detectada por las reglas, pasa su ruleKey: el incidente se cierra solo cuando la situación desaparece (sin ruleKey se cierra solo a las 48 h si ningún hallazgo abierto lo sigue describiendo).',
+  schema: { type: 'object', properties: { title: { type: 'string' }, description: { type: 'string' }, severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] }, ruleKey: { type: 'string', description: 'Clave de la situación detectada (p. ej. mk:no-drafts:<id>), si la hay' } }, required: ['title', 'description', 'severity'] },
   sideEffects: [],
   parse: (raw) => {
     const r = requireObj(raw)
     if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
     const e: string[] = []
     const severity = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(String(r.severity)) ? String(r.severity) : (e.push('severity: LOW, MEDIUM, HIGH o CRITICAL'), '')
-    return done(e, { title: parseText(r, 'title', e, { min: 5, max: 200 }) as string, description: parseText(r, 'description', e, { min: 10, max: 2000 }) as string, severity })
+    const ruleKey = typeof r.ruleKey === 'string' && /^[a-z]+:[\w:.-]{1,60}$/i.test(r.ruleKey.trim()) ? r.ruleKey.trim() : null
+    return done(e, { title: parseText(r, 'title', e, { min: 5, max: 200 }) as string, description: parseText(r, 'description', e, { min: 10, max: 2000 }) as string, severity, ruleKey })
   },
   describe: (p) => `Abrir el incidente «${p.title}»`,
   entity: () => null,
@@ -88,7 +89,8 @@ const openInc: HaggoActionDef<{ title: string; description: string; severity: st
   },
   preview: async (p) => ({ summary: `Incidente ${p.severity}: ${p.title}`, diff: [] }),
   execute: async (p) => {
-    const inc = await openIncident({ type: 'haggo', title: p.title, description: p.description, severity: p.severity, source: 'haggo', route: '/admin/haggo' })
+    // Linked to its rule: it resolves by itself when the rule stops detecting it (lib/haggo/detect.ts staleHaggoItems)
+    const inc = await openIncident({ type: p.ruleKey ? `haggo:rule:${p.ruleKey}` : 'haggo', title: p.title, description: p.description, severity: p.severity, source: 'haggo', route: '/admin/haggo' })
     return { after: { incidentId: inc.id }, result: 'Incidente abierto' }
   },
   unchanged: async (_p, after) => (await prisma.adminIncident.findUnique({ where: { id: (after as { incidentId: string }).incidentId }, select: { status: true } }))?.status !== 'RESOLVED',

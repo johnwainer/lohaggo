@@ -1,9 +1,9 @@
 import type { MarketingChannel } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { latestSnapshots } from '@/lib/marketing/metrics'
-import { postResults } from '@/lib/marketing/post-results'
+import { postChats, postResults } from '@/lib/marketing/post-results'
 import type { AgentConfig } from '@/lib/marketing/agent-input'
-import { learningStats, type LearningRow, type LearningStats, type PostFeatures, type Rejection } from '@/lib/marketing/agent-core'
+import { draftsInCalendar, learningStats, type LearningRow, type LearningStats, type PostFeatures, type Rejection } from '@/lib/marketing/agent-core'
 import type { Catalog, MomentFacts } from '@/lib/marketing/agent-prompt'
 
 const DAY = 24 * 3600_000
@@ -57,7 +57,8 @@ export async function learningRows(scope: { agentId: string } | { workspaceId: s
   const views = webIds.length ? await prisma.webPageView.groupBy({ by: ['variantId'], where: { variantId: { in: webIds } }, _sum: { views: true } }) : []
   const externalIds = pubs.map((p) => p.externalId).filter((x): x is string => Boolean(x))
   const convs = externalIds.length ? await prisma.conversation.groupBy({ by: ['postId'], where: { postId: { in: externalIds } }, _count: { _all: true } }) : []
-  const results = await postResults(Array.from(new Set(pubs.map((p) => p.post.id))), new Date(now.getTime() - days * DAY))
+  const postIds = Array.from(new Set(pubs.map((p) => p.post.id)))
+  const [results, chats] = await Promise.all([postResults(postIds, new Date(now.getTime() - days * DAY)), postChats(postIds, new Date(now.getTime() - days * DAY))])
   // A post's requests go to the channel they came through; the ones without channel, to its first send
   const firstPub = new Map<string, string>()
   for (const p of [...pubs].reverse()) if (!firstPub.has(p.post.id)) firstPub.set(p.post.id, p.id)
@@ -84,7 +85,8 @@ export async function learningRows(scope: { agentId: string } | { workspaceId: s
       metrics: {
         reach: s?.reach ?? 0, likes: s?.likes ?? 0, comments: s?.comments ?? 0, shares: s?.shares ?? 0, saves: s?.saves ?? 0, clicks: s?.clicks ?? 0,
         webViews: p.channel === 'WEB' ? viewsBy.get(p.variantId) ?? 0 : 0,
-        conversations: p.externalId ? convBy.get(p.externalId) ?? 0 : 0,
+        // Comments on the send, plus the chats its WhatsApp link opened (credited to the post's first send)
+        conversations: (p.externalId ? convBy.get(p.externalId) ?? 0 : 0) + (firstPub.get(p.post.id) === p.id ? chats.get(p.post.id) ?? 0 : 0),
         ...resultFor(p),
       },
     }
@@ -110,16 +112,15 @@ export async function plannedPieces(agentId: string, now: Date, horizonDays: num
   const [pubs, drafts, ideas] = await Promise.all([
     prisma.marketingPublication.findMany({ where: { post: { agentId }, status: { in: ['scheduled', 'publishing', 'processing', 'published'] }, scheduledAt: { gte: now, lte: end } }, select: { channel: true, scheduledAt: true, postId: true, variantId: true } }),
     // Written but not scheduled yet (in review, approved): they will take a slot near their idea's day
-    prisma.marketingPost.findMany({ where: { agentId, status: { in: ['draft', 'review', 'approved'] } }, select: { id: true, ideaId: true, variants: { select: { channel: true, format: true } } } }),
+    prisma.marketingPost.findMany({ where: { agentId, status: { in: ['review', 'approved'] } }, select: { id: true, ideaId: true, status: true, updatedAt: true, variants: { select: { channel: true, format: true } } } }),
     prisma.marketingIdea.findMany({ where: { agentId, status: { in: ['proposed', 'accepted', 'drafted'] }, targetDate: { gte: new Date(now.getTime() - DAY), lte: end } }, select: { id: true, channels: true, formats: true, targetDate: true, postId: true, status: true } }),
   ])
   const variantFormats = new Map((await prisma.marketingPostVariant.findMany({ where: { id: { in: pubs.map((p) => p.variantId) } }, select: { id: true, format: true } })).map((v) => [v.id, v.format]))
   const out: Array<{ channel: MarketingChannel; at: Date; format: string | null }> = pubs.map((p) => ({ channel: p.channel, at: p.scheduledAt, format: variantFormats.get(p.variantId) ?? null }))
   const scheduledPosts = new Set(pubs.map((p) => p.postId))
   const ideaDate = new Map(ideas.map((i) => [i.id, i.targetDate]))
-  for (const d of drafts) {
-    if (scheduledPosts.has(d.id)) continue
-    const at = (d.ideaId && ideaDate.get(d.ideaId)) || new Date(now.getTime() + DAY)
+  // Only written pieces that will plausibly go out on their idea's day (a stuck draft must not fill «tomorrow»)
+  for (const { draft: d, at } of draftsInCalendar(drafts.filter((x) => !scheduledPosts.has(x.id)), ideaDate, now)) {
     for (const v of d.variants) out.push({ channel: v.channel, at, format: v.format ?? null })
   }
   for (const i of ideas) {
@@ -141,7 +142,7 @@ export async function recentTopics(agentId: string, now: Date, days: number) {
   return ideas.map((i) => ({ service: i.service, angle: i.angle, at: i.targetDate }))
 }
 
-/** Times already taken in a channel by any account of the workspace (scheduled or out), for spacing. */
+/** Times already taken in a channel by any account of the workspace (scheduled or out), with their format, for spacing. */
 export async function takenSlots(workspaceId: string, channel: MarketingChannel, from: Date, to: Date, excludePostId?: string) {
   const pubs = await prisma.marketingPublication.findMany({
     where: {
@@ -151,10 +152,11 @@ export async function takenSlots(workspaceId: string, channel: MarketingChannel,
       ...(excludePostId ? { postId: { not: excludePostId } } : {}),
       OR: [{ scheduledAt: { gte: from, lte: to } }, { publishedAt: { gte: from, lte: to } }],
     },
-    select: { scheduledAt: true, publishedAt: true },
+    select: { scheduledAt: true, publishedAt: true, variantId: true },
     take: 500,
   })
-  return pubs.map((p) => p.publishedAt ?? p.scheduledAt)
+  const formats = new Map((await prisma.marketingPostVariant.findMany({ where: { id: { in: Array.from(new Set(pubs.map((p) => p.variantId))) } }, select: { id: true, format: true } })).map((v) => [v.id, v.format]))
+  return pubs.map((p) => ({ at: p.publishedAt ?? p.scheduledAt, format: formats.get(p.variantId) ?? null }))
 }
 
 /** Everything the "moment" block of the prompt needs. */
@@ -175,7 +177,7 @@ export async function momentFacts(agent: { id: string; workspaceId: string; hori
     prisma.marketingReview.findMany({ where: { agentId: agent.id, reviewer: 'editor', verdict: { in: ['changes', 'rejected'] }, createdAt: { gte: new Date(now.getTime() - 30 * DAY) } }, orderBy: { createdAt: 'desc' }, take: 20, select: { instructions: true } }).catch(() => []),
   ])
   const editorNotes = Array.from(new Set(editor.flatMap((r) => ((r.instructions as Array<{ change?: unknown }> | null) ?? []).map((i) => (typeof i.change === 'string' ? i.change.trim().slice(0, 240) : '')).filter(Boolean)))).slice(0, 8)
-  const stats = rows.length ? learningStats(rows, config.kpi, rejections) : null
+  const stats = rows.length ? learningStats(rows, config.kpi, rejections, { outcomeWeight: config.learning.outcomeWeight }) : null
   const bodies = stats ? await prisma.marketingPostVariant.findMany({ where: { postId: { in: [...stats.best, ...stats.worst].map((p) => p.postId) } }, select: { postId: true, channel: true, body: true } }) : []
   const textOf = (postId: string) => bodies.find((b) => b.postId === postId && b.channel !== 'WEB')?.body ?? bodies.find((b) => b.postId === postId)?.body ?? ''
   const result = (lift: number) => `${lift.toFixed(2).replace('.', ',')}× la media`

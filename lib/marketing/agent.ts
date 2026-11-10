@@ -59,6 +59,15 @@ import {
   type UtmParams,
   variantFormat,
   aiImageCount,
+  dailyShortfall,
+  fillIdeas,
+  isDailyFormat,
+  isStoryFormat,
+  outcomeOf,
+  slotLane,
+  watchdogDays,
+  withWhatsappCta,
+  WATCHDOG_RATIONALE,
 } from '@/lib/marketing/agent-core'
 import {
   DRAFT_TOOL,
@@ -80,7 +89,7 @@ import { editorialGate, getEditorialSettings, hashOf, latestEditorAsks, loadRevi
 import { gateReason, instructionsForAgent, nextReviewStep, type Instruction } from '@/lib/marketing/editorial-core'
 import { defaultImageStyleConfig, resolveStyle } from '@/lib/marketing/image-styles'
 import { upgradeOneStyleExample } from '@/lib/marketing/image-style-examples'
-import { ARBITER_TOOL, arbiterPrecheck, arbiterSystem, arbiterTask, isLinkParamAsk, parseArbiter, type ArbiterDecision } from '@/lib/marketing/arbiter-core'
+import { ARBITER_TOOL, REVIEW_MISSING_REASON, arbiterPrecheck, arbiterSystem, arbiterTask, isLinkParamAsk, parseArbiter, type ArbiterDecision } from '@/lib/marketing/arbiter-core'
 import { overrideReview } from '@/lib/marketing/editorial-ops'
 import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
 
@@ -433,9 +442,12 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
   const safe = (raw: Record<string, unknown>) => {
     try { return sanitizeVariantInput(raw) } catch { return sanitizeVariantInput({ ...raw, linkUrl: null }) }
   }
+  // Every piece leads to a conversation: a WhatsApp short link tagged with the post (inbox attribution reads it)
+  const wa = `${SITE_URL}/w/post-${postId}`
+  const cta = (channel: MarketingChannel, body: string) => (config.cta.whatsapp ? withWhatsappCta(channel, body, wa) : body)
   if (channels.includes('WEB') && draft.web) {
     patches.push(safe({
-      channel: 'WEB', body: applyUtmToText(draft.web.body, u('WEB'), own), slug: slugify(draft.web.slug || draft.title), seoTitle: draft.web.seoTitle, seoDescription: draft.web.seoDescription,
+      channel: 'WEB', body: cta('WEB', applyUtmToText(draft.web.body, u('WEB'), own)), slug: slugify(draft.web.slug || draft.title), seoTitle: draft.web.seoTitle, seoDescription: draft.web.seoDescription,
       excerpt: draft.web.excerpt, tags: draft.web.tags, category: draft.web.category, aiGenerated: true,
     }))
   }
@@ -452,7 +464,7 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
     const kept = savedFormat('INSTAGRAM')
     let format = kept ? kept.format ?? draft.instagram.format : draft.instagram.format
     if (format === 'carousel' && kept && images < 2) format = 'feed'
-    const body = format === 'story' ? '' : ensureHashtags(applyUtmToText(draft.instagram.caption, u('INSTAGRAM'), own), config.voice.brandHashtags)
+    const body = format === 'story' ? '' : ensureHashtags(cta('INSTAGRAM', applyUtmToText(draft.instagram.caption, u('INSTAGRAM'), own)), config.voice.brandHashtags)
     patches.push(safe({ channel: 'INSTAGRAM', body, format, publishOptions: optionsFor(format), aiGenerated: true }))
   }
   if (channels.includes('FACEBOOK') && draft.facebook) {
@@ -460,11 +472,10 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
     const service = draft.service ? await prisma.service.findFirst({ where: { name: draft.service }, select: { slug: true } }).catch(() => null) : null
     const link = draft.facebook.link || (service?.slug ? `${SITE_URL}/servicios/${service.slug}` : null)
     const text = applyUtmToText(draft.facebook.text, u('FACEBOOK'), own)
-    const wa = `${SITE_URL}/w/post-${postId}`
     const keptFb = savedFormat('FACEBOOK')
     const format = keptFb ? keptFb.format : variantFormat('FACEBOOK', formats.FACEBOOK)
     // A story shows no text or link; a reel shows its text but not the link card
-    const body = format === 'story' ? '' : text.includes('/w/post-') ? text : `${text.trimEnd()}\n\n📲 Pídelo por WhatsApp: ${wa}`
+    const body = format === 'story' ? '' : cta('FACEBOOK', text)
     // «texto» and «enlace» go out without photos (the link shows its card); «foto» with them
     const fbOptions = format ? optionsFor(format) : formats.FACEBOOK === 'texto' || formats.FACEBOOK === 'enlace' ? { noMedia: true } : null
     patches.push(safe({ channel: 'FACEBOOK', body, format: format ?? 'post', publishOptions: fbOptions, linkUrl: link && !format && formats.FACEBOOK !== 'texto' ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
@@ -478,7 +489,7 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
  * if configured and within the per-post cap; the brand logo on top. Never throws: without an image
  * the piece fails validation for Instagram and goes to a person.
  */
-async function attachImages(agent: Agent, config: AgentConfig, postId: string, draft: PostDraft, service: string | null, channels: MarketingChannel[], meter: Meter): Promise<{ source: string | null; error: string | null; style?: string | null; library?: LibraryPick[] }> {
+async function attachImages(agent: Agent, config: AgentConfig, postId: string, draft: PostDraft, service: string | null, channels: MarketingChannel[], meter: Meter, opts: { preferLibrary?: boolean } = {}): Promise<{ source: string | null; error: string | null; style?: string | null; library?: LibraryPick[] }> {
   if (config.images.source === 'manual') return { source: null, error: null }
   if (await prisma.marketingMedia.count({ where: { postId } })) return { source: 'existing', error: null }
   const carousel = channels.includes('INSTAGRAM') && draft.instagram?.format === 'carousel'
@@ -488,7 +499,9 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
   const orientation = channels.includes('INSTAGRAM') || vertical ? 'portrait' as const : 'landscape' as const
   const brand = config.images.logo && Boolean((await getBrandKit(agent.workspaceId))?.logoPublicId)
   const alt = draft.image.alt || draft.title
-  const reuse = config.images.reuse ?? DEFAULT_REUSE
+  const configured = config.images.reuse ?? DEFAULT_REUSE
+  // A piece the watchdog asked for reuses paid images first (unless the team said never)
+  const reuse = opts.preferLibrary && configured.mode === 'fallback' ? { ...configured, mode: 'prefer' as const } : configured
   // Reuse from the resource library is the agent's configuration, never silent: the piece records which files it took
   const fromLibrary = async (why: string) => {
     const picks = await reuseForPiece({ workspaceId: agent.workspaceId, postId, service, orientation, n, afterDays: reuse.afterDays, brand, alt }).catch((err) => {
@@ -697,7 +710,9 @@ const isTransientArbitration = (a: { reason?: string } | null | undefined) => Bo
 async function arbitratePiece(agent: Agent, postId: string, p: { editorStatus: ArbiterCase['editorStatus']; score: number | null; summary: string; risks: string[]; issues: Array<{ severity: string; message: string }>; requestedByPerson: boolean }, meter: Meter): Promise<Arbitration> {
   const editorial = await getEditorialSettings(agent.workspaceId)
   const blocks = p.issues.filter((i) => i.severity === 'block').map((i) => i.message)
-  const pre = arbiterPrecheck({ editorStatus: p.editorStatus, score: p.score, minScore: editorial.minScore, blocks, requestedByPerson: p.requestedByPerson })
+  const pre = arbiterPrecheck({ editorStatus: p.editorStatus, score: p.score, minScore: editorial.minScore, blocks, requestedByPerson: p.requestedByPerson, reviewRequired: editorial.required && reviewApplies(editorial, 'agent') })
+  // Without the mandatory review nothing is decided (not recorded: the review runs again first)
+  if (pre?.reason === REVIEW_MISSING_REASON) return { ...pre, by: 'rules', transient: true }
   if (pre) return { ...pre, by: 'rules' }
   const post = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { title: true, variants: { select: { channel: true, body: true, publishOptions: true } } } })
   if (!post) return { decision: 'human', reason: 'Publicación no encontrada', by: 'rules' }
@@ -775,7 +790,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     const utm = { campaignSlug: slugify(agent.campaign.name, 40) || 'campana', postId: post.id }
     await writeDraft(post.id, draft, channels, utm, config, ideaInfo.formats)
     const service = draft.service && ctx.catalog.services.some((s) => s.name === draft.service) ? draft.service : idea.service
-    const image = await attachImages(agent, config, post.id, draft, service, channels, meter)
+    const image = await attachImages(agent, config, post.id, draft, service, channels, meter, { preferLibrary: Boolean(idea.rationale?.startsWith(WATCHDOG_RATIONALE)) })
     const video = await attachVideoAndAssign(agent, post.id, draft, service, config.images.source)
 
     let check = await checkPost(agent, config, ctx.catalog.prices, post.id, draft.confidence)
@@ -920,12 +935,14 @@ export async function schedulePiece(agent: Agent, postId: string, mode: AgentMod
       targets = chosen.map((a) => ({ channel, connectionId: a.id }))
     }
     if (!targets.length) { problems.push(`${channel}: no hay una cuenta que pueda publicar`); continue }
-    const taken = await takenSlots(agent.workspaceId, channel, new Date(now.getTime() - 2 * DAY), new Date(horizonEnd.getTime() + DAY), postId)
+    // Stories in their own lane (they do not crowd the feed); required daily pieces may use the whole window
+    const lane = slotLane(channel, v.format, plan, config.schedule)
+    const taken = (await takenSlots(agent.workspaceId, channel, new Date(now.getTime() - 2 * DAY), new Date(horizonEnd.getTime() + DAY), postId)).filter((t) => isStoryFormat(t.format) === lane.story).map((t) => t.at)
     const perf = slotPerformance(rows, config.kpi, channel)
     const choice = pickSlot({
       channel, target, earliest, horizonEnd, smart: config.schedule.smart, allowedDays: config.schedule.days, windows: config.schedule.windows,
-      quietFrom: config.schedule.quietFrom, quietTo: config.schedule.quietTo, minGapHours: config.schedule.minGapHours, maxPerDay: config.schedule.maxPerDay,
-      taken, kpi: config.kpi, measured: perf.measured, performance: perf.performance, explore: SLOT_EXPLORE, random: Math.random(),
+      quietFrom: config.schedule.quietFrom, quietTo: config.schedule.quietTo, minGapHours: lane.minGapHours, maxPerDay: lane.maxPerDay,
+      taken, kpi: config.kpi, measured: perf.measured, performance: perf.performance, explore: SLOT_EXPLORE, random: Math.random(), fill: lane.fill,
     })
     if (!choice) { problems.push(`${channel}: no hay una franja libre en el horizonte`); continue }
     try {
@@ -1032,7 +1049,15 @@ function statsTable(stats: LearningStats) {
   const best = stats.best.map((p) => `${p.title} ${p.lift.toFixed(2)}×`).join('; ')
   const worst = stats.worst.map((p) => `${p.title} ${p.lift.toFixed(2)}×`).join('; ')
   const rej = stats.rejections.byReason.map((r) => `${r.reason} (${r.n})`).join('; ')
-  return [...lines, best ? `Mejores: ${best}` : '', worst ? `Peores: ${worst}` : '', rej ? `Motivos de rechazo: ${rej}` : ''].filter(Boolean).join('\n')
+  const out = (xs: LearningStats['outcomes']['byFormat']) => xs.map((x) => `${x.value}: ${x.conversations} conversaciones, ${x.requests} solicitudes, ${x.bookings} reservas (${x.n} envíos)`).join('; ')
+  const fmtOut = out(stats.outcomes.byFormat)
+  const svcOut = out(stats.outcomes.byService)
+  return [
+    ...lines, best ? `Mejores: ${best}` : '', worst ? `Peores: ${worst}` : '',
+    `Lo que trajo clientes por formato: ${fmtOut || 'ningún formato trajo conversaciones ni solicitudes todavía'}`,
+    `Lo que trajo clientes por tema (servicio): ${svcOut || 'ningún tema trajo conversaciones ni solicitudes todavía'}`,
+    rej ? `Motivos de rechazo: ${rej}` : '',
+  ].filter(Boolean).join('\n')
 }
 
 /** Weekly retrospective. In autopilot its recommendations apply within the limits; otherwise they wait for a person. */
@@ -1045,12 +1070,12 @@ export async function learn(agent: Agent, now = new Date()) {
       return { summary: `Aún no hay suficientes resultados: ${rows.length} envíos con 48 h medidos (hacen falta 3)`, value: null, skipped: true }
     }
     const ai = await assertCanSpend(agent)
-    const stats = learningStats(rows, config.kpi, await rejectionsFor(agent.id, now))
+    const stats = learningStats(rows, config.kpi, await rejectionsFor(agent.id, now), { outcomeWeight: config.learning.outcomeWeight })
     const ctx = await promptContext(agent, now)
     const from = agent.lastLearnedAt ?? rows[rows.length - 1].publishedAt
     const input = await callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_learn', system: ctx.system, tool: LEARN_TOOL, maxTokens: 5000, effort: 'medium',
-      task: learnTask({ from: bogota(from).key, to: bogota(now).key, table: statsTable(stats) }),
+      task: learnTask({ from: bogota(from).key, to: bogota(now).key, table: statsTable(stats), outcomeWeight: config.learning.outcomeWeight }),
     }, meter)
     const parsed = parseRetrospective(input)
     if (!parsed.ok) throw new AgentError(parsed.errors.join(' · '))
@@ -1268,8 +1293,16 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
         const meta = (p.agentMeta as { instruction?: string | null; risks?: string[]; guardrails?: Array<{ severity: string; message: string }>; review?: { score?: number | null; summary?: string } | null; arbiter?: { decision?: string } | null } | null) ?? {}
         const mode = modeFor(agent, p.variants.map((v) => v.channel as MarketingChannel))
         if (mode === 'copilot') continue
+        // The mandatory review did not run (failed, cut, never): it runs now; Haggo never decides without it
+        let reviewStatus = p.reviewStatus
+        if (editorial.required && reviewApplies(editorial, 'agent') && !['approved', 'overridden', 'changes', 'rejected'].includes(reviewStatus ?? '')) {
+          if (timeLeft() < 150_000) break
+          const again = await ensureAgentReview(agent, p.id, null, 'agent')
+          reviewStatus = again.ok ? 'approved' : again.status ?? 'failed'
+          if (reviewStatus === 'failed') { report.push(`revisión ${p.id}: no se pudo hacer, se reintenta`); continue }
+        }
         const r = await withRun(agent, 'review', { postId: p.id, trigger: 'arbiter' }, async (meter) => {
-          const editorStatus = (['approved', 'changes', 'rejected', 'failed'].includes(p.reviewStatus ?? '') ? p.reviewStatus : p.reviewStatus === 'overridden' ? 'approved' : 'changes') as ArbiterCase['editorStatus']
+          const editorStatus = (['approved', 'changes', 'rejected', 'failed'].includes(reviewStatus ?? '') ? reviewStatus : reviewStatus === 'overridden' ? 'approved' : null) as ArbiterCase['editorStatus']
           const a = await arbitratePiece(agent, p.id, { editorStatus, score: meta.review?.score ?? null, summary: meta.review?.summary ?? '', risks: meta.risks ?? [], issues: meta.guardrails ?? [], requestedByPerson: Boolean(meta.instruction) }, meter)
           const res = await applyArbitration(agent, p.id, p.ideaId, a, mode)
           if (a.transient) return { summary: `Haggo no pudo decidir sobre «${p.id}» y lo reintentará: ${a.reason}`, value: a }
@@ -1388,34 +1421,152 @@ export async function runMarketingAgents(budgetMs = 250_000) {
     if (deadline - Date.now() < 60_000) break
     results.push(await runAgentCycle(a.id, deadline))
   }
-  const watchdog = await publishingWatchdog().catch((err: unknown) => ({ error: err instanceof Error ? err.message : 'error' }))
+  const watchdog = await publishingWatchdog(new Date(), { deadline }).catch((err: unknown) => ({ error: err instanceof Error ? err.message : 'error' }))
   return { agents: agents.length, ran: results.length, results, watchdog }
 }
 
+const FILL_FORMAT_LABEL: Record<string, string> = { feed: 'Post', carousel: 'Carrusel', reel: 'Reel', story: 'Historia', foto: 'Foto', texto: 'Texto', enlace: 'Enlace', historia: 'Historia' }
+const fillLabel = (channel: MarketingChannel, format: string) => `${FILL_FORMAT_LABEL[format] ?? format} de ${channel === 'INSTAGRAM' ? 'Instagram' : channel === 'FACEBOOK' ? 'Facebook' : 'el blog'}`
+/** Pieces the watchdog writes right away per run (the rest are drafted by the next cycles, nearest day first). */
+const FILL_DRAFTS_PER_RUN = 2
+
+/** Services whose pieces brought conversations, requests or bookings, best first, with their best piece. */
+async function workedServices(agentId: string, now: Date) {
+  const rows = await learningRows({ agentId }, now, 60)
+  const by = new Map<string, { service: string; title: string; conversations: number; requests: number; score: number; best: number }>()
+  for (const r of rows) {
+    const service = r.features.service
+    if (!service) continue
+    const score = outcomeOf(r.metrics)
+    const g = by.get(service) ?? { service, title: r.title, conversations: 0, requests: 0, score: 0, best: -1 }
+    g.conversations += r.metrics.conversations
+    g.requests += r.metrics.requests ?? 0
+    g.score += score
+    if (score > g.best) { g.best = score; g.title = r.title }
+    by.set(service, g)
+  }
+  return Array.from(by.values()).filter((g) => g.score > 0).sort((a, b) => b.score - a.score)
+}
+
 /**
- * Publishing must never stop silently. Every run checks the always-on agents: stopped (paused, finished,
- * draft) → critical incident (WhatsApp to the admins); active but tomorrow (or today after noon) lacks a
- * required daily format → incident; publications failing in the last 24 h → incident. One open incident per
- * kind and agent.
+ * The watchdog's repair: the required daily pieces (minDaily) missing today and in the next
+ * `watchdog.lookaheadDays` become ideas at once (no model call: what worked, in the missing format), and
+ * the nearest ones are written right away through the normal path (editorial review, guardrails, slots,
+ * quiet hours, daily cap and budget all apply). Recorded as a run of the agent and a notice.
  */
-export async function publishingWatchdog(now = new Date()) {
+export async function autoFillAgent(agentId: string, now = new Date(), deadline = Date.now() + 60_000) {
+  return withAgentLock(agentId, async () => {
+    const agent = await loadAgent(agentId)
+    if (!agent || agent.status !== 'active') return null
+    const config = configOf(agent)
+    if (!config.watchdog.autoFill) return null
+    const strategy = strategyOf(agent)
+    if (!agent.strategyApprovedAt || !strategy) return { created: 0, drafted: [] as string[], missing: [] as string[], note: 'falta aprobar la estrategia' }
+    const days = watchdogDays(now, config.watchdog.lookaheadDays)
+    const endsAt = config.alwaysOn ? null : agent.campaign.endsAt
+    const usable = days.filter((d) => !endsAt || Date.parse(`${d}T00:00:00-05:00`) <= endsAt.getTime())
+    if (!usable.length) return null
+    // From the start of today (Bogotá): what already went out today counts
+    const dayStart = new Date(`${bogota(now).key}T00:00:00-05:00`)
+    const planned = await plannedPieces(agent.id, dayStart, config.watchdog.lookaheadDays + 2)
+    const missing = dailyShortfall({ days: usable, channels: config.channels, planned, allowedDays: config.schedule.days })
+    if (!missing.length) return { created: 0, drafted: [] as string[], missing: [] as string[] }
+    const missingText = missing.map((m) => `${m.day} ${fillLabel(m.channel, m.format).toLowerCase()} (${m.have}/${m.need})`)
+    // Ideas that keep failing are dropped and would come back every run: at most twice the days' quota per day
+    const perDay = AGENT_CHANNELS.reduce((a, c) => a + (config.channels[c].enabled ? Object.values(config.channels[c].minDaily ?? {}).reduce((x, n) => x + n, 0) : 0), 0)
+    const cap = 2 * perDay * (config.watchdog.lookaheadDays + 1)
+    const madeToday = await prisma.marketingIdea.count({ where: { agentId: agent.id, createdAt: { gte: dayStart }, rationale: { startsWith: WATCHDOG_RATIONALE } } })
+    if (madeToday >= cap) return { created: 0, drafted: [] as string[], missing: missingText, note: `ya creó ${madeToday} piezas hoy (tope ${cap}): revisa por qué no salen` }
+
+    const r = await withRun(agent, 'plan', { watchdog: true, missing }, async () => {
+      const [catalog, recent, worked, pastIdeas] = await Promise.all([
+        catalogFor(config),
+        recentTopics(agent.id, now, 7),
+        workedServices(agent.id, now),
+        prisma.marketingIdea.findMany({ where: { agentId: agent.id, createdAt: { gte: new Date(now.getTime() - 30 * DAY) }, status: { not: 'rejected' } }, select: { pillar: true } }),
+      ])
+      const ideas = fillIdeas({
+        missing, pillars: pillarDeficit(strategy.pillars, pastIdeas).map((o) => o.pillar), services: catalog.services.map((x) => x.name),
+        worked, recentServices: recent.map((x) => x.service).filter((x): x is string => Boolean(x)), formatLabel: fillLabel,
+      })
+      const created: Array<{ id: string; status: string; targetDate: Date }> = []
+      for (const idea of ideas.slice(0, cap - madeToday)) {
+        const t = nextAgentState('new', 'idea_created', modeFor(agent, idea.channels, { ignoreTrial: true }))!
+        const row = await prisma.marketingIdea.create({
+          data: {
+            agentId: agent.id, pillar: idea.pillar, service: idea.service, angle: idea.angle, hypothesis: idea.hypothesis, channels: idea.channels, formats: json(idea.formats),
+            targetDate: new Date(`${idea.targetDate}T12:00:00-05:00`), slotHint: null, rationale: idea.rationale, explore: false, score: 0.9,
+            status: t.state === 'idea_proposed' ? 'proposed' : 'accepted',
+          },
+          select: { id: true, status: true, targetDate: true },
+        })
+        created.push(row)
+      }
+      const proposed = created.filter((c) => c.status === 'proposed').length
+      return { summary: `Vigilante: ${created.length} pieza(s) que faltaban (${missingText.join('; ')})${proposed ? `; ${proposed} esperan tu aprobación (copiloto)` : ''}`.slice(0, 1000), value: created, output: { missing, ideas: created.map((c) => c.id) } }
+    })
+    if (!r.ok) return { created: 0, drafted: [] as string[], missing: missingText, note: r.error }
+    await notify(noticeTarget(agent), {
+      type: 'ideas', title: `Faltaban publicaciones obligatorias: el agente las está preparando (${agent.campaign.name})`,
+      body: `${missingText.join(' · ')}. Pasan por la revisión editorial y los límites del agente como cualquier pieza.`.slice(0, 900),
+      url: agentUrl(agent.id), dedupeKey: `watchdog:${agent.id}:${bogota(now).key}:${missing.map((m) => `${m.day}${m.channel}${m.format}`).join(',').slice(0, 120)}`,
+    })
+    // The nearest ones are written now, within the time and budget left
+    const drafted: string[] = []
+    for (const idea of r.value.filter((c) => c.status === 'accepted').sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime())) {
+      if (drafted.length >= FILL_DRAFTS_PER_RUN || deadline - Date.now() < 150_000) break
+      if (await spendBlock(agent)) break
+      const d = await draftIdea(agent, idea.id, { deadline })
+      drafted.push(d.ok ? d.summary : `no se pudo redactar: ${d.error}`)
+      if (!d.ok) break
+      Object.assign(agent, await loadAgent(agent.id))
+    }
+    return { created: r.value.length, drafted, missing: missingText }
+  })
+}
+
+/**
+ * Publishing must never stop silently. Every run checks the agents that must publish (always-on, or with
+ * required daily formats): stopped → critical incident (WhatsApp to the admins); active but missing a
+ * required daily piece today or in the next days → the agent creates it at once (autoFill), and only
+ * what it could not fix opens an incident; publications failing in the last 24 h → incident. One open
+ * incident per kind and agent, resolved by itself as soon as its condition clears.
+ */
+export async function publishingWatchdog(now = new Date(), opts: { deadline?: number } = {}) {
+  const deadline = opts.deadline ?? Date.now() + 60_000
   const agents = await prisma.marketingAgent.findMany({ select: { id: true, status: true, config: true, campaign: { select: { name: true } } } })
   const { openIncident } = await import('@/lib/ops/platform-ops')
   const raise = async (type: string, title: string, description: string, severity: 'CRITICAL' | 'HIGH') => {
     const open = await prisma.adminIncident.findFirst({ where: { type, status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, select: { id: true } })
-    if (open) return false
+    if (open) {
+      await prisma.adminIncident.update({ where: { id: open.id }, data: { occurrences: { increment: 1 }, lastSeenAt: now, description } })
+      return false
+    }
     await openIncident({ type, title, description, severity, source: 'marketing-watchdog', route: '/admin/marketing' })
     return true
   }
+  // A notice must not stay stuck: what cleared is resolved at once (types by prefix; `keep` stays open)
+  const clear = (prefix: string, keep?: string) => prisma.adminIncident.updateMany({
+    where: { type: { startsWith: prefix, ...(keep ? { not: keep } : {}) }, source: 'marketing-watchdog', status: { in: ['OPEN', 'ACKNOWLEDGED'] } },
+    data: { status: 'RESOLVED', resolvedBy: 'sistema', resolvedAt: now },
+  })
   const out: string[] = []
   for (const a of agents) {
     const config = readAgentConfig(a.config)
-    if (!config.alwaysOn) continue
+    const hasDaily = AGENT_CHANNELS.some((c) => config.channels[c].enabled && Object.values(config.channels[c].minDaily ?? {}).some((n) => n > 0))
+    if (!config.alwaysOn && !hasDaily) continue
     const name = a.campaign.name
     if (a.status !== 'active') {
-      if (await raise(`marketing:stopped:${a.id}`, `El agente de marketing «${name}» está detenido`, `Está en estado «${a.status}» y debe publicar siempre. Actívalo en Publicaciones → Agente.`, 'CRITICAL')) out.push(`detenido: ${name}`)
+      if (config.alwaysOn && await raise(`marketing:stopped:${a.id}`, `El agente de marketing «${name}» está detenido`, `Está en estado «${a.status}» y debe publicar siempre. Actívalo en Publicaciones → Agente.`, 'CRITICAL')) out.push(`detenido: ${name}`)
       continue
     }
+    await clear(`marketing:stopped:${a.id}`)
+
+    if (config.watchdog.autoFill && hasDaily && deadline - Date.now() > 20_000) {
+      const r = await autoFillAgent(a.id, now, deadline).catch((err: unknown) => ({ created: 0, drafted: [] as string[], missing: [] as string[], note: err instanceof Error ? err.message : 'error' }))
+      if (r && (r.created || r.drafted.length || ('note' in r && r.note))) out.push(`rellenó «${name}»: ${r.created} idea(s), ${r.drafted.length} redactada(s)${'note' in r && r.note ? ` · ${r.note}` : ''}`)
+    }
+
     // Required daily formats for today (published or queued) and, from noon on, for tomorrow
     const today = bogota(now).key
     const days = [today, ...(bogota(now).hour >= 12 ? [addDays(today, 1)] : [])]
@@ -1430,14 +1581,24 @@ export async function publishingWatchdog(now = new Date()) {
       if (!plan.enabled) continue
       for (const [format, n] of Object.entries(plan.minDaily ?? {})) {
         for (const day of days) {
-          const have = pubs.filter((p) => p.channel === channel && bogota(p.scheduledAt).key === day && sameDailyFormat(formats.get(p.variantId) ?? null, format)).length
+          if (!config.schedule.days.includes(new Date(`${day}T12:00:00Z`).getUTCDay())) continue
+          // Facebook «historia» goes out as a «story»: the same requirement
+          const have = pubs.filter((p) => p.channel === channel && bogota(p.scheduledAt).key === day && isDailyFormat(channel, formats.get(p.variantId) ?? null, format)).length
           if (have < n) missing.push(`${day} ${channel === 'INSTAGRAM' ? 'Instagram' : channel === 'FACEBOOK' ? 'Facebook' : 'blog'} ${format} (${have}/${n})`)
         }
       }
     }
-    if (missing.length && await raise(`marketing:gap:${a.id}:${days[0]}`, `Faltan publicaciones obligatorias de «${name}»`, `Sin programar: ${missing.join('; ')}. El agente las está preparando; si no aparecen en unas horas, revisa ideas y borradores en Publicaciones → Agente.`, 'HIGH')) out.push(`faltan: ${missing.length}`)
+    const gapType = `marketing:gap:${a.id}:${days[0]}`
+    if (missing.length) {
+      if (config.alwaysOn && await raise(gapType, `Faltan publicaciones obligatorias de «${name}»`, `Sin programar: ${missing.join('; ')}. ${config.watchdog.autoFill ? 'El vigilante ya creó las piezas que faltaban y las está redactando' : 'El agente las está preparando'}; si no aparecen en unas horas, revisa ideas y borradores en Publicaciones → Agente.`, 'HIGH')) out.push(`faltan: ${missing.length}`)
+      // Days already gone are not a gap anymore
+      await clear(`marketing:gap:${a.id}:`, gapType)
+    } else await clear(`marketing:gap:${a.id}:`)
     const failed = await prisma.marketingPublication.count({ where: { post: { agentId: a.id }, status: 'failed', updatedAt: { gte: new Date(now.getTime() - DAY) } } })
-    if (failed && await raise(`marketing:failed:${a.id}:${today}`, `${failed} ${failed === 1 ? 'publicación falló' : 'publicaciones fallaron'} en «${name}»`, 'Revisa el error en Publicaciones (Meta, token o formato) y reintenta.', 'HIGH')) out.push(`fallidas: ${failed}`)
+    if (failed) {
+      if (await raise(`marketing:failed:${a.id}:${today}`, `${failed} ${failed === 1 ? 'publicación falló' : 'publicaciones fallaron'} en «${name}»`, 'Revisa el error en Publicaciones (Meta, token o formato) y reintenta.', 'HIGH')) out.push(`fallidas: ${failed}`)
+      await clear(`marketing:failed:${a.id}:`, `marketing:failed:${a.id}:${today}`)
+    } else await clear(`marketing:failed:${a.id}:`)
   }
   return out
 }

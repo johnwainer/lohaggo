@@ -409,6 +409,18 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                 <Field label="Horizonte de planificación (días)" hint="Cuánto calendario mantiene lleno por delante."><input type="number" min={3} max={30} className={input} value={settings.horizonDays} onChange={(e) => setSettings({ ...settings, horizonDays: Number(e.target.value) })} /></Field>
                 <Field label="No repetir servicio y ángulo en (días)"><input type="number" min={0} max={120} className={input} value={config.schedule.repeatDays} onChange={(e) => setSchedule({ repeatDays: Number(e.target.value) })} /></Field>
               </div>
+              <div className="rounded-2xl bg-gray-50 p-4 space-y-3">
+                <label className="flex items-start gap-2 text-sm text-gray-800">
+                  <input type="checkbox" className="mt-1" checked={config.watchdog?.autoFill ?? true} onChange={(e) => set('watchdog', { lookaheadDays: config.watchdog?.lookaheadDays ?? 2, autoFill: e.target.checked })} />
+                  <span><strong>El vigilante rellena lo que falte.</strong> Si a un día le falta un formato obligatorio (los «al día» de arriba), crea esas piezas en el acto, reutilizando primero imágenes de la biblioteca; pasan por la revisión editorial y los límites como cualquier pieza.</span>
+                </label>
+                {(config.watchdog?.autoFill ?? true) && (
+                  <Field label="Días que mantiene llenos" hint="Hoy y los siguientes (0 = solo hoy, máximo 7).">
+                    <input type="number" min={0} max={7} className={input} value={config.watchdog?.lookaheadDays ?? 2} onChange={(e) => set('watchdog', { autoFill: true, lookaheadDays: Math.min(7, Math.max(0, Number(e.target.value) || 0)) })} />
+                  </Field>
+                )}
+                <p className="text-xs text-gray-500">Las historias se programan aparte: no cuentan para la separación mínima entre posts y reels.</p>
+              </div>
             </>
           )}
 
@@ -486,6 +498,13 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
               {config.images.source === 'ai' && (
                 <ImageStylesField agentId={agentId} value={config.images.styles ?? defaultImageStyleConfig()} onChange={(styles) => set('images', { ...config.images, styles })} />
               )}
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input type="checkbox" className="mt-1" checked={config.cta?.whatsapp ?? true} onChange={(e) => set('cta', { whatsapp: e.target.checked })} />
+                <span>Cada pieza invita a escribir por WhatsApp. Facebook y el blog llevan el enlace de la pieza (la conversación queda atribuida a ella); Instagram, la frase «el enlace está en nuestra bio» (pon lohaggo.com/ig en la bio).</span>
+              </label>
+              <Field label={`Aprender de clientes, no de «me gusta»: ${Math.round((config.learning?.outcomeWeight ?? 0.5) * 100)} %`} hint="Cuánto pesan las conversaciones, solicitudes y reservas que trajo cada pieza frente al KPI al decidir qué repetir (0 % = solo el KPI).">
+                <input type="range" min={0} max={100} step={10} className="w-full accent-primary-600" value={Math.round((config.learning?.outcomeWeight ?? 0.5) * 100)} onChange={(e) => set('learning', { outcomeWeight: Number(e.target.value) / 100 })} />
+              </Field>
               <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={config.notify.email} onChange={(e) => set('notify', { email: e.target.checked })} /> Avisar también por correo a quienes pueden publicar en el workspace</label>
               {needsConfirm && (
                 <label className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
