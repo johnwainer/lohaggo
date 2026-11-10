@@ -76,6 +76,14 @@
 - ✅ Un «sí» horas después confirma la propuesta solo si fue la primera respuesta y nada se dijo después (`awaitingProposal`); nunca para pagos, cuenta bancaria ni cancelar (`NO_LATE_YES_TOOLS`).
 - ✅ Un traspaso técnico («Respuesta vacía», error del proveedor) no bloquea a la IA para siempre: tras 24 h retoma si el cliente vuelve a escribir; si pidió una persona, sigue siendo de una persona.
 
+#### Reglas duras aprendidas (revisión de marketing y bandeja del 2026-11-09)
+- ❌ **NUNCA** dejar que una pieza obligatoria del día dependa solo de las horas base del canal: con <8 piezas medidas solo había martes a viernes, 5 h, y no cabían 6 piezas diarias (3–8 nov sin publicar). Las obligatorias usan todos los días y horas permitidos; las historias tienen su propio carril.
+- ✅ El vigilante (`publishingWatchdog`) rellena lo que falta (`config.watchdog.autoFill`), no solo avisa. Todo incidente guardado tiene una condición que lo cierra sola (detectores y hallazgos de Haggo).
+- ❌ **NUNCA** dejar que el árbitro publique sin la revisión editorial obligatoria: primero la vuelve a correr.
+- ✅ Una falla de la IA con un cliente devuelve el chat a «Por responder» (`lib/inbox/ai-failure.ts`) y abre `ai:agent-failing`; ese incidente no se puede apagar en la configuración.
+- ✅ Los tiempos de la bandeja (escalamiento, horario, vencido, cierre, encuesta, visión, recordatorio) se editan en «Configuración de la bandeja» (`InboxSettings`, `lib/inbox/settings.ts`); el código siempre cae a los valores por defecto.
+- ❌ **NUNCA** enviar correo a una dirección `@clientes.lohaggo.com` (cuentas nacidas por WhatsApp): `isPlaceholderEmail` antes de cada envío.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
