@@ -11,10 +11,13 @@ import { PLATFORM_TOOLS, runPlatformTool, type PlatformToolName } from '@/lib/ai
 import { CLOSE_REASONS, CLOSE_REASON_LABEL, isCloseReason, type CloseReason } from '@/lib/ai/conversation-core'
 import { CONFIRM_WINDOW_MS } from '@/lib/ai/actions-core'
 import { linkByWhatsappNumber } from '@/lib/accounts/link'
+import { PLACEHOLDER_EMAIL_DOMAIN, placeholderEmail } from '@/lib/accounts/phone-login-core'
+import { toE164 } from '@/lib/inbox/contacts'
 
 /** Account-creation attempts an AI agent may make per conversation per day (anti-abuse). */
 export const MAX_ACCOUNT_ATTEMPTS_PER_DAY = 3
 /** One wording for every failure: the chat must not learn whether an email is registered. */
+const PHONE_ONLY_ACCOUNTS_PER_DAY = 60
 export const ACCOUNT_TOOL_FAILURE = 'No se pudo crear la cuenta con esos datos. La persona puede registrarse en lohaggo.com/register o, si ya tiene cuenta, entrar con "Olvidé mi contraseña". Si insiste o no puede, pasa el caso a una persona.'
 
 export { CRM_MODULES }
@@ -128,12 +131,12 @@ const INBOX_TOOLS: Record<InboxToolName, CatalogEntry> = {
   crear_cuenta_cliente: {
     label: 'Crear cuenta de cliente',
     description: 'Crea la cuenta de cliente en LoHaggo de la persona con la que hablas y le envía a su correo un enlace para crear su contraseña.',
-    guidance: 'Úsala solo cuando la persona quiera registrarse o necesite cuenta para pedir un servicio, después de pedirle su nombre completo y su correo y confirmarle el correo leyéndoselo. Nunca la uses si consultar datos del usuario muestra que ya tiene cuenta, ni para crear cuentas de otras personas ni de socios (para socios usa crear_cuenta_socio si la tienes; si no, envíalo a lohaggo.com/unete). El enlace de acceso llega a su correo, no al chat: dile que revise su bandeja de entrada y spam, y que vence en ' + ACCESS_LINK_TTL_HOURS + ' horas. Nunca inventes ni pidas un enlace. Si la herramienta dice que no se pudo, repite exactamente la alternativa que te da.',
+    guidance: 'Úsala solo cuando la persona quiera registrarse o necesite cuenta para pedir un servicio. En WhatsApp basta su nombre (el número desde el que escribe queda como su cuenta y el acceso le llega a este mismo WhatsApp): no le pidas correo ni códigos; si te da un correo, confírmaselo leyéndoselo y pásalo. En otros canales pídele nombre completo y correo y confírmale el correo leyéndoselo. Nunca la uses si consultar datos del usuario muestra que ya tiene cuenta, ni para crear cuentas de otras personas ni de socios (para socios usa crear_cuenta_socio si la tienes; si no, envíalo a lohaggo.com/unete). El enlace de acceso nunca va escrito en el chat: dile lo que responda la herramienta (a su correo o como mensaje aparte con el botón «Entrar»). Nunca inventes ni pidas un enlace. Si la herramienta dice que no se pudo, repite exactamente la alternativa que te da.',
     writes: true,
     group: 'inbox',
     schema: () => ({
       type: 'object',
-      properties: { nombre: str('Nombre completo de la persona'), correo: str('Correo que la persona confirmó') },
+      properties: { nombre: str('Nombre completo de la persona'), correo: str('Correo que la persona confirmó, o vacío (en WhatsApp es opcional)') },
       required: ['nombre', 'correo'],
       additionalProperties: false,
     }),
@@ -397,13 +400,16 @@ async function createAccountFromChat(role: AccountRole, input: Record<string, un
     citySlug = choice.citySlug
     serviceIds = choice.serviceIds
   }
-  const check = validateAccountInput({ name: s('nombre'), email: s('correo'), role, serviceIds })
-  if (!check.ok) return `No se creó la cuenta: ${check.error}. Pídele el dato correcto.`
-  if (ctx.dryRun) return `Cuenta de ${label} creada para ${check.name} — simulado en pruebas. En producción el enlace de acceso llega al correo ${maskEmail(check.email)}.`
-
   const convId = ctx.conversationId
+  const conv = convId ? await prisma.conversation.findUnique({ where: { id: convId }, select: { contactId: true, channel: true, contactPhone: true } }) : null
+  // A client writing from WhatsApp needs no email: the number is the account (as signing in by phone)
+  const waPhone = role === 'CLIENT' && (conv?.channel ?? ctx.contact.channel) === 'WHATSAPP' ? toE164(conv?.contactPhone ?? ctx.contact.phone ?? null) : null
+  const phoneOnly = !s('correo') && Boolean(waPhone)
+  const check = validateAccountInput({ name: s('nombre'), email: phoneOnly ? placeholderEmail(waPhone!) : s('correo'), role, serviceIds })
+  if (!check.ok) return `No se creó la cuenta: ${check.error}. Pídele el dato correcto.`
+  if (ctx.dryRun) return `Cuenta de ${label} creada para ${check.name} — simulado en pruebas. En producción el enlace de acceso llega ${phoneOnly ? 'a este WhatsApp' : `al correo ${maskEmail(check.email)}`}.`
+
   if (!convId) return ACCOUNT_TOOL_FAILURE
-  const conv = await prisma.conversation.findUnique({ where: { id: convId }, select: { contactId: true, channel: true, contactPhone: true } })
   if (!conv?.contactId) return ACCOUNT_TOOL_FAILURE
   // Writing from WhatsApp proves the number: an account that already has it is linked, never duplicated
   const byNumber = conv.channel === 'WHATSAPP' ? await linkByWhatsappNumber({ conversationId: convId, actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } }).catch(() => null) : null
@@ -415,10 +421,14 @@ async function createAccountFromChat(role: AccountRole, input: Record<string, un
   const attempts = await prisma.conversationEvent.count({ where: { conversationId: convId, type: 'account_attempt', createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })
   if (attempts >= MAX_ACCOUNT_ATTEMPTS_PER_DAY) return ACCOUNT_TOOL_FAILURE
   await prisma.conversationEvent.create({ data: { conversationId: convId, type: 'account_attempt', actorType: 'ai', actorId: ctx.agent.id, actorName: ctx.agent.name, detail: `${label} · ${maskEmail(check.email)}` } })
-  if (!(await emailProviderReady())) return ACCOUNT_TOOL_FAILURE
+  if (!phoneOnly && !(await emailProviderReady())) return ACCOUNT_TOOL_FAILURE
+  // Name-only accounts cost a WhatsApp template each: a ceiling per day for the whole platform
+  if (phoneOnly && (await prisma.conversationEvent.count({ where: { type: 'account_attempt', detail: { contains: PLACEHOLDER_EMAIL_DOMAIN }, createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })) > PHONE_ONLY_ACCOUNTS_PER_DAY) return ACCOUNT_TOOL_FAILURE
 
   const result = await createAccountFromContact({
     contactId: conv.contactId, role, name: check.name, email: check.email, citySlug, serviceIds,
+    // The account's phone is the number they write from (also what the placeholder email was made of)
+    ...(phoneOnly ? { phone: waPhone } : {}),
     createdBy: { type: 'ai', id: ctx.agent.id, name: ctx.agent.name },
     trustedPhone: conv.channel === 'WHATSAPP' ? conv.contactPhone : null,
   })
@@ -430,6 +440,9 @@ async function createAccountFromChat(role: AccountRole, input: Record<string, un
   // act on the new account instead of asking for a link code
   ctx.userId = result.userId
   const linked = ' La conversación ya quedó vinculada a la cuenta: puedes seguir (por ejemplo crear la solicitud) sin pedirle ningún código.'
+  // The welcome template (B1) already went to this WhatsApp with the «Entrar» button
+  if (phoneOnly && result.phoneVerified) return `Cuenta de cliente creada para ${check.name} con su número de WhatsApp. Le llega a este chat un mensaje aparte con el botón para entrar a LoHaggo cuando quiera (no escribas ningún enlace).${linked}`
+  if (phoneOnly) return `Cuenta de cliente creada para ${check.name} con su número de WhatsApp. Para entrar a la app, que use «Entrar con mi celular» en lohaggo.com.${linked}`
   const mail = await emailAccessLink(check.email, check.name, role, result.accessUrl)
   if (!mail.ok) return `La cuenta se creó, pero no se pudo enviar el correo con el enlace. Dile que entre en lohaggo.com con "Olvidé mi contraseña" usando ${maskEmail(check.email)}.${linked}`
   return role === 'PARTNER'

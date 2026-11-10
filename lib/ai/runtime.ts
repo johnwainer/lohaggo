@@ -12,7 +12,8 @@ import { recordGap, retrieve, type KnowledgeChunk, type Retrieval } from '@/lib/
 import { buildToolDefs, executeTool, toolGuidance, toolsForMode, withImplicitTools, type ToolCallRecord, type ToolMode, type ToolRunState } from '@/lib/ai/tools'
 import { auxBudgetAvailable, checkWorkspaceBudget } from '@/lib/ai/limits'
 import { CONFIRM_WINDOW_MS, isClearYes, pendingActionsText } from '@/lib/ai/actions-core'
-import { CLOSE_REASON_LABEL, dedupeReply, parseRelayNotice, relayContextText, type CloseReason } from '@/lib/ai/conversation-core'
+import { awaitingProposal } from '@/lib/ai/actions'
+import { CLOSE_REASON_LABEL, dedupeReply, isFarewell, parseRelayNotice, relayContextText, type CloseReason } from '@/lib/ai/conversation-core'
 import { closeConversation, lastCloseSummary } from '@/lib/ai/closing'
 import { loadEffectiveRates } from '@/lib/payments/commission'
 import type { UsageTokens } from '@/lib/ai/pricing'
@@ -243,11 +244,15 @@ export const AgentRuntimeService = {
     const [knowledge, pendingRows, unread] = await Promise.all([
       retrieve({ workspaceId: opts.workspaceId, agentId: agent.id, query: opts.text }),
       mode === 'autopilot' && opts.conversationId
-        ? prisma.aiAgentAction.findMany({
-            where: { conversationId: opts.conversationId, status: 'proposed', createdAt: { gte: new Date(now.getTime() - CONFIRM_WINDOW_MS) } },
-            orderBy: { createdAt: 'desc' }, take: 3,
-            select: { tool: true, summary: true, input: true, createdAt: true },
-          }).catch(() => [])
+        ? Promise.all([
+            prisma.aiAgentAction.findMany({
+              where: { conversationId: opts.conversationId, status: 'proposed', createdAt: { gte: new Date(now.getTime() - CONFIRM_WINDOW_MS) } },
+              orderBy: { createdAt: 'desc' }, take: 3,
+              select: { id: true, tool: true, summary: true, input: true, createdAt: true },
+            }),
+            // Asked hours ago and still the last thing said: their late «sí» answers it
+            awaitingProposal(opts.conversationId, now),
+          ]).then(([rows, waiting]) => (waiting && !rows.some((r) => r.id === waiting.id) ? [...rows, waiting] : rows)).catch(() => [])
         : Promise.resolve([]),
       mode === 'autopilot' && opts.userId && agent.tools.includes('ver_mensajes_reserva')
         ? import('@/lib/chat/ops').then((m) => m.unreadCountForUser(opts.userId!)).catch(() => 0)
@@ -403,6 +408,11 @@ export const AgentRuntimeService = {
     } else if (markers.handoff && !result.handoff) {
       result.handoff = true
       result.handoffReason = 'model'
+    }
+    // Nothing to say after «No, gracias»: the conversation ends kindly, nobody needs to take it
+    if (!markers.text && !result.handoff && !state.close && !pending.length && isFarewell(opts.text)) {
+      state.close = { reason: 'gestionada', summary: 'La persona se despidió' }
+      result.close = state.close
     }
     if (!markers.text && !result.handoff && !state.close) {
       result.handoff = true

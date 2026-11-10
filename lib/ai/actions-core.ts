@@ -6,6 +6,15 @@
 
 /** A proposed action the person has not confirmed yet is forgotten after this long. */
 export const CONFIRM_WINDOW_MS = 15 * 60_000
+/**
+ * On WhatsApp people answer hours later: a proposal past the window still waits for its yes while it is the
+ * last thing said to the person (nothing was sent after the turn that asked it), up to this long.
+ */
+export const AWAITING_YES_MS = 24 * 3600_000
+/** The turn that asked it may send the question in several parts. */
+export const ASK_TURN_MS = 3 * 60_000
+/** Money and irreversible actions never take a late yes: they are proposed again. */
+export const NO_LATE_YES_TOOLS = ['registrar_cuenta_bancaria', 'reportar_pago', 'confirmar_pago', 'rechazar_pago', 'cancelar_reserva']
 
 export type ActionStatus = 'proposed' | 'awaiting_approval' | 'executed' | 'failed' | 'rejected' | 'expired'
 
@@ -64,11 +73,11 @@ export function dailyLimitFor(tool: string) {
  * the server still requires a proposal of the same tool in the window, so a yes cannot be invented in one
  * turn without first showing the person what will happen.
  */
-export function confirmationGate(p: { confirmado: boolean; proposedAt: Date | null; sameInput?: boolean; now?: Date }): 'ask' | 'run' | 'stale' | 'mismatch' {
+export function confirmationGate(p: { confirmado: boolean; proposedAt: Date | null; sameInput?: boolean; stillAsked?: boolean; now?: Date }): 'ask' | 'run' | 'stale' | 'mismatch' {
   if (!p.confirmado) return 'ask'
   if (!p.proposedAt) return 'stale'
   const now = p.now ?? new Date()
-  if (now.getTime() - p.proposedAt.getTime() > CONFIRM_WINDOW_MS) return 'stale'
+  if (!p.stillAsked && now.getTime() - p.proposedAt.getTime() > CONFIRM_WINDOW_MS) return 'stale'
   return p.sameInput === false ? 'mismatch' : 'run'
 }
 

@@ -32,7 +32,16 @@ export type CopilotConversation = {
   status: string
   tags: string[]
   copilotSkipMessageId: string | null
+  /** The last handoff was technical (empty reply, provider error…), not a case for a person: set by copilotState. */
+  handoffReleasable?: boolean
 }
+
+/** HANDOFF_LABEL (lib/ai/runtime.ts) of the handoffs that were not about the case itself. */
+export const TECHNICAL_HANDOFF_LABELS = ['Respuesta vacía', 'Error del proveedor de IA', 'Tope mensual de IA', 'Demasiadas vueltas de herramientas', 'Tope de turnos alcanzado', 'Fuera de horario']
+export const isTechnicalHandoff = (detail: string | null | undefined) => Boolean(detail && TECHNICAL_HANDOFF_LABELS.some((l) => detail.startsWith(l)))
+
+/** How long the AI keeps out of a conversation it handed off for a technical reason. */
+export const HANDOFF_HOLD_MS = 24 * 3600_000
 
 export type CopilotTimer =
   | { action: 'none'; reason: string }
@@ -40,8 +49,8 @@ export type CopilotTimer =
 
 /**
  * Where a conversation stands in the "nobody answered" timer. It only runs while the last message is
- * the client's, inside hours and inside the channel window. Conversations the AI itself handed off
- * (mandatory cases) or with an excluded tag are never taken over: they only raise an alert.
+ * the client's, inside hours and inside the channel window. Conversations the AI itself handed off in the
+ * last HANDOFF_HOLD_MS (mandatory cases) or with an excluded tag are never taken over: they only raise an alert.
  */
 export function copilotTimer(
   agent: Pick<CopilotAgentLike, 'copilotTakeover' | 'copilotTakeoverMinutes' | 'copilotWarnMinutes' | 'autopilotSkipTags' | 'hoursEnabled' | 'hoursTimezone' | 'hoursDays' | 'hoursStart' | 'hoursEnd'>,
@@ -61,7 +70,10 @@ export function copilotTimer(
   if (!isWithinHours(agent, now, accountTz)) return { action: 'none', reason: 'outside_hours' }
 
   const skip = new Set(agent.autopilotSkipTags.map(normalizeText))
-  const mode = conv.aiHandoffAt || conv.tags.some((t) => skip.has(normalizeText(t))) ? 'alert' : 'takeover'
+  // A technical handoff (empty reply, provider error) holds only for a while: when the person writes again
+  // days later and nobody answers, the AI takes it. A case handed to a person (asked for one, sensitive) stays theirs.
+  const handoffHolds = Boolean(conv.aiHandoffAt) && !(conv.handoffReleasable && now.getTime() - new Date(conv.aiHandoffAt!).getTime() >= HANDOFF_HOLD_MS)
+  const mode = handoffHolds || conv.tags.some((t) => skip.has(normalizeText(t))) ? 'alert' : 'takeover'
   const minutes = Math.max(1, agent.copilotTakeoverMinutes)
   const warnMinutes = Math.min(Math.max(0, agent.copilotWarnMinutes), minutes - 1)
   const takeoverAt = new Date(lastMessage.sentAt.getTime() + minutes * 60_000)

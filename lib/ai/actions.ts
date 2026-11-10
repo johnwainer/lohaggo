@@ -8,7 +8,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/admin-utils'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
-import { CONFIRM_WINDOW_MS, dailyLimitFor, sameActionCore, type ActionStatus } from '@/lib/ai/actions-core'
+import { ASK_TURN_MS, AWAITING_YES_MS, CONFIRM_WINDOW_MS, NO_LATE_YES_TOOLS, dailyLimitFor, sameActionCore, type ActionStatus } from '@/lib/ai/actions-core'
 import { describeOrigin, type Origin } from '@/lib/ops/origin'
 
 export type ActionAgent = { id: string; name: string }
@@ -71,19 +71,57 @@ export async function latestProposed(conversationId: string, tool: string, now =
   })
 }
 
-/** Every still-valid proposal of this tool in the conversation, newest first. */
-export async function proposedInWindow(conversationId: string, tool: string, now = new Date()) {
-  return prisma.aiAgentAction.findMany({
-    where: { conversationId, tool, status: 'proposed', createdAt: { gte: new Date(now.getTime() - CONFIRM_WINDOW_MS) } },
+/** Messages the person sent this long before the turn are still part of it (debounced together). */
+const CURRENT_BATCH_MS = 3 * 60_000
+
+/**
+ * The latest proposal, even past the window, when it is still the last thing said to the person and their
+ * current message is the first answer to it: nothing went out after the turn that asked it (from the agent
+ * or a person of the team), and nothing came in before this turn. Their late «sí» answers it.
+ * Money and irreversible actions (NO_LATE_YES_TOOLS) are left out.
+ */
+export async function awaitingProposal(conversationId: string, now = new Date()) {
+  const p = await prisma.aiAgentAction.findFirst({
+    where: { conversationId, status: 'proposed', createdAt: { gte: new Date(now.getTime() - AWAITING_YES_MS) } },
     orderBy: { createdAt: 'desc' },
-    take: 20,
   })
+  if (!p || NO_LATE_YES_TOOLS.includes(p.tool)) return null
+  if (now.getTime() - p.createdAt.getTime() <= CONFIRM_WINDOW_MS) return p
+  const [saidSince, firstAnswer] = await Promise.all([
+    prisma.conversationMessage.count({
+      where: { conversationId, direction: 'OUTBOUND', isInternal: false, sentAt: { gt: new Date(p.createdAt.getTime() + ASK_TURN_MS), lte: now } },
+    }),
+    prisma.conversationMessage.findFirst({
+      where: { conversationId, direction: 'INBOUND', sentAt: { gt: p.createdAt, lte: now } },
+      orderBy: { sentAt: 'asc' }, select: { sentAt: true },
+    }),
+  ])
+  if (saidSince) return null
+  // An earlier answer («no, mejor no», another photo) that went unanswered also ends it
+  if (firstAnswer && now.getTime() - firstAnswer.sentAt.getTime() > CURRENT_BATCH_MS) return null
+  return p
+}
+
+/** Every still-valid proposal of this tool in the conversation, newest first; `stillAsked` marks one kept by awaitingProposal. */
+export async function proposedInWindow(conversationId: string, tool: string, now = new Date()) {
+  const [rows, waiting] = await Promise.all([
+    prisma.aiAgentAction.findMany({
+      where: { conversationId, tool, status: 'proposed', createdAt: { gte: new Date(now.getTime() - CONFIRM_WINDOW_MS) } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }),
+    awaitingProposal(conversationId, now),
+  ])
+  const out = rows.map((r) => ({ ...r, stillAsked: false }))
+  if (waiting && waiting.tool === tool && !rows.some((r) => r.id === waiting.id)) out.push({ ...waiting, stillAsked: true })
+  return out
 }
 
 /** Older proposals nobody confirmed are closed as expired, so the inbox card does not show them forever. */
 export async function expireStaleProposals(conversationId: string, now = new Date()) {
+  const waiting = await awaitingProposal(conversationId, now)
   await prisma.aiAgentAction.updateMany({
-    where: { conversationId, status: 'proposed', createdAt: { lt: new Date(now.getTime() - CONFIRM_WINDOW_MS) } },
+    where: { conversationId, status: 'proposed', createdAt: { lt: new Date(now.getTime() - CONFIRM_WINDOW_MS) }, ...(waiting ? { id: { not: waiting.id } } : {}) },
     data: { status: 'expired', resolvedAt: now },
   })
 }

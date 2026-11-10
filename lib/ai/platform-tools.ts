@@ -26,6 +26,7 @@ import { confirmPartnerPayment, mercadoPagoLinkFor, paymentSummaryForChat, rejec
 import { leaveReview } from '@/lib/reviews/ops'
 import { addBankAccount, fetchAttachmentForDocument, partnerByUser, partnerStatusSummary, setAvailability, uploadDocument, upsertPartnerService } from '@/lib/partners/ops'
 import { confirmLink, linkByWhatsappNumber, startLink } from '@/lib/accounts/link'
+import { extractLinkCode } from '@/lib/accounts/link-code'
 import { openGuaranteeClaim } from '@/lib/guarantee/ops'
 import { CHAT_MESSAGE_MAX, chatRef, PHOTO_ONLY_TEXT, resolveChatByRef, sendChatMessage, takeUnreadMessages } from '@/lib/chat/ops'
 import { detectContactInfo } from '@/lib/chat/contact-guard'
@@ -86,14 +87,14 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   vincular_cuenta: {
     label: 'Vincular la conversación a una cuenta',
     description: 'Envía un código de 6 dígitos al teléfono o correo registrado en la cuenta LoHaggo de la persona para vincular esta conversación a su cuenta.',
-    guidance: 'Úsala cuando la persona diga que ya tiene cuenta y la conversación no esté vinculada (el contexto lo dice). En WhatsApp llámala primero con teléfono y correo vacíos: si su número de WhatsApp es el de su cuenta, queda vinculada sin código. Si no, pídele el teléfono o el correo con el que se registró y llámala. Un solo código por vez: si ya enviaste uno, espera a que lo escriba; si ya lo validó, no vuelvas a pedirlo. El código NUNCA llega a este chat: llega al teléfono o correo de la cuenta; pídele que lo escriba aquí y usa confirmar_codigo. La respuesta es la misma exista o no la cuenta: no afirmes que la cuenta existe. Si no tiene cuenta, usa crear_cuenta_cliente o crear_cuenta_socio.',
+    guidance: 'Úsala cuando la persona diga que ya tiene cuenta y la conversación no esté vinculada (el contexto lo dice). En WhatsApp llámala primero con teléfono y correo vacíos: si su número de WhatsApp es el de su cuenta, queda vinculada sin código. Si no, pídele el teléfono o el correo con el que se registró y llámala. Un solo código por vez: si ya enviaste uno, espera a que lo escriba; si ya lo validó, no vuelvas a pedirlo. El código NUNCA llega a este chat: llega al teléfono o correo de la cuenta; pídele que lo escriba aquí y usa confirmar_codigo. La respuesta es la misma exista o no la cuenta: no afirmes que la cuenta existe. Si no tiene cuenta, usa crear_cuenta_cliente o crear_cuenta_socio. Nunca la uses para «verificar» a alguien nuevo: crear una solicitud no exige código.',
     writes: true, group: 'identity', platform: true,
     schema: () => ({ type: 'object', properties: { telefono: str('Teléfono que dio la persona, o vacío'), correo: str('Correo que dio la persona, o vacío') }, required: ['telefono', 'correo'], additionalProperties: false }),
   },
   confirmar_codigo: {
     label: 'Confirmar el código de vinculación',
     description: 'Comprueba el código que la persona recibió y, si es correcto, vincula la conversación a su cuenta.',
-    guidance: 'Úsala cuando la persona escriba el código de 6 dígitos que recibió tras vincular_cuenta. Si falla, dile cuántos intentos quedan; a los tres fallos, ofrece hablar con una persona.',
+    guidance: 'Úsala cuando la persona escriba el código de 6 dígitos que recibió tras vincular_cuenta, aunque venga con espacios, guiones o texto alrededor (pásalo tal cual). Si falla, dile cuántos intentos quedan; a los tres fallos, ofrece hablar con una persona.',
     writes: true, group: 'identity', platform: true,
     schema: () => ({ type: 'object', properties: { codigo: str('Los 6 dígitos que escribió la persona') }, required: ['codigo'], additionalProperties: false }),
   },
@@ -417,6 +418,7 @@ async function actorFor(ctx: ToolContext): Promise<Actor | null> {
   if (!ctx.userId && ctx.conversationId && ctx.mode === 'autopilot' && ctx.contact.channel === 'WHATSAPP') {
     const r = await linkByWhatsappNumber({ conversationId: ctx.conversationId, actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } }).catch(() => null)
     if (r?.ok) ctx.userId = r.userId
+    else if (r?.reason === 'none') noAccountOnNumber.add(ctx)
   }
   if (!ctx.userId) return null
   if (ctx.mode === 'playground' && ctx.userId === PLAYGROUND_USER) return { userId: PLAYGROUND_USER, role: 'CLIENT', partnerId: null, email: null }
@@ -431,6 +433,10 @@ function originFor(ctx: ToolContext): Origin {
 }
 
 const NOT_LINKED = 'Esta conversación no está vinculada a una cuenta de LoHaggo. Pregúntale si ya tiene cuenta: si sí, usa vincular_cuenta; si no, crear_cuenta_cliente o crear_cuenta_socio.'
+/** Chats whose WhatsApp number has no account: they write from it, so saying so reveals nothing. */
+const noAccountOnNumber = new WeakSet<ToolContext>()
+export const NO_ACCOUNT_ON_WHATSAPP = 'No hay ninguna cuenta de LoHaggo con el número de WhatsApp desde el que escribe (puedes decírselo: escribe desde ese número). No le pidas ningún código: si es su primera vez, crea su cuenta con crear_cuenta_cliente usando solo su nombre (en WhatsApp el correo es opcional) y sigue enseguida con lo que pidió. Solo si dice que ya tiene cuenta con OTRO número o un correo, usa vincular_cuenta con ese dato.'
+const notLinked = (ctx: ToolContext) => (noAccountOnNumber.has(ctx) ? NO_ACCOUNT_ON_WHATSAPP : NOT_LINKED)
 const NOT_PARTNER = 'La persona vinculada no es socio (no tiene perfil de socio). Esta herramienta es solo para socios.'
 /** WhatsApp templates show refs in capitals and with «#» (#HOPMJV); ids are lowercase cuids. */
 export const normRef = (r: string) => r.trim().replace(/^#/, '').toLowerCase()
@@ -773,6 +779,9 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     if (!ctx.conversationId) return { error: 'En pruebas no hay adjuntos que subir.' }
     const att = await lastInboundAttachment(ctx.conversationId)
     if (!att?.mediaUrl) return { error: 'La persona no ha enviado ninguna foto o archivo en este chat. Pídele que envíe la foto del documento.' }
+    // A «gracias» after the upload must not upload the same file again
+    const already = await prisma.aiAgentAction.findFirst({ where: { conversationId: ctx.conversationId, tool: 'subir_documento', status: { in: ['executed', 'confirmed', 'awaiting_approval'] }, createdAt: { gt: att.sentAt } }, select: { id: true } })
+    if (already) return { error: 'Ese archivo ya quedó subido y en revisión: no lo subas otra vez. Si quiere subir otro documento, que envíe la foto nueva.' }
     const type = s(input, 'tipo') as DocumentType
     return {
       summary: `Subir el último archivo que envió (${att.mediaName || att.mediaType || 'imagen'}) como ${type.replace(/_/g, ' ').toLowerCase()} a su verificación`,
@@ -1063,7 +1072,7 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
     return `${service.name} en ${city}: ${summary.total} socios verificados, ${summary.available} disponibles ahora, desde ${cop(summary.fromPrice ?? 0)}${summary.avgRating ? `, calificación promedio ${summary.avgRating.toFixed(1)}` : ''}.\n${lines.join('\n')}`
   }
   const actor = await actorFor(ctx)
-  if (!actor) return NOT_LINKED
+  if (!actor) return notLinked(ctx)
   if (name === 'ver_mensajes_reserva') {
     if (ctx.mode === 'playground') return 'Simulado en pruebas: aquí aparecerían los mensajes sin leer del chat de sus reservas (quién, referencia y texto).'
     const ref = s(input, 'ref')
@@ -1192,7 +1201,7 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
   if (ctx.mode === 'playground' || !ctx.conversationId) {
     if (name === 'enviar_enlace_acceso') return `Enlace enviado (simulado en pruebas): en producción llega a este WhatsApp con el botón «Entrar» si escribe desde el número de su cuenta, o al correo registrado (vence en ${LOGIN_LINK_TTL_MIN} minutos). No escribas ningún enlace en el chat.`
     if (name === 'vincular_cuenta') return 'Código enviado (simulado en pruebas) al teléfono o correo de la cuenta. Pídele los 6 dígitos.'
-    if (!/^\d{6}$/.test(s(input, 'codigo'))) return 'Código incorrecto (simulado en pruebas): deben ser 6 dígitos.'
+    if (!extractLinkCode(s(input, 'codigo'))) return 'Código incorrecto (simulado en pruebas): deben ser 6 dígitos.'
     ctx.userId = PLAYGROUND_USER
     return 'Código comprobado (simulado en pruebas): conversación vinculada a una cuenta de cliente de prueba. Ya puedes usar las herramientas de su cuenta.'
   }
@@ -1237,15 +1246,23 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
         ctx.userId = byNumber.userId
         return `Conversación vinculada a la cuenta de ${byNumber.name} (${byNumber.role === 'PARTNER' ? 'socio' : 'cliente'}) por su número de WhatsApp, sin código. No le pidas ningún código; sigue con lo que necesitaba.`
       }
+      // A code «to this same number» for a number without an account would never arrive (nothing is sent),
+      // and the person waits for it forever: they write from it, so the chat can say there is no account
+      if (byNumber && !byNumber.ok && byNumber.reason === 'none' && !email) return NO_ACCOUNT_ON_WHATSAPP
+      // Several accounts (or one not available) on this number: never linked by a code to the same chat
+      if (byNumber && !byNumber.ok && byNumber.reason !== 'none' && !email) { ctx.state.handoff = { reason: 'Número con varias cuentas o cuenta no disponible' }; return 'Este número no se puede vincular solo a una cuenta. No envíes códigos: dile que una persona del equipo lo ayuda enseguida.' }
     }
     if (await overDailyLimit(ctx.conversationId, 'vincular_cuenta')) { ctx.state.handoff = { reason: 'Tope de códigos de vinculación' }; return LIMIT_REACHED_TEXT }
     if (!phone && !email) return 'Falta el teléfono o el correo con el que se registró.'
-    const r = await startLink({ conversationId: ctx.conversationId, contactId: conv.contactId, phone: phone || undefined, email: email || undefined, via: phone ? 'phone' : 'email', actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } })
+    // Its own WhatsApp number was just checked above: with an email too, the code goes to the email
+    const sameAsChat = conv.channel === 'WHATSAPP' && Boolean(phone) && toE164(normalizePhone(phone)) === toE164(conv.contactPhone)
+    const via: 'phone' | 'email' = phone && !(sameAsChat && email) ? 'phone' : 'email'
+    const r = await startLink({ conversationId: ctx.conversationId, contactId: conv.contactId, phone: phone || undefined, email: email || undefined, via, actor: { agentId: ctx.agent.id, agentName: ctx.agent.name } })
     if (!r.ok && r.code === 'wait') return `No se envió otro código: ${r.error} Díselo así y pídele que escriba aquí el código que ya le llegó; no llames vincular_cuenta otra vez en este momento.`
     if (!r.ok && r.code === 'invalid') return `${r.error} Pídele el dato correcto.`
     await recordAction({ workspaceId: ctx.workspaceId, conversationId: ctx.conversationId, agent: ctx.agent, tool: name, summary: `Enviar código de vinculación a ${r.ok ? r.sentTo : 'la cuenta'}`, input, status: r.ok ? 'executed' : 'failed', result: r.ok ? `Enviado a ${r.sentTo}` : r.code })
     if (!r.ok) return r.code === 'limit' ? LIMIT_REACHED_TEXT : 'No se pudo enviar el código ahora. Pasa el caso a una persona.'
-    return `Si esos datos corresponden a una cuenta de LoHaggo, el código llegó a ${r.sentTo} (vence en 10 minutos). Pídele que lo escriba aquí. No confirmes ni niegues que la cuenta existe. No pidas otro código mientras tanto.`
+    return `Si ese dato corresponde a una cuenta de LoHaggo, le llega un código a ${r.sentTo} (vence en 10 minutos). Díselo exactamente así, en condicional («si tienes cuenta con ese dato, te llega un código»): nunca afirmes «te envié un código». Pídele que lo escriba aquí. No confirmes ni niegues que la cuenta existe. Si dice que no le llegó, NO lo reenvíes al mismo dato: lo más probable es que no haya cuenta con él; ofrécele probar con otro correo o teléfono, o crear su cuenta ahora con crear_cuenta_cliente y seguir con lo que pidió.`
   }
   // confirmar_codigo: a chat already linked (by its number, or a code validated before) never needs one
   if (conv.userId) { ctx.userId = ctx.userId ?? conv.userId; return linkedText }
@@ -1253,7 +1270,8 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
   await recordAction({ workspaceId: ctx.workspaceId, conversationId: ctx.conversationId, agent: ctx.agent, tool: name, summary: 'Confirmar código de vinculación', input: { codigo: '••••••' }, status: r.ok ? 'executed' : 'failed', result: r.ok ? 'Vinculada' : r.code, entityType: r.ok ? 'User' : null, entityId: r.ok ? r.userId : null })
   if (!r.ok) {
     if (r.code === 'locked') { ctx.state.handoff = { reason: 'Tres códigos incorrectos' }; return 'Tres intentos fallidos: el código quedó bloqueado. Una persona del equipo continuará; despídete y avísale.' }
-    if (r.code === 'expired') return 'No hay un código vigente. Si la persona quiere, vuelve a pedir uno con vincular_cuenta.'
+    if (r.code === 'invalid') return 'Eso no parece un código de 6 dígitos (no se contó como intento). Pídele que escriba solo los 6 números que le llegaron.'
+    if (r.code === 'expired') return 'No hay ningún código vigente para esta conversación: o venció (10 minutos) o no se envió ninguno porque no hay cuenta con el dato que dio. No digas que enviaste otro ni llames vincular_cuenta por tu cuenta. Explícaselo con tacto y ofrécele: (1) probar con otro correo o teléfono con el que se haya registrado, o (2) crear su cuenta ahora con crear_cuenta_cliente para seguir enseguida con lo que pidió.'
     const remaining = r.code === 'wrong' ? r.remaining : 0
     return `Código incorrecto. Quedan ${remaining} intento${remaining === 1 ? '' : 's'}.`
   }
@@ -1272,7 +1290,7 @@ export async function runPlatformTool(name: PlatformToolName, givenInput: Record
   if (!entry.writes) return runRead(name, input, ctx)
 
   const actor = await actorFor(ctx)
-  if (!actor) return NOT_LINKED
+  if (!actor) return notLinked(ctx)
   const origin = originFor(ctx)
 
   // Availability toggles right away: no money, no commitment
@@ -1325,6 +1343,12 @@ export async function runPlatformTool(name: PlatformToolName, givenInput: Record
 
   if (ctx.mode === 'playground' || !ctx.conversationId) return dryRunText(plan.summary, plan.wouldRecord, !entry.confirm || input.confirmado === true)
   const conversationId = ctx.conversationId
+  // A late yes (hours after asking) runs only what the person was shown: if it changed since, ask again
+  if (acceptedByYes && proposed?.stillAsked && plan.summary.slice(0, 500) !== proposed.summary) {
+    await settleAction(proposed.id, { status: 'expired', result: 'Cambió desde que se propuso' })
+    await recordAction({ workspaceId: ctx.workspaceId, conversationId, agent: ctx.agent, tool: name, input: rawInput, summary: plan.summary, status: 'proposed' })
+    return `Algo cambió desde que se lo propusiste, así que no se ejecutó. ${askConfirmationText(plan.summary)}`
+  }
   const base = { workspaceId: ctx.workspaceId, conversationId, agent: ctx.agent, tool: name, input }
 
   if (await overDailyLimit(conversationId, name)) {

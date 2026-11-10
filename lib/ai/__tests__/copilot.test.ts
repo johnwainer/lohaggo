@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COPILOT_MAX_AGE_MS, copilotAgentFor, copilotTimer, splitSuggestion, suggestionOutcome, type CopilotAgentLike, type CopilotConversation } from '@/lib/ai/copilot-core'
+import { COPILOT_MAX_AGE_MS, copilotAgentFor, copilotTimer, isTechnicalHandoff, splitSuggestion, suggestionOutcome, type CopilotAgentLike, type CopilotConversation } from '@/lib/ai/copilot-core'
 import { shouldTakeOverCore } from '@/lib/ai/runtime-core'
 
 let seq = 0
@@ -70,6 +70,16 @@ describe('casos que la IA no retoma: solo avisa', () => {
   })
   it('conversación con etiqueta excluida', () => {
     expect(copilotTimer(agent({ autopilotSkipTags: ['VIP'] }), conv({ tags: ['vip'] }), inbound(30), now, tz).action).toBe('alert')
+  })
+  it('un traspaso técnico de hace días (respuesta vacía) ya no frena: la IA lo retoma', () => {
+    const old = new Date(now.getTime() - 5 * 24 * 3600_000)
+    expect(copilotTimer(agent(), conv({ aiHandoffAt: old, handoffReleasable: true }), inbound(30), now, tz).action).toBe('takeover')
+  })
+  it('si pidió una persona, el traspaso sigue siendo de una persona aunque pasen días', () => {
+    const old = new Date(now.getTime() - 5 * 24 * 3600_000)
+    expect(copilotTimer(agent(), conv({ aiHandoffAt: old, handoffReleasable: false }), inbound(30), now, tz).action).toBe('alert')
+    expect(isTechnicalHandoff('Pidió pasar a una persona: no recibe el código')).toBe(false)
+    expect(isTechnicalHandoff('Respuesta vacía')).toBe(true)
   })
   it('en modo aviso no hay cuenta regresiva de retome', () => {
     expect(copilotTimer(agent(), conv({ aiHandoffAt: new Date() }), inbound(8.5), now, tz).action).toBe('wait')

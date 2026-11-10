@@ -5,7 +5,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { AgentRuntimeService } from '@/lib/ai/runtime'
 import { handleInbound, withAccountKey } from '@/lib/ai/autopilot'
 import { accountAllowed, accountKeysOf } from '@/lib/ai/runtime-core'
-import { COPILOT_MAX_AGE_MS, copilotAgentFor, copilotTimer, splitSuggestion, type CopilotTimer } from '@/lib/ai/copilot-core'
+import { COPILOT_MAX_AGE_MS, copilotAgentFor, copilotTimer, isTechnicalHandoff, splitSuggestion, type CopilotTimer } from '@/lib/ai/copilot-core'
 import { isCommentChannel, privateReplyAvailability, splitCommentSuggestion } from '@/lib/ai/comments-core'
 import { commentPromptContext } from '@/lib/ai/comments'
 import { formatForChannel } from '@/lib/ai/format'
@@ -124,8 +124,13 @@ export async function copilotOnInbound(conversation: Conversation, messageId: st
 export async function copilotState(conversation: Conversation, agent?: AiAgent | null) {
   const copilot = agent === undefined ? await copilotAgentForConversation(conversation) : agent
   if (!copilot) return { agent: null, timer: { action: 'none', reason: 'no_copilot' } as CopilotTimer }
-  const [last, tz] = await Promise.all([lastClientFacingMessage(conversation.id), accountTz(conversation.workspaceId)])
-  return { agent: copilot, timer: copilotTimer(copilot, conversation, last, new Date(), tz), lastMessageId: last?.id ?? null }
+  const [last, tz, handoff] = await Promise.all([
+    lastClientFacingMessage(conversation.id),
+    accountTz(conversation.workspaceId),
+    conversation.aiHandoffAt ? prisma.conversationEvent.findFirst({ where: { conversationId: conversation.id, type: 'ai_handoff' }, orderBy: { createdAt: 'desc' }, select: { detail: true } }) : null,
+  ])
+  const conv = { ...conversation, handoffReleasable: isTechnicalHandoff(handoff?.detail) }
+  return { agent: copilot, timer: copilotTimer(copilot, conv, last, new Date(), tz), lastMessageId: last?.id ?? null }
 }
 
 async function takeOver(conversation: Conversation, agent: AiAgent, lastMessageId: string, waitingMinutes: number) {

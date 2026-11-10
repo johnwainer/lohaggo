@@ -15,6 +15,25 @@ export const CLOSE_REASON_LABEL: Record<CloseReason, string> = {
   otra_marca: 'Mensaje para otra marca',
 }
 
+/** A goodbye needs one of these: a bare «No» or «Sí» may answer an open question. */
+const FAREWELL_KEY_LIST = ['gracias', 'chao', 'adios', 'igualmente', 'bendiga', 'descanso']
+const FAREWELL_KEYS = new Set(FAREWELL_KEY_LIST)
+const FAREWELL_WORDS = new Set([
+  ...FAREWELL_KEY_LIST, 'no', 'nada', 'ninguna', 'ninguno', 'mas', 'muchas', 'mil', 'listo', 'ok', 'okey', 'vale', 'bien', 'esta', 'perfecto',
+  'bueno', 'feliz', 'noche', 'noches', 'dia', 'tarde', 'todo', 'eso', 'super', 'y', 'que', 'tenga', 'tengas', 'excelente', 'amable', 'muy', 'por', 'ahora', 'dios', 'te', 'le',
+])
+/**
+ * The person's whole message only says goodbye or «no, nothing else» («No ninguna mil gracias», «Está bien»,
+ * «Gracias, feliz noche», 👍). An empty answer to it closes the chat kindly instead of calling a person.
+ */
+export function isFarewell(text: string) {
+  const words = text
+    .replace(/🙏/g, ' gracias ').replace(/👍|👌|🙌|😊|☺️|🤗|❤️/g, ' ok ')
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean)
+  return words.length > 0 && words.length <= 10 && words.some((w) => FAREWELL_KEYS.has(w)) && words.every((w) => FAREWELL_WORDS.has(w))
+}
+
 export const isCloseReason = (v: unknown): v is CloseReason => typeof v === 'string' && (CLOSE_REASONS as readonly string[]).includes(v)
 
 /** Hours without an answer from the contact after the agent's last message before the conversation closes itself. */

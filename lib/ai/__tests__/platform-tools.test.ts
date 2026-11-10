@@ -144,7 +144,7 @@ describe('runPlatformTool · autopilot confirmation flow', () => {
 describe('runPlatformTool · modes and scope', () => {
   it('not linked: no account tools run', async () => {
     const out = await runPlatformTool('ver_mis_reservas', { solo_proximas: false }, ctx({ userId: null }))
-    expect(out).toMatch(/no está vinculada/)
+    expect(out).toMatch(/No hay ninguna cuenta de LoHaggo con el número de WhatsApp/)
     expect(ops.bookingsFor).not.toHaveBeenCalled()
   })
 
@@ -482,6 +482,30 @@ describe('vinculación por el número de WhatsApp', () => {
     expect(out).toMatch(/vinculada .* sin código/)
     expect(c.userId).toBe('u9')
     expect(link.startLink).not.toHaveBeenCalled()
+  })
+
+  it('incidente 2026-11-09: su propio número sin cuenta no «envía» un código que nunca llega', async () => {
+    db.conversation.findUnique.mockResolvedValue({ contactId: 'ct1', userId: null, workspaceId: 'ws', channel: 'WHATSAPP', contactPhone: '+573001112233' })
+    const out = await runPlatformTool('vincular_cuenta', { telefono: '3001112233', correo: '' }, ctx({ userId: null }))
+    expect(out).toMatch(/No hay ninguna cuenta .* WhatsApp/)
+    expect(out).toMatch(/crear_cuenta_cliente/)
+    expect(link.startLink).not.toHaveBeenCalled()
+  })
+
+  it('su propio número sin cuenta y un correo: el código va al correo', async () => {
+    db.conversation.findUnique.mockResolvedValue({ contactId: 'ct1', userId: null, workspaceId: 'ws', channel: 'WHATSAPP', contactPhone: '+573001112233' })
+    link.startLink.mockResolvedValueOnce({ ok: true, sentTo: 'l•••@gmail.com' })
+    const out = await runPlatformTool('vincular_cuenta', { telefono: '3001112233', correo: 'lui@gmail.com' }, ctx({ userId: null }))
+    expect(link.startLink).toHaveBeenCalledWith(expect.objectContaining({ via: 'email', email: 'lui@gmail.com' }))
+    expect(out).toMatch(/nunca afirmes «te envié un código»/)
+  })
+
+  it('código sin vigente: no reenvía solo y ofrece crear la cuenta', async () => {
+    db.conversation.findUnique.mockResolvedValue({ contactId: 'ct1', userId: null, workspaceId: 'ws', channel: 'WHATSAPP', contactPhone: '+573001112233' })
+    link.confirmLink.mockResolvedValueOnce({ ok: false, code: 'expired', error: 'x' })
+    const out = await runPlatformTool('confirmar_codigo', { codigo: '511002' }, ctx({ userId: null }))
+    expect(out).toMatch(/No digas que enviaste otro/)
+    expect(out).toMatch(/crear_cuenta_cliente/)
   })
 
   it('un segundo código seguido no se envía: le pide escribir el que ya llegó', async () => {

@@ -69,6 +69,13 @@
 - ❌ **NUNCA** mostrar a un socio la dirección exacta ni el nombre completo del cliente antes de reservar: todo listado de oportunidades pasa por `toPartnerOpportunity` / `approximateAddress` (también en el agente de IA).
 - ✅ La duración de una solicitud sale de `lib/service-requests/lifetime.ts` (fecha deseada, mínimo 48 h, máximo 7 días, tope total 14 días); las solicitudes sin propuestas amplían la convocatoria (`lib/service-requests/reach.ts`) en vez de vencer.
 
+#### Reglas duras aprendidas (incidente del 2026-11-09 — el bot pedía un código que nunca se envió)
+- ❌ **NUNCA** dejar que el bot diga «te envié un código» cuando no se envió: `startLink` responde igual exista o no la cuenta (anti-enumeración) y el cliente esperó un código imposible (7 «envíos», 1 código real en 30 días).
+- ✅ En WhatsApp, si el número del chat no tiene cuenta, se le dice (escribe desde él, no filtra nada) y se crea su cuenta de cliente solo con el nombre (`placeholderEmail`): crear una solicitud nunca exige código.
+- ✅ El código se lee del texto (`extractLinkCode`: «511 002», «mi código es 511002»); lo que no es código no gasta intento.
+- ✅ Un «sí» horas después confirma la propuesta solo si fue la primera respuesta y nada se dijo después (`awaitingProposal`); nunca para pagos, cuenta bancaria ni cancelar (`NO_LATE_YES_TOOLS`).
+- ✅ Un traspaso técnico («Respuesta vacía», error del proveedor) no bloquea a la IA para siempre: tras 24 h retoma si el cliente vuelve a escribir; si pidió una persona, sigue siendo de una persona.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).

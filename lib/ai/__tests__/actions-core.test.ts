@@ -12,6 +12,9 @@ describe('confirmationGate', () => {
     expect(confirmationGate({ confirmado: true, proposedAt: null, now })).toBe('stale')
     expect(confirmationGate({ confirmado: true, proposedAt: new Date(now.getTime() - CONFIRM_WINDOW_MS - 1), now })).toBe('stale')
   })
+  it('a late yes runs when the proposal is still the last thing asked (WhatsApp answers hours later)', () => {
+    expect(confirmationGate({ confirmado: true, proposedAt: new Date(now.getTime() - 8 * 3600_000), stillAsked: true, now })).toBe('run')
+  })
   it('a yes within the window runs', () => {
     expect(confirmationGate({ confirmado: true, proposedAt: new Date(now.getTime() - CONFIRM_WINDOW_MS + 1000), now })).toBe('run')
   })

@@ -11,6 +11,7 @@ import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { maskEmail } from '@/lib/ai/platform-data'
+import { extractLinkCode } from '@/lib/accounts/link-code'
 
 /**
  * Links an inbox conversation (Messenger, Instagram, an unknown WhatsApp number…) to an existing platform
@@ -27,7 +28,7 @@ export const LINK_CODE_TTL_MIN = 10
 export const LINK_CODE_MAX_ATTEMPTS = 3
 export const LINK_CODES_PER_DAY = 3
 
-export { maskEmail }
+export { maskEmail, extractLinkCode }
 
 /** "+573001234567" → "+57•••••4567" */
 export function maskPhone(phone: string) {
@@ -167,8 +168,9 @@ export async function startLink(p: StartLinkInput): Promise<StartLinkResult> {
 
 export type ConfirmLinkResult =
   | { ok: true; userId: string; role: 'CLIENT' | 'PARTNER' | 'ADMIN'; name: string }
-  | { ok: false; code: 'expired' | 'locked'; error: string }
+  | { ok: false; code: 'expired' | 'locked' | 'invalid'; error: string }
   | { ok: false; code: 'wrong'; remaining: number; error: string }
+
 
 /**
  * Checks the code against the latest unused, unexpired one of the conversation. Each try counts; after
@@ -176,6 +178,9 @@ export type ConfirmLinkResult =
  * get the user, and the conversation shows an `account_linked` event.
  */
 export async function confirmLink(p: { conversationId: string; contactId: string; code: string; actor?: { agentId: string; agentName: string } }): Promise<ConfirmLinkResult> {
+  // Something that is not a code does not spend an attempt
+  const code = extractLinkCode(p.code)
+  if (!code) return { ok: false, code: 'invalid', error: 'El código son 6 dígitos.' }
   const row = await prisma.contactLinkCode.findFirst({
     where: { conversationId: p.conversationId, contactId: p.contactId, usedAt: null, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: 'desc' },
@@ -185,7 +190,7 @@ export async function confirmLink(p: { conversationId: string; contactId: string
   const updated = await prisma.contactLinkCode.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } })
   if (updated.attempts > LINK_CODE_MAX_ATTEMPTS) return { ok: false, code: 'locked', error: 'Demasiados intentos. Pide un código nuevo.' }
 
-  if (hashCode(p.code, row.id) !== row.codeHash) {
+  if (hashCode(code, row.id) !== row.codeHash) {
     const remaining = LINK_CODE_MAX_ATTEMPTS - updated.attempts
     if (remaining <= 0) return { ok: false, code: 'locked', error: 'Demasiados intentos. Pide un código nuevo.' }
     return { ok: false, code: 'wrong', remaining, error: `Código incorrecto. Te quedan ${remaining} ${remaining === 1 ? 'intento' : 'intentos'}.` }

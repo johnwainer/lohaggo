@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isFarewell } from '@/lib/ai/conversation-core'
 import {
   INACTIVITY_CLOSE_MS,
   dedupeReply,
@@ -122,4 +123,9 @@ describe('relevo pendiente', () => {
     expect(t).toContain('nunca le preguntes qué mensaje quiere enviar')
     expect(relayContextText({ lastNotice: null, pendingMessage: null })).toBe('')
   })
+})
+
+describe('isFarewell (despedidas que no necesitan a una persona)', () => {
+  it.each(['No ninguna mil gracias', 'Está bien, gracias', 'Gracias, feliz noche', 'Mil gracias 🙏', 'nada más, gracias', 'Chao'])('«%s»', (t) => expect(isFarewell(t)).toBe(true))
+  it.each(['No', 'Sí', 'Buenas', 'Está bien', 'No me llegó el código', 'Activar servicio', '¿Cuánto cuesta?', 'No, quiero cambiar la fecha', ''])('no: «%s»', (t) => expect(isFarewell(t)).toBe(false))
 })
