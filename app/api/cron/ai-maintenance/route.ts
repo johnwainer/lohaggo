@@ -7,11 +7,12 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { indexPending } from '@/lib/ai/knowledge'
 import { runReengagement } from '@/lib/ai/autopilot'
+import { runFunnelNudges } from '@/lib/ai/funnel'
 import { bogotaDateKey, isSweepHour } from '@/lib/inbox/escalation-core'
 
 const logger = createLogger('cron-ai-maintenance')
 
-/** Knowledge indexing left pending + one-time re-engagement follow-ups + once a day the sweep of leads nobody answered. */
+/** Knowledge indexing left pending + one reminder for half-way requests + one-time re-engagement follow-ups + once a day the sweep of leads nobody answered. */
 async function handle(request: NextRequest) {
   const secret = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
@@ -23,10 +24,15 @@ async function handle(request: NextRequest) {
     // A crashed invocation can leave a document "indexing" forever
     await prisma.aiKnowledgeDoc.updateMany({ where: { status: 'indexing', updatedAt: { lt: new Date(Date.now() - 15 * 60_000) } }, data: { status: 'pending' } })
     const indexed = await indexPending(10)
+    // Half-way requests first: their reminder says what is missing, and it stamps reengagedAt so the generic one skips them
+    const funnel = await runFunnelNudges().catch((err) => {
+      logger.warn('Funnel nudges failed', { message: err instanceof Error ? err.message : 'error' })
+      return { nudged: 0 }
+    })
     const reengagement = await runReengagement()
     const staleLeads = await dailyStaleLeads()
-    if (indexed || reengagement.sent || staleLeads) logger.info('AI maintenance', { indexed, ...reengagement, staleLeads })
-    return NextResponse.json({ ok: true, indexed, ...reengagement, staleLeads })
+    if (indexed || reengagement.sent || funnel.nudged || staleLeads) logger.info('AI maintenance', { indexed, ...reengagement, funnelNudged: funnel.nudged, staleLeads })
+    return NextResponse.json({ ok: true, indexed, ...reengagement, funnelNudged: funnel.nudged, staleLeads })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'error'
     logger.error('AI maintenance error', { message })
