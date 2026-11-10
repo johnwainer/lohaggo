@@ -213,7 +213,7 @@ export type StepDef = { key: StepKey; day: number; channel: StepChannel; templat
 export const TEMPLATE_NAME: Record<WaCode, string> = {
   C46: 'lh_socio_reactivar_documentos',
   C47: 'lh_socio_antecedentes_guia',
-  C48: 'lh_socio_ultimo_aviso',
+  C48: 'lh_socio_ultimo_aviso_v2',
   C49: 'lh_socio_verificado_activar',
   C3: 'lh_socio_falta_documento',
   C33: 'lh_socio_compartir_perfil',
@@ -445,12 +445,15 @@ export function enrollmentOrder<T extends { segment: Segment; createdAt: Date; s
 
 export const firstNameOf = (name: string | null | undefined, fallback = 'Hola') => (name ?? '').trim().split(/\s+/)[0] || fallback
 
-/** The SMS step: at most 160 characters (the first name is cut if needed). */
+/** Plain GSM-7 text: an accent or «ñ» turns the SMS into UCS-2 and it is billed as 2–3 messages. */
+export const gsmPlain = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '')
+
+/** The SMS step: at most 160 GSM-7 characters, one billed message (the first name is cut if needed). */
 export function smsText(name: string | null | undefined): string {
-  const build = (n: string) => `LoHaggo: ${n}, tu perfil de socio está casi listo. Sube tu cédula y antecedentes aquí: lohaggo.com/partner/verification Responde BAJA para no recibir más.`
-  const first = firstNameOf(name, 'hola')
+  const build = (n: string) => `LoHaggo: ${n}, tu perfil de socio esta casi listo. Sube tu cedula y antecedentes aqui: lohaggo.com/partner/verification Responde BAJA para no recibir mas.`
+  const first = gsmPlain(firstNameOf(name, 'hola'))
   const room = 160 - build('').length
-  return build(first.slice(0, Math.max(1, room)))
+  return build(first.slice(0, Math.max(1, room)) || 'hola')
 }
 
 /** Services as the WhatsApp text: A (no active services) reads «tus servicios». */

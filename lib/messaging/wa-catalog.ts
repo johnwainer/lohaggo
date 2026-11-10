@@ -1896,9 +1896,9 @@ export const WA_CATALOG: WaCatalogEntry[] = [
   },
 {
     "code": "C48",
-    "name": "lh_socio_ultimo_aviso",
+    "name": "lh_socio_ultimo_aviso_v2",
     "category": "MARKETING",
-    "body": "⏳ Hola {{1}}, vamos a pausar los perfiles de socio que no han terminado su registro. Si aún quieres recibir clientes de {{2}} con LoHaggo, envía tu cédula por este chat esta semana. Si ya no te interesa, toca el botón y no te escribiremos más.",
+    "body": "⏳ Hola {{1}}, ¿sigues interesado en recibir clientes de {{2}} con LoHaggo? Tu perfil de socio aún no está activo porque falta tu cédula. Si quieres seguir, envíala por este chat. Si ya no te interesa, toca el botón y no te escribiremos más sobre esto.",
     "variables": {
       "1": "Carlos",
       "2": "plomería"

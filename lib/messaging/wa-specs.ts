@@ -127,7 +127,7 @@ export const WA = {
   C47: (p: { userId: string; name: string; step: string }) =>
     spec('C47', [['lh_socio_antecedentes_guia', { 1: partner(p.name) }]], E('User', p.userId), { marketing: true, dedupeKey: `C47:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
   C48: (p: { userId: string; name: string; service: string; step: string }) =>
-    spec('C48', [['lh_socio_ultimo_aviso', { 1: partner(p.name), 2: p.service }]], E('User', p.userId), { marketing: true, dedupeKey: `C48:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
+    spec('C48', [['lh_socio_ultimo_aviso_v2', { 1: partner(p.name), 2: p.service }]], E('User', p.userId), { marketing: true, dedupeKey: `C48:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
   C49: (p: { userId: string; partnerId: string; name: string; service: string; slug: string; step: string }) =>
     spec('C49', [['lh_socio_verificado_activar', { 1: partner(p.name), 2: p.service, 3: `pro/${p.slug}?utm_source=whatsapp&utm_medium=socio&utm_campaign=reactivar_socios` }]], E('PartnerProfile', p.partnerId), { marketing: true, dedupeKey: `C49:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),
   C4: (p: { documentId: string; name: string; type: string }) => spec('C4', [['lh_socio_documento_recibido', { 1: partner(p.name), 2: docLabel(p.type) }]], E('VerificationDocument', p.documentId)),

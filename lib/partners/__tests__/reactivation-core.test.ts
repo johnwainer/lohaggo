@@ -223,6 +223,7 @@ describe('textos', () => {
     expect(smsText('Maximiliano-Alejandro').length).toBeLessThanOrEqual(160)
     expect(smsText('Ana')).toContain('Ana, tu perfil')
     expect(smsText('Ana')).toContain('BAJA')
+    expect(smsText('María Peña')).toMatch(/^[\x20-\x7E]+$/)
   })
   it('A dice «tus servicios»; B nombra los suyos', () => {
     expect(serviceTextFor('A', [])).toBe('tus servicios')
