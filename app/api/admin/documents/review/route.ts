@@ -8,6 +8,8 @@ import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { waDocumentReviewed } from '@/lib/messaging/wa-events'
 import { z } from 'zod'
 import { auditAdminAction } from '@/lib/admin-utils'
+import { MAX_ACTIVE_SERVICES } from '@/lib/partners/ops'
+import { servicesToActivate } from '@/lib/partners/service-cap'
 
 const reviewSchema = z
   .object({
@@ -145,10 +147,12 @@ export async function POST(req: NextRequest) {
           where: { id: document.partnerId },
           data: { verified: true, isActive: true },
         })
-        await prisma.partnerService.updateMany({
-          where: { partnerId: document.partnerId },
-          data: { active: true },
-        })
+        // Switch on the paused services up to the cap (the most recently added first); active ones stay
+        const services = await prisma.partnerService.findMany({ where: { partnerId: document.partnerId }, select: { id: true, active: true, createdAt: true } })
+        const toActivate = servicesToActivate(services, MAX_ACTIVE_SERVICES)
+        if (toActivate.length) {
+          await prisma.partnerService.updateMany({ where: { id: { in: toActivate }, partnerId: document.partnerId }, data: { active: true } })
+        }
         scheduleAutomationsForUser(partnerId, 'PARTNER_ACTIVATED', { contextId: document.id }).catch(() => null)
       }
 
