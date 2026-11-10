@@ -2773,6 +2773,14 @@ model InboxSettings {
   updatedAt      DateTime @updatedAt
 }
 
+/// Partner reactivation campaign config (lib/partners/reactivation-core.ts); one row, id "platform". Without it the defaults apply.
+model PartnerReactivationSettings {
+  id             String   @id @default("platform")
+  config         Json?
+  updatedByEmail String?
+  updatedAt      DateTime @updatedAt
+}
+
 /// Single row: how Haggo works (mode per domain, limits, budget, schedule). Only the superadmin edits it.
 model HaggoSettings {
   id                  String    @id @default("platform")

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ZONES } from '@/lib/geo/zones'
+import PartnerReactivationPanel from '@/components/admin/partners/PartnerReactivationPanel'
 
 type ClientSegmentOption = 'all' | 'no_booking' | 'inactive_30' | 'inactive_60' | 'service' | 'zone'
 
@@ -166,7 +167,7 @@ type WaTemplate = {
   source?: 'meta' | 'twilio'
 }
 
-type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS'
+type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS' | 'REACTIVATION'
 
 const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
   { id: 'OVERVIEW', label: 'Resumen' },
@@ -174,6 +175,7 @@ const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
   { id: 'CAMPAIGNS', label: 'Campañas' },
   { id: 'CREATE', label: 'Crear campaña' },
   { id: 'ANALYTICS', label: 'Analytics' },
+  { id: 'REACTIVATION', label: 'Reactivación de socios' },
 ]
 
 const CITY_OPTIONS = ['MEDELLIN', 'BOGOTA', 'CALI', 'BARRANQUILLA']
@@ -1145,7 +1147,7 @@ export default function AdminCommunicationsPage() {
       </div>
 
       <nav className="rounded-xl border bg-white p-2">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
           {PANEL_OPTIONS.map((panel) => (
             <button
               key={panel.id}
@@ -1160,7 +1162,9 @@ export default function AdminCommunicationsPage() {
         </div>
       </nav>
 
-      {loading ? (
+      {activePanel === 'REACTIVATION' ? (
+        <PartnerReactivationPanel />
+      ) : loading ? (
         <div className="rounded-xl border bg-white p-6">Cargando...</div>
       ) : (
         <>
