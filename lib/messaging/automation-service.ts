@@ -256,6 +256,8 @@ export const SUPERSEDED_WA_FNS: ReadonlySet<string> = new Set([
   'sendReservaCompletadaCliente', // B14
   'sendReservaCompletadaSocio', // C22
   'sendWelcomePartner', // C1
+  // Legacy `referir_socios`: bypassed opt-outs, quiet hours and dedupe; sharing the profile is C33 (lh_socio_compartir_perfil)
+  'sendReferralInvite',
 ])
 
 export function supersededWaExecution(channel: string, waTemplateFn: string | null | undefined) {
