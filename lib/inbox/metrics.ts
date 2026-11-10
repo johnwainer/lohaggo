@@ -1,82 +1,114 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { CSAT_SENDER } from '@/lib/inbox/csat-core'
-import { aiResolution, firstResponseStats, topHandoffReasons, type ConversationRow, type MetricPeriod } from '@/lib/inbox/metrics-core'
+import {
+  NON_REPLY_AGENT_IDS, copilotCounts, summarizeConversations,
+  type ConversationInput, type ConversionRow, type MetricChannel, type MetricPeriod,
+} from '@/lib/inbox/metrics-core'
 
-/** Conversations started in the period that are read (newest first): keeps the query bounded */
+/** Conversations with activity in the period that are read (latest first): keeps the query bounded */
 const MAX_CONVERSATIONS = 5000
-const MAX_HANDOFFS = 3000
-const CSAT_AGENT = CSAT_SENDER.agentId
+/** Outbound messages read per conversation to find the first real replies (notices come first, then the answer) */
+const CANDIDATES_PER_CONVERSATION = 8
+const EVENTS_PER_CONVERSATION = 40
+const MAX_CONVERSIONS = 20000
+const EVENT_TYPES = ['status', 'ai_closed', 'ai_handoff', 'ai_started', 'csat_asked', 'csat_answered', 'account_linked', 'account_created']
+
+type RawRow = Omit<ConversationInput, 'humans' | 'agents'> & { humans: string[] | null; agents: string[] | null }
+
+export type MetricsOptions = { days: MetricPeriod; channel: MetricChannel | null; workspaceIds: string[] | null; now?: Date }
 
 /**
- * Inbox metrics of the last 7 or 30 days for the workspaces an admin sees (null = all). Test conversations
- * and comment threads are left out; the survey's own messages never count as an answer.
+ * Inbox metrics for the conversations where the contact wrote in the last 7, 30 or 90 days, measured from
+ * their first message in the period. Test conversations and comment threads are left out.
  */
-export async function computeInboxMetrics(days: MetricPeriod, workspaceIds: string[] | null, now: Date = new Date()) {
+export async function computeInboxMetrics({ days, channel, workspaceIds, now = new Date() }: MetricsOptions) {
   const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
-  const empty = { days, since: since.toISOString(), conversations: 0, firstResponse: { medianSeconds: null, answered: 0, unanswered: 0 }, ai: { closed: 0, byAi: 0, rate: null }, handoffs: { total: 0, top: [] }, reopened: 0, csat: { asked: 0, answered: 0, average: null } }
-  if (workspaceIds && !workspaceIds.length) return empty
+  const base = { days, channel, since: since.toISOString(), truncated: false }
+  if (workspaceIds && !workspaceIds.length) {
+    return { ...base, ...summarizeConversations([]), people: [] as Named[], agents: [] as Named[], copilot: copilotCounts([]) }
+  }
   const ws = workspaceIds ? Prisma.sql`AND c."workspaceId" IN (${Prisma.join(workspaceIds)})` : Prisma.empty
+  const ch = channel ? Prisma.sql`AND c.channel::text = ${channel}` : Prisma.empty
+  const nonReply = Prisma.join([...NON_REPLY_AGENT_IDS])
 
-  const reply = (sender: 'HUMAN' | 'AI') => Prisma.sql`EXISTS (
-    SELECT 1 FROM "ConversationMessage" o
-    WHERE o."conversationId" = v.id AND o.direction = 'OUTBOUND' AND o."isInternal" = false AND o."senderType" = ${sender} AND COALESCE(o."aiAgentId", '') <> ${CSAT_AGENT})`
-
-  const [rows, handoffs, reopenedRows, csatRows] = await Promise.all([
-    prisma.$queryRaw<ConversationRow[]>`
-      WITH v AS (
-        SELECT c.id, c.status::text AS status FROM "Conversation" c
-        WHERE c."createdAt" >= ${since} AND c."isTest" = false AND c.channel NOT IN ('FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT') ${ws}
-        ORDER BY c."createdAt" DESC
-        LIMIT ${MAX_CONVERSATIONS}
-      )
-      SELECT v.status, fi.t AS "firstIn",
-        (SELECT MIN(o."sentAt") FROM "ConversationMessage" o
-          WHERE o."conversationId" = v.id AND o.direction = 'OUTBOUND' AND o."isInternal" = false AND o."senderType" IN ('HUMAN', 'AI')
-            AND COALESCE(o."aiAgentId", '') <> ${CSAT_AGENT} AND o."sentAt" >= fi.t) AS "firstOut",
-        ${reply('HUMAN')} AS human,
-        ${reply('AI')} AS ai
-      FROM v
-      LEFT JOIN LATERAL (SELECT MIN(m."sentAt") AS t FROM "ConversationMessage" m WHERE m."conversationId" = v.id AND m.direction = 'INBOUND') fi ON true`,
-    prisma.conversationEvent.findMany({
-      where: { type: 'ai_handoff', createdAt: { gte: since }, conversation: { isTest: false, ...(workspaceIds ? { workspaceId: { in: workspaceIds } } : {}) } },
-      select: { detail: true },
-      orderBy: { createdAt: 'desc' },
-      take: MAX_HANDOFFS,
-    }),
-    // Closed (by a person, the AI or the cleanup) and the contact wrote again afterwards; a survey answer is not a reopening
-    prisma.$queryRaw<{ n: bigint }[]>`
-      SELECT COUNT(DISTINCT e."conversationId") AS n
-      FROM "ConversationEvent" e
-      JOIN "Conversation" c ON c.id = e."conversationId"
-      WHERE e."createdAt" >= ${since} AND c."isTest" = false ${ws}
-        AND (e.type = 'ai_closed' OR (e.type = 'status' AND e.detail IN ('RESOLVED', 'CLOSED')))
-        AND EXISTS (
-          SELECT 1 FROM "ConversationMessage" m
-          WHERE m."conversationId" = e."conversationId" AND m.direction = 'INBOUND' AND m."sentAt" > e."createdAt"
-            AND m.body !~ '^\\s*[1-5]\\s*[.!]?\\s*$'
-        )`,
-    prisma.$queryRaw<{ asked: bigint; answered: bigint; average: number | null }[]>`
-      SELECT
-        COUNT(*) FILTER (WHERE (c."customFields"->'inbox'->>'csatAskedAt') >= ${since.toISOString()}) AS asked,
-        COUNT(*) FILTER (WHERE (c."customFields"->'inbox'->'csat'->>'at') >= ${since.toISOString()}) AS answered,
-        AVG(CASE WHEN jsonb_typeof(c."customFields"->'inbox'->'csat'->'score') = 'number' THEN (c."customFields"->'inbox'->'csat'->>'score')::float END)
-          FILTER (WHERE (c."customFields"->'inbox'->'csat'->>'at') >= ${since.toISOString()}) AS average
+  const raw = await prisma.$queryRaw<RawRow[]>`
+    WITH v AS (
+      SELECT c.id, c.channel::text AS channel, c.status::text AS status, c."userId", fi.t AS "firstIn"
       FROM "Conversation" c
-      WHERE c."lastMessageAt" >= ${since} AND c."isTest" = false AND jsonb_typeof(c."customFields") = 'object' ${ws}`,
+      JOIN LATERAL (
+        SELECT MIN(m."sentAt") AS t FROM "ConversationMessage" m
+        WHERE m."conversationId" = c.id AND m.direction = 'INBOUND' AND m."sentAt" >= ${since}
+      ) fi ON fi.t IS NOT NULL
+      WHERE c."lastMessageAt" >= ${since} AND c."isTest" = false AND c.channel NOT IN ('FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT') ${ws} ${ch}
+      ORDER BY c."lastMessageAt" DESC
+      LIMIT ${MAX_CONVERSATIONS + 1}
+    )
+    SELECT v.*,
+      (SELECT COALESCE(json_agg(x ORDER BY x."sentAt"), '[]'::json) FROM (
+        SELECT o."sentAt", o."senderType", o."sentById", o."aiAgentId", LEFT(o.body, 80) AS body,
+          EXISTS (
+            SELECT 1 FROM "ConversationEvent" e
+            WHERE e."conversationId" = v.id AND e.type = 'escalation_holding'
+              AND e."createdAt" BETWEEN o."sentAt" - interval '5 seconds' AND o."sentAt" + interval '60 seconds'
+          ) AS "nearHolding"
+        FROM "ConversationMessage" o
+        WHERE o."conversationId" = v.id AND o.direction = 'OUTBOUND' AND o."isInternal" = false AND o."sentAt" >= v."firstIn"
+          AND (o."senderType" IN ('HUMAN', 'ECHO') OR (o."sentById" IS NOT NULL AND o."senderType" IS DISTINCT FROM 'AUTOMATION')
+            OR (o."senderType" = 'AI' AND o."aiAgentId" IS NOT NULL AND o."aiAgentId" NOT IN (${nonReply})))
+        ORDER BY o."sentAt"
+        LIMIT ${CANDIDATES_PER_CONVERSATION}
+      ) x) AS candidates,
+      (SELECT array_agg(DISTINCT o."sentById") FROM "ConversationMessage" o
+        WHERE o."conversationId" = v.id AND o.direction = 'OUTBOUND' AND o."isInternal" = false AND o."sentAt" >= v."firstIn"
+          AND o."sentById" IS NOT NULL AND o."senderType" IS DISTINCT FROM 'AI' AND o."senderType" IS DISTINCT FROM 'AUTOMATION') AS humans,
+      (SELECT array_agg(DISTINCT o."aiAgentId") FROM "ConversationMessage" o
+        WHERE o."conversationId" = v.id AND o.direction = 'OUTBOUND' AND o."isInternal" = false AND o."sentAt" >= v."firstIn"
+          AND o."senderType" = 'AI' AND o."aiAgentId" IS NOT NULL AND o."aiAgentId" NOT IN (${nonReply})) AS agents,
+      (SELECT MAX(m."sentAt") FROM "ConversationMessage" m
+        WHERE m."conversationId" = v.id AND m.direction = 'INBOUND' AND m."sentAt" > v."firstIn"
+          AND m.body !~ '^\\s*[1-5]\\s*[.!]?\\s*$') AS "lastIn",
+      (SELECT COALESCE(json_agg(y ORDER BY y."createdAt"), '[]'::json) FROM (
+        SELECT e.type, e."actorType", e."actorId", LEFT(e."actorName", 60) AS "actorName", LEFT(e.detail, 160) AS detail, e."createdAt"
+        FROM "ConversationEvent" e
+        WHERE e."conversationId" = v.id AND e."createdAt" >= v."firstIn" AND e.type IN (${Prisma.join(EVENT_TYPES)})
+        ORDER BY e."createdAt"
+        LIMIT ${EVENTS_PER_CONVERSATION}
+      ) y) AS events
+    FROM v`
+
+  const truncated = raw.length > MAX_CONVERSATIONS
+  const rows: ConversationInput[] = raw.slice(0, MAX_CONVERSATIONS).map((r) => ({ ...r, humans: r.humans ?? [], agents: r.agents ?? [] }))
+  const ids = rows.map((r) => r.id)
+  const userIds = Array.from(new Set(rows.map((r) => r.userId).filter((u): u is string => Boolean(u))))
+  const conversionWhere = { createdAt: { gte: since }, OR: [{ originConversationId: { in: ids } }, ...(userIds.length ? [{ userId: { in: userIds } }] : [])] }
+  const conversionSelect = { userId: true, originConversationId: true, createdAt: true } as const
+  const convFilter = { isTest: false, ...(workspaceIds ? { workspaceId: { in: workspaceIds } } : {}), ...(channel ? { channel } : {}) }
+
+  const [aiAgents, requests, bookings, suggestions] = await Promise.all([
+    prisma.aiAgent.findMany({ select: { id: true, name: true, handoffMessage: true, outsideHoursMessage: true } }),
+    ids.length ? prisma.serviceRequest.findMany({ where: conversionWhere, select: conversionSelect, take: MAX_CONVERSIONS }) : Promise.resolve([] as ConversionRow[]),
+    ids.length ? prisma.booking.findMany({ where: conversionWhere, select: conversionSelect, take: MAX_CONVERSIONS }) : Promise.resolve([] as ConversionRow[]),
+    prisma.aiSuggestion.groupBy({ by: ['status'], where: { createdAt: { gte: since }, conversation: convFilter }, _count: { _all: true } }),
   ])
 
-  const csat = csatRows[0]
+  const canned = new Map(aiAgents.map((a) => [a.id, [a.handoffMessage, a.outsideHoursMessage ?? ''].filter(Boolean)]))
+  const summary = summarizeConversations(rows, { canned, requests, bookings })
+
+  const personIds = summary.people.map((p) => p.id)
+  const users = personIds.length ? await prisma.user.findMany({ where: { id: { in: personIds } }, select: { id: true, name: true } }) : []
+  const userName = new Map(users.map((u) => [u.id, u.name]))
+  const agentName = new Map(aiAgents.map((a) => [a.id, a.name]))
+
   return {
-    days,
-    since: since.toISOString(),
-    conversations: rows.length,
-    firstResponse: firstResponseStats(rows),
-    ai: aiResolution(rows),
-    handoffs: { total: handoffs.length, top: topHandoffReasons(handoffs.map((h) => h.detail)) },
-    reopened: Number(reopenedRows[0]?.n ?? 0),
-    csat: { asked: Number(csat?.asked ?? 0), answered: Number(csat?.answered ?? 0), average: csat?.average === null || csat?.average === undefined ? null : Number(csat.average) },
+    ...base,
+    truncated,
+    ...summary,
+    people: summary.people.map((p) => ({ ...p, name: userName.get(p.id) || 'Persona sin nombre' })),
+    agents: summary.agents.map((a) => ({ ...a, name: agentName.get(a.id) || 'Agente eliminado' })),
+    copilot: copilotCounts(suggestions.map((s) => ({ status: s.status, count: s._count._all }))),
   }
 }
+
+type Named = ReturnType<typeof summarizeConversations>['people'][number] & { name: string }
 
 export type InboxMetrics = Awaited<ReturnType<typeof computeInboxMetrics>>
