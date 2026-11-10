@@ -59,10 +59,31 @@ export function toOpenAIInput(messages: Anthropic.MessageParam[]): InputItem[] {
       const content = b.content == null ? '' : textOfBlocks(b.content as string | Array<{ type: string; text?: string }>)
       out.push({ type: 'function_call_output', call_id: b.tool_use_id, output: b.is_error ? `Error: ${content}` : content })
     }
+    if (m.content.some((b) => b.type === 'image')) {
+      // Photos the person sent: text and images in their order, as input_text / input_image
+      const parts: OpenAI.Responses.ResponseInputMessageContentList = []
+      for (const b of m.content) {
+        if (b.type === 'text' && b.text) parts.push({ type: 'input_text', text: b.text })
+        if (b.type === 'image') {
+          const url = imageUrlOf(b)
+          if (url) parts.push({ type: 'input_image', image_url: url, detail: 'auto' })
+        }
+      }
+      if (parts.length) out.push({ role: 'user', content: parts })
+      continue
+    }
     const text = m.content.filter((b): b is Anthropic.TextBlockParam => b.type === 'text').map((b) => b.text).join('\n')
     if (text) out.push({ role: 'user', content: text })
   }
   return out
+}
+
+/** Anthropic image source → what input_image takes (a data URL for base64, the URL itself otherwise). */
+export function imageUrlOf(b: Anthropic.ImageBlockParam): string | null {
+  const src = b.source
+  if (src.type === 'base64') return `data:${src.media_type};base64,${src.data}`
+  if (src.type === 'url') return src.url
+  return null
 }
 
 export function toOpenAITools(tools: Anthropic.Tool[] | undefined): OpenAI.Responses.FunctionTool[] | undefined {

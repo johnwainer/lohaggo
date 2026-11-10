@@ -12,8 +12,7 @@ import { getAiSettings, openaiClient } from '@/lib/ai/settings'
 import { logFixedCostCall } from '@/lib/ai/calls'
 import { checkWorkspaceBudget } from '@/lib/ai/limits'
 import { getProviderStates, providerIsDown } from '@/lib/ai/providers/state'
-import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
-import { isTrustedAttachmentUrl } from '@/lib/messaging/attachments'
+import { fetchChannelMedia } from '@/lib/messaging/media-fetch'
 import { TRANSCRIBED_PREFIX } from '@/lib/inbox/audio'
 
 const logger = createLogger('ai-transcribe')
@@ -34,36 +33,10 @@ export const isTranscribed = (m: AudioLike) => m.body.startsWith(TRANSCRIBED_PRE
 
 const EXT: Record<string, string> = { 'audio/ogg': 'ogg', 'audio/opus': 'ogg', 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'm4a', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/webm': 'webm', 'audio/amr': 'amr' }
 
-function isTwilioUrl(url: string) {
-  return url.startsWith('https://api.twilio.com/') || url.startsWith('https://media.twiliocdn.com/')
-}
-function isMetaUrl(url: string) {
-  try {
-    const { protocol, hostname } = new URL(url)
-    return protocol === 'https:' && /(^|\.)(fbcdn\.net|fbsbx\.com|cdninstagram\.com|facebook\.com|whatsapp\.net)$/i.test(hostname)
-  } catch {
-    return false
-  }
-}
-
 /** Downloads the audio from the channel: Twilio media needs basic auth with the account's SID and token. */
 async function downloadAudio(url: string, declared: string | null) {
-  const twilio = isTwilioUrl(url)
-  if (!twilio && !isMetaUrl(url) && !isTrustedAttachmentUrl(url)) throw new Error('origen del audio no permitido')
-  const headers: Record<string, string> = {}
-  if (twilio) {
-    const conf = (await getMessagingProviderRuntimeConfig()).twilio?.config
-    const sid = conf?.accountSid || process.env.TWILIO_ACCOUNT_SID
-    const token = conf?.authToken || process.env.TWILIO_AUTH_TOKEN
-    if (!sid || !token) throw new Error('Twilio sin credenciales para descargar el audio')
-    headers.Authorization = `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`
-  }
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(20_000) })
-  if (!res.ok) throw new Error(`descarga ${res.status}`)
-  if (Number(res.headers.get('content-length') || 0) > MAX_BYTES) throw new Error('audio de más de 20 MB')
-  const buffer = Buffer.from(await res.arrayBuffer())
-  if (!buffer.length || buffer.length > MAX_BYTES) throw new Error('audio vacío o muy pesado')
-  const mime = ((res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase() || (declared ?? '').split(';')[0].trim().toLowerCase())
+  const { buffer, contentType } = await fetchChannelMedia(url, { maxBytes: MAX_BYTES, label: 'audio' })
+  const mime = contentType || (declared ?? '').split(';')[0].trim().toLowerCase()
   const ext = EXT[mime] ?? (mime.includes('ogg') ? 'ogg' : 'mp3')
   return { buffer, mime: mime || 'audio/ogg', name: `nota-de-voz.${ext}` }
 }
