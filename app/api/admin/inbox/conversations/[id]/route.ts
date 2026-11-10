@@ -10,6 +10,9 @@ import { copilotState } from '@/lib/ai/copilot'
 import { commentModeration } from '@/lib/ai/comments'
 import { isCommentChannel, privateReplyAvailability } from '@/lib/ai/comments-core'
 import { askCsatOnClose } from '@/lib/inbox/csat'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('inbox-conversation')
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -57,11 +60,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const hasMore = conversation.messages.length === limit
 
   // Mark as read only on an explicit open (no cursor, not a background refresh)
+  let markReadError: string | null = null
   if (!before && markRead) {
-    await prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } })
-    // «Marcar como no leído» was personal: opening it clears it for this admin
-    const unreadFor = readInboxState(conversation.customFields).unreadFor ?? []
-    if (unreadFor.includes(admin.id)) await patchInboxState(id, { unreadFor: unreadFor.filter((x) => x !== admin.id) })
+    // Opening the conversation never fails because the read mark could not be saved
+    try {
+      await prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } })
+      // «Marcar como no leído» was personal: opening it clears it for this admin
+      const unreadFor = readInboxState(conversation.customFields).unreadFor ?? []
+      if (unreadFor.includes(admin.id)) await patchInboxState(id, { unreadFor: unreadFor.filter((x) => x !== admin.id) })
+    } catch (err) {
+      markReadError = err instanceof Error ? err.message.slice(0, 500) : String(err)
+      logger.error('Mark read failed', { conversationId: id, err: markReadError })
+    }
   }
 
   // Copilot: agent that assists here, the pending suggestion and the takeover countdown
@@ -92,7 +102,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     comments = { canHide: moderation.canHide, privateReply: privateReplyAvailability(target, replied.map((r) => r.commentId), new Date(), conversation.commentKind) }
   }
 
-  return NextResponse.json({ conversation: { ...conversation, messages, copilot, comments, inbox: inboxView(conversation.customFields, admin.id) }, hasMore })
+  return NextResponse.json({ conversation: { ...conversation, messages, copilot, comments, inbox: inboxView(conversation.customFields, admin.id) }, hasMore, ...(markReadError ? { markReadError } : {}) })
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -125,13 +135,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (body.contactName !== undefined) data.contactName = body.contactName
   if (body.tags !== undefined) data.tags = Array.isArray(body.tags) ? body.tags : []
 
-  const conversation = await prisma.conversation.update({
-    where: { id },
-    data,
-    include: {
-      assignedTo: { select: { id: true, name: true, email: true } },
-    },
-  })
+  let conversation
+  try {
+    conversation = await prisma.conversation.update({
+      where: { id },
+      data,
+      include: {
+        assignedTo: { select: { id: true, name: true, email: true } },
+      },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message.slice(0, 500) : String(err)
+    logger.error('Conversation update failed', { conversationId: id, keys: Object.keys(data), err: message })
+    return NextResponse.json({ error: 'No se pudo guardar el cambio', detail: message }, { status: 500 })
+  }
 
   // Immutable facts for the thread
   const actor = { conversationId: id, actorType: 'user', actorId: admin.id, actorName: admin.name }
