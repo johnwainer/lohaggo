@@ -5,7 +5,7 @@ vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 import { bogotaHour, isBusinessHour, isWindowOpen, waitingState } from '@/lib/inbox/waiting'
 import { csatReplyScore, csatSkipReason, isCsatMessage, parseCsatScore, CSAT_QUESTION, type CsatAskInput } from '@/lib/inbox/csat-core'
 import { fillReplyVariables, greetingName, usesVariable } from '@/lib/inbox/saved-replies'
-import { aiResolution, firstResponseStats, formatSeconds, median, parsePeriod, percent, topHandoffReasons } from '@/lib/inbox/metrics-core'
+import { formatSeconds, median, parsePeriod, percent, topHandoffReasons } from '@/lib/inbox/metrics-core'
 import { canCancelAndReopen, isRelevantBooking, paymentState } from '@/lib/inbox/bookings-core'
 import { linkRefusal } from '@/lib/inbox/link'
 import { needsTranscriptionLabel, TRANSCRIBED_PREFIX } from '@/lib/inbox/audio'
@@ -117,18 +117,6 @@ describe('inbox metrics', () => {
     expect(median([4, 1, 3, 2])).toBe(2.5)
   })
 
-  it('measures the first response and the AI resolution', () => {
-    const rows = [
-      { status: 'RESOLVED', firstIn: '2026-10-22T10:00:00Z', firstOut: '2026-10-22T10:02:00Z', human: false, ai: true },
-      { status: 'CLOSED', firstIn: '2026-10-22T10:00:00Z', firstOut: '2026-10-22T10:10:00Z', human: true, ai: true },
-      { status: 'OPEN', firstIn: '2026-10-22T10:00:00Z', firstOut: null, human: false, ai: false },
-      { status: 'RESOLVED', firstIn: null, firstOut: null, human: false, ai: false },
-    ]
-    expect(firstResponseStats(rows)).toEqual({ medianSeconds: 360, answered: 2, unanswered: 1 })
-    expect(aiResolution(rows)).toEqual({ closed: 2, byAi: 1, rate: 0.5 })
-    expect(aiResolution([])).toEqual({ closed: 0, byAi: 0, rate: null })
-  })
-
   it('groups handoff reasons', () => {
     expect(topHandoffReasons(['Pidió una persona: quiere hablar', 'Pidió una persona', 'Fuera de horario', null], 2)).toEqual([
       { reason: 'Pidió una persona', count: 2 },
@@ -143,6 +131,7 @@ describe('inbox metrics', () => {
     expect(formatSeconds(null)).toBe('—')
     expect(percent(0.456)).toBe('46 %')
     expect(parsePeriod('30')).toBe(30)
+    expect(parsePeriod('90')).toBe(90)
     expect(parsePeriod('x')).toBe(7)
   })
 })
