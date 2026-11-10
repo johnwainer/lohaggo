@@ -12,7 +12,7 @@ import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import { auxBudgetAvailable } from '@/lib/ai/limits'
 import { isCommentChannel } from '@/lib/ai/comments-core'
 import { isRepeatedGibberish, isUndeliverableError } from '@/lib/ai/conversation-core'
-import { isUndeliverableMarked, markUndeliverable } from '@/lib/ai/closing'
+import { isUndeliverableMarked, markUndeliverable, mergeCustomField, removeCustomField } from '@/lib/ai/closing'
 import { AUDIO_NOTICE_TEXT, audioNoticeSent, markAudioNoticeSent, transcribeTurnAudio } from '@/lib/ai/transcribe'
 import {
   HUMAN_GRACE_MS,
@@ -107,8 +107,21 @@ async function sendAsAgent(conversation: Conversation, agent: AiAgent, text: str
   return result
 }
 
-/** Called after an inbound message is stored, on every channel. */
+/**
+ * Called after an inbound message is stored, on every channel. A turn that throws never leaves the contact
+ * silent: the conversation goes back to a person (lib/inbox/ai-failure.ts); the error is rethrown for the caller.
+ */
 export async function handleInbound(conversationId: string, messageId: string, opts: { debounceMs?: number; maxAgeMs?: number } = {}) {
+  try {
+    return await inboundTurn(conversationId, messageId, opts)
+  } catch (err) {
+    const { handleAiReplyFailure } = await import('@/lib/inbox/ai-failure')
+    await handleAiReplyFailure({ conversationId, error: err instanceof Error ? err.message : String(err) })
+    throw err
+  }
+}
+
+async function inboundTurn(conversationId: string, messageId: string, opts: { debounceMs?: number; maxAgeMs?: number }) {
   await new Promise((r) => setTimeout(r, opts.debounceMs ?? DEBOUNCE_MS))
 
   const message = await prisma.conversationMessage.findUnique({ where: { id: messageId } })
@@ -247,6 +260,11 @@ export async function handleInbound(conversationId: string, messageId: string, o
       done: result.done, spam: result.spam, question: pending, close: result.close ?? null,
     })
   }
+  // The provider failed (applyOutcome already handed it off): the trail and the incident count
+  if (result.handoffReason === 'api_error') {
+    const { handleAiReplyFailure } = await import('@/lib/inbox/ai-failure')
+    await handleAiReplyFailure({ conversationId, error: result.handoffDetail || result.error || 'Error del proveedor de IA', alreadyHandedOff: true })
+  }
   return { handled: 'reply', handoff: result.handoff, model: result.model }
 }
 
@@ -255,9 +273,7 @@ const AFTER_HOURS_KEY = 'afterHours'
 const AFTER_HOURS_MAX_MS = 72 * 3600_000
 
 async function markAfterHours(conversation: Conversation, messageId: string) {
-  const fields = conversation.customFields && typeof conversation.customFields === 'object' ? { ...(conversation.customFields as Record<string, unknown>) } : {}
-  fields[AFTER_HOURS_KEY] = { messageId, at: new Date().toISOString() }
-  await prisma.conversation.update({ where: { id: conversation.id }, data: { customFields: fields as object } }).catch(() => null)
+  await mergeCustomField(conversation.id, AFTER_HOURS_KEY, { messageId, at: new Date().toISOString() }).catch(() => null)
 }
 
 /**
@@ -281,8 +297,7 @@ export async function answerAfterHours(limit = 20) {
     if (!agent || agent.status !== 'active') continue
     const ws = await prisma.workspace.findUnique({ where: { id: c.workspaceId }, select: { timezone: true } })
     if (!isWithinHours(agent, new Date(), ws?.timezone || 'America/Bogota')) continue
-    const { [AFTER_HOURS_KEY]: _done, ...rest } = fields
-    await prisma.conversation.update({ where: { id: c.id }, data: { customFields: rest as object } })
+    await removeCustomField(c.id, AFTER_HOURS_KEY)
     const latest = await prisma.conversationMessage.findFirst({ where: { conversationId: c.id, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, select: { id: true } })
     // Someone already answered after it arrived: nothing is left to reply
     const replied = await prisma.conversationMessage.findFirst({ where: { conversationId: c.id, direction: 'OUTBOUND', isInternal: false, sentAt: { gt: new Date(mark.at ?? 0) }, senderType: { not: 'AUTOMATION' } }, select: { id: true } })

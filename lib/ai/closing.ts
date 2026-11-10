@@ -4,11 +4,10 @@
  * A closed conversation reopens by itself when the contact writes again (inbound), and the agent picks it
  * up with the close summary in its context.
  */
-import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
-import { CLOSE_REASON_LABEL, INACTIVITY_CLOSE_MS, inactivityCloseDecision, type CloseReason } from '@/lib/ai/conversation-core'
+import { CLOSE_REASON_LABEL, inactivityCloseDecision, type CloseReason } from '@/lib/ai/conversation-core'
 
 const logger = createLogger('ai-closing')
 
@@ -63,11 +62,10 @@ export async function lastCloseSummary(conversationId: string) {
  * for good instead of handing off over and over. A person can still write from the inbox.
  */
 export async function markUndeliverable(conversationId: string, agent: Agent, error: string) {
-  const conv = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true, workspaceId: true } })
+  const conv = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { workspaceId: true } })
   if (!conv) return
-  const fields = conv.customFields && typeof conv.customFields === 'object' ? { ...(conv.customFields as Record<string, unknown>) } : {}
-  fields[UNDELIVERABLE_KEY] = { at: new Date().toISOString(), error: error.slice(0, 200) }
-  await prisma.conversation.update({ where: { id: conversationId }, data: { customFields: fields as Prisma.InputJsonValue, aiHandled: false } })
+  await mergeCustomField(conversationId, UNDELIVERABLE_KEY, { at: new Date().toISOString(), error: error.slice(0, 200) })
+  await prisma.conversation.update({ where: { id: conversationId }, data: { aiHandled: false } })
   await prisma.conversationEvent.create({ data: { conversationId, type: 'ai_undeliverable', actorType: 'ai', actorId: agent.id, actorName: agent.name, detail: error.slice(0, 300) } })
   await prisma.conversationMessage.create({
     data: {
@@ -78,21 +76,42 @@ export async function markUndeliverable(conversationId: string, agent: Agent, er
   emitInboxEvent({ type: 'status-update', conversationId, workspaceId: conv.workspaceId })
 }
 
+/** Sets one top-level key of customFields in SQL (jsonb ||): the inbox state and other keys written meanwhile are kept. */
+export async function mergeCustomField(conversationId: string, key: string, value: unknown) {
+  await prisma.$executeRaw`
+    UPDATE "Conversation"
+    SET "customFields" = (CASE WHEN jsonb_typeof("customFields") = 'object' THEN "customFields" ELSE '{}'::jsonb END)
+      || jsonb_build_object(${key}::text, ${JSON.stringify(value)}::jsonb)
+    WHERE "id" = ${conversationId}`
+}
+
+/** Removes one top-level key of customFields in SQL, keeping everything else. */
+export async function removeCustomField(conversationId: string, key: string) {
+  await prisma.$executeRaw`
+    UPDATE "Conversation" SET "customFields" = "customFields" - ${key}::text
+    WHERE "id" = ${conversationId} AND jsonb_typeof("customFields") = 'object'`
+}
+
 export function isUndeliverableMarked(customFields: unknown) {
   return Boolean(customFields && typeof customFields === 'object' && (customFields as Record<string, unknown>)[UNDELIVERABLE_KEY])
 }
 
 /**
- * Conversations the AI handles whose contact went quiet: the agent spoke last more than 24 h ago and
- * nothing waits (no person in charge, no handoff, no action waiting for a yes). Up to `limit` per run.
+ * Conversations the AI handles whose contact went quiet: the agent spoke last more than `inactivityHours`
+ * (inbox settings, 24 h by default) ago and nothing waits (no person in charge, no handoff, no action waiting
+ * for a yes). Up to `limit` per run; nothing when the admin turned automatic closing off.
  */
 export async function closeInactiveConversations(limit = 20, now = new Date()) {
+  const { getInboxSettings } = await import('@/lib/inbox/settings')
+  const { autoClose } = await getInboxSettings()
+  if (!autoClose.enabled) return { closed: 0, checked: 0 }
+  const inactivityMs = autoClose.inactivityHours * 3600_000
   const convs = await prisma.conversation.findMany({
     where: {
       aiHandled: true, aiAgentId: { not: null }, assignedToId: null, aiHandoffAt: null, isTest: false, automationsPaused: false,
       status: { in: ['OPEN', 'IN_PROGRESS'] },
       channel: { notIn: ['FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT'] },
-      lastMessageAt: { lt: new Date(now.getTime() - INACTIVITY_CLOSE_MS), gt: new Date(now.getTime() - 30 * 24 * 3600_000) },
+      lastMessageAt: { lt: new Date(now.getTime() - inactivityMs), gt: new Date(now.getTime() - 30 * 24 * 3600_000) },
     },
     orderBy: { lastMessageAt: 'asc' },
     take: 200,
@@ -119,10 +138,10 @@ export async function closeInactiveConversations(limit = 20, now = new Date()) {
     const decision = inactivityCloseDecision({
       status: c.status, aiHandled: c.aiHandled, assignedToId: c.assignedToId, aiHandoffAt: c.aiHandoffAt, isTest: c.isTest,
       lastMessage: lastBy.get(c.id) ?? null, pendingActions: pendingBy.get(c.id) ?? 0, waitingAfterHours: Boolean(fields[AFTER_HOURS_KEY]),
-    }, now)
+    }, now, inactivityMs)
     if (!decision.close) continue
     try {
-      const ok = await closeConversation(c.id, { id: c.aiAgentId!, name: c.aiAgentName || 'Agente IA' }, 'sin_respuesta', 'El contacto no respondió en 24 horas al último mensaje del agente.')
+      const ok = await closeConversation(c.id, { id: c.aiAgentId!, name: c.aiAgentName || 'Agente IA' }, 'sin_respuesta', `El contacto no respondió en ${autoClose.inactivityHours} horas al último mensaje del agente.`)
       if (ok) closed++
     } catch (err) {
       logger.warn('Inactivity close failed', { conversationId: c.id, err: err instanceof Error ? err.message : err })

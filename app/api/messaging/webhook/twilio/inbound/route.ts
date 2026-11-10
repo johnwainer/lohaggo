@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
@@ -36,9 +36,9 @@ async function validateTwilioSignature(request: NextRequest, authToken: string):
 
   const sortedKeys = Object.keys(params).sort()
   const paramString = sortedKeys.map((k) => `${k}${params[k]}`).join('')
-  const expected = createHmac('sha1', authToken).update(url + paramString).digest('base64')
-
-  return expected === signature
+  const expected = Buffer.from(createHmac('sha1', authToken).update(url + paramString).digest('base64'))
+  const given = Buffer.from(signature)
+  return expected.length === given.length && timingSafeEqual(expected, given)
 }
 
 // Only unambiguous words: «cancelar» or «para» are normal things a client writes about a booking
@@ -140,11 +140,13 @@ export async function POST(request: NextRequest) {
 
   let csatScore: number | null = null
 
-  // Upsert conversation
+  const preview = (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200)
+
+  // The conversation first (the message needs it), without counters: those move only once the message is ours
   let conversation = await prisma.conversation.findUnique({
     where: { channel_contactPhone: { channel, contactPhone } },
   })
-
+  const isNew = !conversation
   if (!conversation) {
     // Two messages of a new contact at once: the second one finds the conversation the first created
     conversation = await prisma.conversation.create({
@@ -158,8 +160,8 @@ export async function POST(request: NextRequest) {
         assignedToId: autoAssignId,
         status: 'OPEN',
         lastMessageAt: new Date(),
-        lastMessageBody: (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200),
-        unreadCount: 1,
+        lastMessageBody: preview,
+        unreadCount: 0,
       },
     }).catch(async (err) => {
       const existing = await prisma.conversation.findUnique({ where: { channel_contactPhone: { channel, contactPhone } } })
@@ -170,38 +172,50 @@ export async function POST(request: NextRequest) {
   } else {
     // The answer to the satisfaction survey: recorded and thanked, the conversation stays closed
     csatScore = !button && !media.length && !optingOut ? csatReplyScore(readInboxState(conversation.customFields), body, Date.now(), conversation.status) : null
-    await prisma.conversation.update({
-      where: { id: conversation.id },
+  }
+
+  // The unique providerMessageId is the idempotency key: a Twilio retry racing this one loses here and stops
+  let inbound
+  try {
+    inbound = await prisma.conversationMessage.create({
       data: {
-        status: !csatScore && (conversation.status === 'CLOSED' || conversation.status === 'RESOLVED') ? 'OPEN' : conversation.status,
-        lastMessageAt: new Date(),
-        lastMessageBody: (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200),
-        ...(csatScore ? {} : { unreadCount: { increment: 1 } }),
+        conversationId: conversation.id,
+        direction: 'INBOUND',
+        senderType: 'CONTACT',
+        // A photo without a caption still reads as one: the AI agent only sees message text
+        body: body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : ''),
+        mediaUrl: mediaUrl || null,
+        mediaType,
+        providerMessageId: messageSid || null,
+        status: 'DELIVERED',
+        deliveredAt: new Date(),
+      },
+    })
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') {
+      logger.info('Duplicate inbound ignored', { messageSid })
+      return twiml()
+    }
+    throw err
+  }
+
+  await prisma.conversation.update({
+    where: { id: conversation.id },
+    data: {
+      status: !csatScore && (conversation.status === 'CLOSED' || conversation.status === 'RESOLVED') ? 'OPEN' : conversation.status,
+      lastMessageAt: new Date(),
+      lastMessageBody: preview,
+      ...(csatScore ? {} : { unreadCount: { increment: 1 } }),
+      ...(isNew ? {} : {
         userId: user?.id ?? conversation.userId,
         contactName: conversation.contactName || contact.name || user?.name || null,
         ...(conversation.contactId ? {} : { contactId: contact.id }),
-        // Only auto-assign if currently unassigned
-        ...(conversation.assignedToId == null && autoAssignId
-          ? { assignedToId: autoAssignId }
-          : {}),
-      },
-    })
-  }
-
-  const inbound = await prisma.conversationMessage.create({
-    data: {
-      conversationId: conversation.id,
-      direction: 'INBOUND',
-      senderType: 'CONTACT',
-      // A photo without a caption still reads as one: the AI agent only sees message text
-      body: body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : ''),
-      mediaUrl: mediaUrl || null,
-      mediaType,
-      providerMessageId: messageSid || null,
-      status: 'DELIVERED',
-      deliveredAt: new Date(),
+      }),
+      // Only auto-assign if currently unassigned
+      ...(conversation.assignedToId == null && autoAssignId ? { assignedToId: autoAssignId } : {}),
     },
   })
+
   // The agent answers the whole burst once, from its last part (a photo album arrives as several parts)
   let lastMessageId = inbound.id
   for (let i = 0; i < media.length - 1; i++) {

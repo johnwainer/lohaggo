@@ -8,6 +8,7 @@ import { replyToComment, replyToMention, sendMetaMessage, sendPrivateReply } fro
 import { baseChannelOf, isCommentChannel, privateReplyAvailability } from '@/lib/ai/comments-core'
 import { linkIdentity } from '@/lib/inbox/contacts'
 import { markReplied } from '@/lib/inbox/state'
+import { whatsappWindowError } from '@/lib/inbox/waiting'
 import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { twilioAddress } from '@/lib/messaging/contact-address'
 import { attachmentLabel, channelDeliveryUrl, channelSupportsAttachment, warmDeliveryUrl, isTrustedAttachmentUrl, kindFromMime, type AttachmentKind } from '@/lib/messaging/attachments'
@@ -191,6 +192,12 @@ export async function sendToConversation(input: SendInput): Promise<SendResult> 
 
   const isWhatsApp = conversation.channel === 'WHATSAPP'
   let providerMessageId: string | null = null
+
+  if (isWhatsApp && !input.waTemplate?.contentSid) {
+    const lastInbound = await prisma.conversationMessage.findFirst({ where: { conversationId: id, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, select: { sentAt: true } })
+    const windowError = whatsappWindowError({ channel: conversation.channel, template: false, lastInboundAt: lastInbound?.sentAt ?? null })
+    if (windowError) return { ok: false, status: 409, error: windowError }
+  }
 
   // WA Content Template send from inbox
   if (isWhatsApp && input.waTemplate?.contentSid) {
