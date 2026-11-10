@@ -19,6 +19,8 @@ import { loadEffectiveRates } from '@/lib/payments/commission'
 import type { UsageTokens } from '@/lib/ai/pricing'
 import type { AiCallKind } from '@/lib/ai/calls'
 import type { ProviderId } from '@/lib/ai/providers/types'
+import { loadImageDescriptions, loadTurnImages, saveImageDescriptions, type TurnImages } from '@/lib/ai/vision'
+import { UNSEEN_PHOTOS_NOTICE, attachImages, describedImages, extractPhotoDescriptions } from '@/lib/ai/vision-core'
 import {
   describeNow,
   effectiveWindow,
@@ -101,6 +103,9 @@ export type ReplyOptions = {
 /** Calls whose whole cost (tool rounds included) is reported under their own kind */
 const KEEP_KIND_ON_TOOL_ROUNDS = new Set<AiCallKind>(['playground', 'copilot_suggestion', 'comment_reply', 'comment_suggestion'])
 
+/** Calls that answer a real conversation's latest turn: the only ones that get to see its photos */
+const VISION_KINDS = new Set<AiCallKind>(['agent_reply', 'copilot_suggestion', 'flow_step'])
+
 const emptyUsage = (): UsageTokens => ({ inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 })
 
 async function accountTimezone(workspaceId: string) {
@@ -168,8 +173,11 @@ export const AgentRuntimeService = {
     const where = { conversationId: conversation.id, isInternal: false, ...(opts.excludeMessageId ? { id: { not: opts.excludeMessageId } } : {}) }
     const [total, recent] = await Promise.all([
       prisma.conversationMessage.count({ where }),
-      prisma.conversationMessage.findMany({ where, orderBy: { sentAt: 'desc' }, take: window, select: { direction: true, body: true, mediaType: true, mediaUrl: true } }),
+      prisma.conversationMessage.findMany({ where, orderBy: { sentAt: 'desc' }, take: window, select: { id: true, direction: true, body: true, mediaType: true, mediaUrl: true } }),
     ])
+    // Photos the agent already saw read as their description, not as a bare «📷 Imagen»
+    const photoIds = recent.filter((m) => m.direction === 'INBOUND' && m.mediaUrl && (m.mediaType ?? '').toLowerCase().startsWith('image')).map((m) => m.id)
+    const descriptions = await loadImageDescriptions(conversation.id, photoIds)
     let summary = conversation.aiSummary
     if (needsSummary(total, window, conversation.aiSummaryCount) && (await auxBudgetAvailable())) {
       summary = await this.summarize(conversation, agent, total - window).catch((err) => {
@@ -177,7 +185,7 @@ export const AgentRuntimeService = {
         return conversation.aiSummary
       })
     }
-    return { history: toTurns([...recent].reverse()), summary, total }
+    return { history: toTurns([...recent].reverse(), descriptions), summary, total }
   },
 
   async summarize(conversation: Pick<Conversation, 'id' | 'workspaceId' | 'aiSummary' | 'aiSummaryCount'>, agent: AiAgent, olderCount: number) {
@@ -241,7 +249,14 @@ export const AgentRuntimeService = {
       contact: { name: opts.contact.name, phone: opts.contact.phone, channel: opts.channel }, dryRun: opts.dryRun, mode, state,
       personText: opts.text, turnStartedAt: new Date(),
     }
-    const [knowledge, pendingRows, unread] = await Promise.all([
+    const [vision, knowledge, pendingRows, unread] = await Promise.all([
+      // The photos of this turn, as images the model sees (inbox settings: vision on, up to maxImages)
+      opts.conversationId && !opts.comment && VISION_KINDS.has(opts.kind)
+        ? loadTurnImages(opts.conversationId, opts.channel).catch((err) => {
+            logger.warn('Turn images unavailable', { conversationId: opts.conversationId, err: err instanceof Error ? err.message : err })
+            return { images: [], unseen: 0 } as TurnImages
+          })
+        : Promise.resolve({ images: [], unseen: 0 } as TurnImages),
       retrieve({ workspaceId: opts.workspaceId, agentId: agent.id, query: opts.text }),
       mode === 'autopilot' && opts.conversationId
         ? Promise.all([
@@ -297,6 +312,7 @@ export const AgentRuntimeService = {
         unread ? `Tiene ${unread} mensaje${unread === 1 ? '' : 's'} sin leer en el chat de sus reservas: cuéntaselo y léeselos con ver_mensajes_reserva si quiere.` : '',
         commission,
         closedText,
+        vision.unseen ? UNSEEN_PHOTOS_NOTICE : '',
       ].filter(Boolean).join('\n'),
       toolGuidance: toolGuidance(agent, opts.flowOutputs),
       copilot: opts.copilot,
@@ -307,12 +323,15 @@ export const AgentRuntimeService = {
     const effort: Effort = tools.length ? 'medium' : 'low'
     const messages: Anthropic.MessageParam[] = [...opts.history, { role: 'user', content: opts.text }]
     // The API requires alternating turns starting with user; merge a trailing duplicate user turn
-    const merged: Anthropic.MessageParam[] = []
+    let merged: Anthropic.MessageParam[] = []
     for (const m of messages) {
       const last = merged[merged.length - 1]
       if (last && last.role === m.role && typeof last.content === 'string' && typeof m.content === 'string') last.content = `${last.content}\n${m.content}`
       else merged.push({ ...m })
     }
+    // The photos ride in the person's message (Claude image blocks; OpenAI input_image on failover); the cost is in the call's tokens
+    if (vision.images.length) merged = attachImages(merged, vision.images)
+    const photoDescriptions = new Map<number, string>()
 
     let final: Anthropic.Message | null = null
     let emptyRetried = false
@@ -329,11 +348,12 @@ export const AgentRuntimeService = {
         for (const k of Object.keys(result.usage) as Array<keyof UsageTokens>) result.usage[k] += call.usage[k]
         final = call.message
         result.stopReason = call.message.stop_reason
+        if (vision.images.length) extractPhotoDescriptions(textOf(call.message)).descriptions.forEach((d, n) => photoDescriptions.set(n, d))
 
         if (call.message.stop_reason === 'refusal') break
         if (call.message.stop_reason !== 'tool_use') {
           // An empty answer gets one more try before it becomes a handoff (a marker alone is not empty)
-          const raw = textOf(call.message).trim()
+          const raw = extractPhotoDescriptions(textOf(call.message)).text.trim()
           if (!raw && !emptyRetried && !state.handoff && !state.close && round < MAX_TOOL_ROUNDS - 1) {
             emptyRetried = true
             if (call.message.content.length) merged.push({ role: 'assistant', content: call.message.content })
@@ -369,11 +389,17 @@ export const AgentRuntimeService = {
     result.chosenOutput = state.chosenOutput
     result.close = state.close ?? null
 
+    // What each photo showed, for the next turns' history (only real conversations)
+    if (!opts.dryRun && opts.conversationId && photoDescriptions.size) {
+      await saveImageDescriptions(opts.conversationId, describedImages(vision.images, photoDescriptions), agent)
+    }
+
     if (final?.stop_reason === 'refusal') {
       return { ...result, handoff: true, handoffReason: 'refusal', handoffDetail: final.stop_details?.category ?? null, text: agent.handoffMessage }
     }
 
-    const markers = parseMarkers(final ? textOf(final) : '')
+    // [[FOTO n: …]] lines are for us: always stripped, even when no photo was attached this turn
+    const markers = parseMarkers(final ? extractPhotoDescriptions(textOf(final)).text : '')
     if (opts.comment) {
       result.done = markers.done
       if (state.handoff) {

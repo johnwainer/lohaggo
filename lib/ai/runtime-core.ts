@@ -146,20 +146,26 @@ export function preHandoff(
 
 // ─── Memory window ───────────────────────────────────────────────────────────
 
-export type StoredMessage = { direction: 'INBOUND' | 'OUTBOUND'; body: string; isInternal?: boolean; mediaType?: string | null; mediaUrl?: string | null }
+export type StoredMessage = { id?: string; direction: 'INBOUND' | 'OUTBOUND'; body: string; isInternal?: boolean; mediaType?: string | null; mediaUrl?: string | null }
 
 const MEDIA_LABEL: Array<[string, string]> = [['image/', '📷 Imagen'], ['audio/', '🎤 Nota de voz'], ['video/', '🎥 Video']]
 
 /**
  * The model only reads text: a photo sent with a caption must still read as a photo («📷 Imagen: …»).
- * Captionless media already carry the label as their body.
+ * Captionless media already carry the label as their body. A photo the agent already saw carries the
+ * description it wrote then («📷 Imagen [se veía: …]»).
  */
-export function messageText(m: StoredMessage) {
+export function messageText(m: StoredMessage, description?: string | null) {
   const body = m.body?.trim() ?? ''
   if (!m.mediaUrl || m.direction !== 'INBOUND') return body
   const label = MEDIA_LABEL.find(([prefix]) => (m.mediaType ?? '').toLowerCase().startsWith(prefix))?.[1] ?? '📎 Archivo'
-  if (!body || ['📷', '🎤', '🎥', '📎'].some((icon) => body.startsWith(icon))) return body || label
-  return `${label}: ${body}`
+  const seen = description?.trim() && label === '📷 Imagen' ? `${label} [se veía: ${description.trim()}]` : null
+  if (!body || ['📷', '🎤', '🎥', '📎'].some((icon) => body.startsWith(icon))) {
+    if (!seen) return body || label
+    // «📷 Imagen» alone, or Meta's «📷 Imagen · 📷 Imagen» for an album: the description replaces the label
+    return body && !body.startsWith('📷') ? body : seen
+  }
+  return `${seen ?? label}: ${body}`
 }
 
 export function effectiveWindow(memoryWindow: number) {
@@ -177,10 +183,10 @@ export function needsSummary(total: number, window: number, summarizedCount: num
  * Converts stored messages into Messages API turns: inbound → user, outbound → assistant, internal
  * notes dropped, consecutive same-role turns merged, and the list always starts with a user turn.
  */
-export function toTurns(messages: StoredMessage[]): Array<{ role: 'user' | 'assistant'; content: string }> {
+export function toTurns(messages: StoredMessage[], descriptions?: Map<string, string>): Array<{ role: 'user' | 'assistant'; content: string }> {
   const out: Array<{ role: 'user' | 'assistant'; content: string }> = []
   for (const m of messages) {
-    const text = messageText(m)
+    const text = messageText(m, m.id ? descriptions?.get(m.id) : null)
     if (m.isInternal || !text) continue
     const role = m.direction === 'INBOUND' ? 'user' : 'assistant'
     const last = out[out.length - 1]
