@@ -81,6 +81,8 @@ const REF = str('Referencia de 6 caracteres tal como la devolvió la herramienta
 const CONFIRM_RULE = 'Primero llámala con confirmado: false: te devuelve el resumen exacto; díselo a la persona y pregúntale si confirma. Solo con un sí claro la vuelves a llamar con confirmado: true y los mismos datos.'
 const OPTION_REF = str('Referencia de 6 caracteres de ver_propuestas, o el número de la opción que eligió en la última comparación (1, 2, 3…)')
 const REASON = { type: 'string', enum: [...PROPOSAL_REASONS], description: 'precio_alto, fecha_no_sirve, poca_experiencia, ya_lo_resolvi, quiero_mas_opciones, otro, o sin_motivo si no quiso decir' }
+/** A link instead of the file (often the Policía certificate page): ask for the PDF or a screenshot, step by step */
+export const DOC_LINK_RULE = 'Si en vez del archivo manda un enlace (por ejemplo el del certificado de antecedentes de la Policía Nacional), no te quedes en que no puedes abrir enlaces: explícale que necesitamos el archivo y cómo enviarlo. Opción 1: abrir el enlace en su celular, tocar «Descargar» o «Imprimir → Guardar como PDF» y enviar el PDF por este chat con el clip 📎 → Documento. Opción 2: tomar una captura de pantalla donde se vean su nombre, su cédula y la fecha del certificado, y enviarla como foto. Si el enlace pide la cédula, que la escriba en la página de la Policía y luego descargue el PDF; es gratis.'
 const NEEDS_LINK = 'Requiere que la conversación esté vinculada a su cuenta. En WhatsApp, si escribe desde el número de su cuenta, se vincula sola al llamar la herramienta: llámala directamente y nunca le pidas un código. Solo si la herramienta responde que no está vinculada, usa vincular_cuenta (una vez).'
 
 export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
@@ -238,7 +240,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   estado_de_mi_cuenta_socio: {
     label: 'Estado de la cuenta del socio y sus avisos',
     description: 'Estado de la cuenta del socio vinculado: verificado o no y qué documento falta, disponible sí/no, servicios activos por ciudad, zonas de cobertura, cuántas solicitudes de sus servicios llegaron en su ciudad en los últimos 7 días, cuántos avisos recibió (app y WhatsApp), por qué podría no estar recibiéndolos y la comisión vigente.',
-    guidance: `Solo para socios. Úsala cuando el socio pregunte por qué no le llegan solicitudes o avisos, cuántas solicitudes hay, si ya está verificado, qué le falta, en qué zonas aparece o cuánta comisión cobra LoHaggo. Responde solo con lo que devuelve; explícale en pocas palabras lo que puede hacer (subir el documento, ponerse disponible, activar servicios). ${NEEDS_LINK}`,
+    guidance: `Solo para socios. Úsala cuando el socio pregunte por qué no le llegan solicitudes o avisos, cuántas solicitudes hay, si ya está verificado, qué le falta, en qué zonas aparece o cuánta comisión cobra LoHaggo. Responde solo con lo que devuelve; explícale en pocas palabras lo que puede hacer (subir el documento, ponerse disponible, activar servicios). Si no tiene servicios activos, primero propónle los servicios con demanda que devuelve (con sus cifras reales, sin prometer volumen) y actívalos con gestionar_servicio; luego los documentos. ${NEEDS_LINK}`,
     writes: false, group: 'partner', platform: true,
     schema: () => ({ type: 'object', properties: {}, required: [], additionalProperties: false }),
   },
@@ -286,7 +288,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   subir_documento: {
     label: 'Subir documento de verificación (socio)',
     description: 'Toma la última foto o PDF que la persona envió en este chat y la sube como documento de verificación del socio (cédula, antecedentes, diploma…).',
-    guidance: `Úsala cuando el socio envíe la foto de su documento. Pregunta qué documento es si no está claro. Solo se sube el último adjunto recibido; si mandó varios, uno por llamada, pidiendo que los envíe de uno en uno. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    guidance: `Úsala cuando el socio envíe la foto de su documento. Pregunta qué documento es si no está claro. Solo se sube el último adjunto recibido; si mandó varios, uno por llamada, pidiendo que los envíe de uno en uno. ${DOC_LINK_RULE} ${CONFIRM_RULE} ${NEEDS_LINK}`,
     writes: true, group: 'partner_profile', platform: true, confirm: true,
     schema: () => ({
       type: 'object',
@@ -778,7 +780,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     if (!actor.partnerId) return { error: NOT_PARTNER }
     if (!ctx.conversationId) return { error: 'En pruebas no hay adjuntos que subir.' }
     const att = await lastInboundAttachment(ctx.conversationId)
-    if (!att?.mediaUrl) return { error: 'La persona no ha enviado ninguna foto o archivo en este chat. Pídele que envíe la foto del documento.' }
+    if (!att?.mediaUrl) return { error: `La persona no ha enviado ninguna foto o archivo en este chat. Pídele que envíe la foto del documento. ${DOC_LINK_RULE}` }
     // A «gracias» after the upload must not upload the same file again
     const already = await prisma.aiAgentAction.findFirst({ where: { conversationId: ctx.conversationId, tool: 'subir_documento', status: { in: ['executed', 'confirmed', 'awaiting_approval'] }, createdAt: { gt: att.sentAt } }, select: { id: true } })
     if (already) return { error: 'Ese archivo ya quedó subido y en revisión: no lo subas otra vez. Si quiere subir otro documento, que envíe la foto nueva.' }
@@ -1178,10 +1180,22 @@ async function partnerAccountStatus(actor: Actor) {
   if (!user?.phone) reasons.push('no tiene celular en su cuenta, así que no le llegan avisos por WhatsApp')
   if (active.length && !totalRequests) reasons.push('en los últimos 7 días no llegaron solicitudes de sus servicios en su ciudad')
 
+  // No services yet: what is actually asked for in their city, with the real numbers, before the documents
+  let suggestions: string | null = null
+  if (!active.length) {
+    const { serviceSuggestionsFor } = await import('@/lib/partners/reactivation')
+    const rows = await serviceSuggestionsFor(partner.city, 30, 3).catch(() => [])
+    const city = CITY_LABEL[partner.city] ?? partner.city
+    suggestions = rows.length
+      ? `Servicios con demanda en ${city} (últimos 30 días, cifras reales): ${rows.map((r) => `${r.name}: ${r.requests} solicitud${r.requests === 1 ? '' : 'es'}${r.unmet ? ` (${r.unmet} sin ninguna propuesta)` : ''}, ${r.verifiedPartners} socio${r.verifiedPartners === 1 ? '' : 's'} verificado${r.verifiedPartners === 1 ? '' : 's'}`).join(' · ')}. Antes de pedirle documentos, pregúntale cuáles de estos sabe hacer (u otros del catálogo) y actívalos con gestionar_servicio; da estas cifras tal cual, sin prometer más trabajo del que hay.`
+      : `En ${city} no hubo solicitudes en los últimos 30 días: pregúntale qué servicios sabe hacer y actívalos con gestionar_servicio, sin prometer volumen de trabajo.`
+  }
+
   return [
     summary,
     `Servicios activos por ciudad: ${byCity.size ? Array.from(byCity.entries()).map(([c, list]) => `${c}: ${list.join(', ')}`).join(' · ') : 'ninguno'}.`,
     `Zonas de cobertura: ${zones.length ? zones.join(', ') : 'toda la ciudad'}.`,
+    ...(suggestions ? [suggestions] : []),
     `Últimos 7 días: ${totalRequests} solicitud${totalRequests === 1 ? '' : 'es'} de sus servicios en su ciudad; recibió ${appNotices} aviso${appNotices === 1 ? '' : 's'} de solicitudes nuevas en la app y ${waNotices} por WhatsApp.`,
     reasons.length ? `Por qué podría no recibir avisos: ${reasons.join('; ')}.` : 'No hay nada que le impida recibir avisos.',
     rates.enabled
