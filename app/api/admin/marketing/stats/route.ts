@@ -14,5 +14,5 @@ export async function GET(request: NextRequest) {
   const from = sp.get('from') ? new Date(`${sp.get('from')}T00:00:00.000Z`) : new Date(to.getTime() - 30 * 24 * 3600_000)
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) return NextResponse.json({ error: 'Rango de fechas inválido' }, { status: 400 })
   const workspaceIds = workspaceId ? [workspaceId] : mkWorkspacesWith(auth.access, 'marketing.view')
-  return NextResponse.json(await workspaceStats({ workspaceIds, from, to, campaignId: sp.get('campaignId'), channel: sp.get('channel') }))
+  return NextResponse.json(await workspaceStats({ workspaceIds, from, to, campaignId: sp.get('campaignId'), channel: sp.get('channel'), withSources: true }))
 }

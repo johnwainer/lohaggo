@@ -63,3 +63,25 @@ export async function postResults(postIds: string[], since: Date): Promise<Map<s
     : []
   return creditPosts(new Set(postIds), withTouch, bookings.map((b) => ({ status: b.status, requestId: b.proposal?.serviceRequestId ?? null })))
 }
+
+/** Pure: chats per post from the conversations' first and last web ref (`post-<id>`), each chat counted once. */
+export function chatsByPost(postIds: Set<string>, conversations: Array<{ customFields: unknown }>): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const c of conversations) {
+    const f = (c.customFields && typeof c.customFields === 'object' ? c.customFields : {}) as { webRef?: unknown; lastWebRef?: unknown }
+    const ids = new Set([f.webRef, f.lastWebRef].filter((r): r is string => typeof r === 'string' && r.startsWith('post-')).map((r) => r.slice(5)))
+    for (const id of Array.from(ids)) if (postIds.has(id)) out.set(id, (out.get(id) ?? 0) + 1)
+  }
+  return out
+}
+
+/** Chats (WhatsApp, Messenger, Instagram) opened from a post's link or prefilled message `(ref: post-<id>)` since `since`. */
+export async function postChats(postIds: string[], since: Date): Promise<Map<string, number>> {
+  if (!postIds.length) return new Map()
+  const conversations = await prisma.conversation.findMany({
+    where: { createdAt: { gte: since }, OR: [{ customFields: { path: ['webRef'], string_starts_with: 'post-' } }, { customFields: { path: ['lastWebRef'], string_starts_with: 'post-' } }] },
+    select: { customFields: true },
+    take: 5000,
+  }).catch(() => [])
+  return chatsByPost(new Set(postIds), conversations)
+}

@@ -66,10 +66,8 @@ function CampaignForm({ initial, workspaceId, onClose, onSaved }: { initial?: Ca
           {field('Inicio', <input type="date" className={input} value={f.startsAt} onChange={(e) => setF({ ...f, startsAt: e.target.value })} />)}
           {field('Fin', <input type="date" className={input} value={f.endsAt} onChange={(e) => setF({ ...f, endsAt: e.target.value })} />)}
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {field('Presupuesto (COP, opcional)', <input type="number" min={0} className={input} value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value })} />)}
-          {field('Estado', <select className={input} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>{Object.entries(CAMPAIGN_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>)}
-        </div>
+        {field('Estado', <select className={input} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>{Object.entries(CAMPAIGN_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>)}
+        <p className="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">La campaña no lleva presupuesto propio: lo que gasta la IA se limita en su agente (Presupuesto mensual) y lo invertido en anuncios se registra en Pauta, que calcula el costo por solicitud.</p>
         <div className="space-y-1">
           <span className="text-sm font-medium text-gray-700">Color en el calendario</span>
           <div className="flex gap-2">{COLORS.map((c) => <button key={c} type="button" onClick={() => setF({ ...f, color: c })} className={`h-7 w-7 rounded-full ${f.color === c ? 'ring-2 ring-offset-2 ring-gray-800' : ''}`} style={{ background: c }} aria-label={c} />)}</div>
@@ -97,7 +95,7 @@ function CampaignDetail({ campaign, onClose }: { campaign: Campaign; onClose: ()
           <div className="min-w-0">
             <p className="text-xs text-gray-500">{OBJECTIVES[campaign.objective] || campaign.objective} · {CAMPAIGN_STATUS[campaign.status]}</p>
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 break-words"><span className="h-3 w-3 shrink-0 rounded-full" style={{ background: campaign.color }} />{campaign.name}</h2>
-            <p className="text-sm text-gray-500">{fmtDate(campaign.startsAt)} – {fmtDate(campaign.endsAt)}{campaign.budget != null ? ` · Presupuesto $${num(campaign.budget)}` : ''}</p>
+            <p className="text-sm text-gray-500">{fmtDate(campaign.startsAt)} – {fmtDate(campaign.endsAt)}</p>
           </div>
           <button onClick={onClose} className="-m-2 p-2" aria-label="Cerrar"><X size={20} className="text-gray-400" /></button>
         </div>
@@ -113,7 +111,6 @@ function CampaignDetail({ campaign, onClose }: { campaign: Campaign; onClose: ()
                 <div key={String(label)} className="rounded-2xl bg-gray-50 p-3"><p className="text-[11px] text-gray-500">{label}</p><p className="text-lg font-semibold text-gray-900">{typeof value === 'number' ? num(value) : value}</p></div>
               ))}
             </div>
-            {campaign.budget != null && t!.reach > 0 && <p className="text-xs text-gray-500">Costo por cada 1.000 personas alcanzadas: ${num(Math.round((campaign.budget / t!.reach) * 1000))}</p>}
             <div className="space-y-2">
               <h3 className="font-semibold text-gray-900">Publicaciones</h3>
               {stats.posts.length === 0 ? <p className="text-sm text-gray-500">Aún no se ha publicado nada de esta campaña.</p> : stats.posts.map((p) => (

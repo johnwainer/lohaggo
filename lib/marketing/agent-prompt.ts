@@ -362,11 +362,12 @@ export function draftTask(p: { idea: { pillar: string; service: string | null; a
   ].filter(Boolean).join('\n\n')
 }
 
-export function learnTask(p: { from: string; to: string; table: string }) {
+export function learnTask(p: { from: string; to: string; table: string; outcomeWeight?: number }) {
   return [
     `Haz la retrospectiva de ${p.from} a ${p.to} con la herramienta entregar_retrospectiva.`,
     'De 5 a 10 hallazgos accionables, cada uno con el dato que lo sostiene; no concluyas nada de grupos con menos de 3 publicaciones (dilo como hipótesis).',
     'Recomendaciones estructuradas: pillar_weight (pillar, weight en %), frequency (channel, perWeek), format (channel, format, direction), slot (channel, note), avoid (topic), test (idea). No propongas cambios de autonomía, presupuesto ni temas prohibidos.',
-    `Resultados por dimensión (lift: 1 = media de la cuenta en ese canal):\n${p.table}`,
+    'Lo que importa es lo que trae clientes: al menos un hallazgo debe nombrar los formatos y los temas (servicios) que abrieron conversaciones o trajeron solicitudes, con sus cifras; si ninguno trajo, dilo y propón cómo probarlo. Los «me gusta» sin conversaciones pesan poco.',
+    `Resultados por dimensión (lift: 1 = media de la cuenta en ese canal${p.outcomeWeight ? `; ${Math.round(p.outcomeWeight * 100)} % del lift sale de conversaciones, solicitudes y reservas` : ''}):\n${p.table}`,
   ].join('\n\n')
 }
