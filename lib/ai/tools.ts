@@ -7,7 +7,7 @@ import { CATALOG_TOPICS, CRM_MODULES, catalogLookup, crmLookup } from '@/lib/ai/
 import { ACCESS_LINK_TTL_HOURS, MAX_PARTNER_SERVICES, createAccountFromContact, emailAccessLink, emailProviderReady, resolvePartnerChoices, validateAccountInput, type AccountRole } from '@/lib/accounts/from-contact'
 import { maskEmail } from '@/lib/ai/platform-data'
 import { TOOL_GROUPS, dailyLimitFor, type ToolGroup } from '@/lib/ai/actions-core'
-import { PLATFORM_TOOLS, runPlatformTool, type PlatformToolName } from '@/lib/ai/platform-tools'
+import { PLATFORM_TOOLS, PLAYGROUND_USER, runPlatformTool, type PlatformToolName } from '@/lib/ai/platform-tools'
 import { CLOSE_REASONS, CLOSE_REASON_LABEL, isCloseReason, type CloseReason } from '@/lib/ai/conversation-core'
 import { CONFIRM_WINDOW_MS } from '@/lib/ai/actions-core'
 import { linkByWhatsappNumber } from '@/lib/accounts/link'
@@ -403,10 +403,15 @@ async function createAccountFromChat(role: AccountRole, input: Record<string, un
   const convId = ctx.conversationId
   const conv = convId ? await prisma.conversation.findUnique({ where: { id: convId }, select: { contactId: true, channel: true, contactPhone: true } }) : null
   // A client writing from WhatsApp needs no email: the number is the account (as signing in by phone)
-  const waPhone = role === 'CLIENT' && (conv?.channel ?? ctx.contact.channel) === 'WHATSAPP' ? toE164(conv?.contactPhone ?? ctx.contact.phone ?? null) : null
+  // The simulator has no number: it pretends one, so it behaves as a real WhatsApp chat
+  const waPhone = role === 'CLIENT' && (conv?.channel ?? ctx.contact.channel) === 'WHATSAPP' ? toE164(conv?.contactPhone ?? ctx.contact.phone ?? (ctx.dryRun ? '+573000000000' : null)) : null
   const phoneOnly = !s('correo') && Boolean(waPhone)
   const check = validateAccountInput({ name: s('nombre'), email: phoneOnly ? placeholderEmail(waPhone!) : s('correo'), role, serviceIds })
   if (!check.ok) return `No se creó la cuenta: ${check.error}. Pídele el dato correcto.`
+  if (ctx.dryRun) {
+    // The rest of the simulated flow (crear_solicitud…) acts on the pretend client, as after a real creation
+    if (role === 'CLIENT' && ctx.mode === 'playground') ctx.userId = PLAYGROUND_USER
+  }
   if (ctx.dryRun) return `Cuenta de ${label} creada para ${check.name} — simulado en pruebas. En producción el enlace de acceso llega ${phoneOnly ? 'a este WhatsApp' : `al correo ${maskEmail(check.email)}`}.`
 
   if (!convId) return ACCOUNT_TOOL_FAILURE
