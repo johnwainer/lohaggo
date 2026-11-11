@@ -187,7 +187,7 @@ export const WA_TEMPLATE_USAGE: Record<string, string> = {
   lh_socio_reserva_cancelada: 'El cliente cancela la reserva',
   lh_socio_recordatorio_manana: 'Recordatorio 22-25 h antes del servicio',
   lh_socio_servicio_pronto: 'Recordatorio 30-90 min antes del servicio',
-  lh_socio_marcar_terminado: 'Servicio en curso hace 3 h',
+  lh_socio_marcar_terminado: 'Servicio en curso: inicio + duración del servicio (2–3 h)',
   lh_socio_pago_reportado_v2: 'El cliente reporta que pagó',
   lh_socio_pago_por_confirmar_v2: 'Pago reportado sin confirmar (cada 24 h, hasta 5)',
   lh_socio_servicio_completado_v2: 'El socio marca completado',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { bookingWhen } from '@/lib/bookings/when'
-import { FOLLOWUP_SINCE } from '@/lib/bookings/followups'
+import { FOLLOWUP_SINCE, marksFor } from '@/lib/bookings/followups'
+import { reminderPlan } from '@/lib/bookings/followups-core'
 import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
 import { createNotification } from '@/lib/notifications/notificationService'
@@ -24,39 +25,49 @@ async function alreadyReminded(userId: string, type: 'BOOKING_REMINDER_24H' | 'B
 async function remindBookings(now: Date, kind: 'day' | 'soon') {
   const bookings = await prisma.booking.findMany({
     where: { status: 'CONFIRMED', scheduledDate: candidateScheduledRange(now) },
-    include: { partner: { include: { user: true } } },
+    select: { id: true, userId: true, scheduledDate: true, scheduledTime: true, address: true, city: true, service: { select: { name: true } }, user: { select: { name: true } }, partner: { select: { userId: true } } },
     take: 500,
   })
   const type = kind === 'day' ? 'BOOKING_REMINDER_24H' as const : 'BOOKING_STARTING_SOON' as const
   const since = new Date(now.getTime() - 26 * 3600_000)
+  const due = bookings.filter((b) => inReminderWindow(b, now, REMINDER_WINDOWS[kind]))
+  const marks = await marksFor(due.map((b) => b.id))
 
   let sent = 0
-  for (const b of bookings) {
-    if (!inReminderWindow(b, now, REMINDER_WINDOWS[kind])) continue
-    if (await alreadyReminded(b.userId, type, b.id, since)) continue
+  for (const b of due) {
+    // One reminder per moment per person: the window spans several runs, so each side is checked on its own
+    const when = bookingWhen(b).getTime()
+    const plan = reminderPlan(kind, { now: now.getTime(), when, followupLive: when >= FOLLOWUP_SINCE.getTime(), marks: marks.get(b.id) ?? new Map() })
+    const client = plan.client && !(await alreadyReminded(b.userId, type, b.id, since)) ? plan.client : null
+    const partnerUserId = plan.partner && b.partner?.userId && !(await alreadyReminded(b.partner.userId, type, b.id, since)) ? b.partner.userId : null
+    if (!client && !partnerUserId) continue
     const time = formatBookingWhen(b).split(' ').pop()
-    // The day before, the client gets the appointment re-confirmation instead (lib/bookings/followups.ts)
-    const skipClient = kind === 'day' && bookingWhen(b).getTime() >= FOLLOWUP_SINCE.getTime()
-    // B11 + C17 / B12 + C18 by template first; the notifications' free-text WhatsApp is then skipped
-    await waBookingReminder(b.id, kind, { skipClient })
+    const service = b.service?.name ?? 'servicio'
+    // B11/B12 + C17/C18 by template first (deduped per booking and hour); the notifications' free-text WhatsApp is then skipped.
+    // At night the client gets it only in the app and push.
+    await waBookingReminder(b.id, kind, { skipClient: client !== 'all', skipPartner: !partnerUserId })
 
-    if (!skipClient) {
+    if (client) {
       await createNotification({
         userId: b.userId,
         type,
         title: kind === 'day' ? 'Recordatorio: tu servicio es mañana' : 'Tu servicio empieza pronto',
-        message: kind === 'day' ? `Mañana a las ${time} tienes el servicio agendado.` : `Tu servicio empieza a las ${time}.`,
-        data: { bookingId: b.id },
+        message: kind === 'day' ? `Mañana a las ${time} tienes ${service} agendado.` : `Tu servicio de ${service} empieza a las ${time}.`,
+        data: { bookingId: b.id, url: '/dashboard?tab=bookings' },
+        ...(client === 'app' ? { channels: ['PUSH' as const] } : {}),
       })
     }
 
-    if (b.partner?.user?.id) {
+    if (partnerUserId) {
+      // After the booking the partner sees the exact address
       await createNotification({
-        userId: b.partner.user.id,
+        userId: partnerUserId,
         type,
         title: kind === 'day' ? 'Recordatorio: servicio agendado mañana' : 'Tu servicio empieza pronto',
-        message: kind === 'day' ? `Mañana a las ${time} tienes el servicio agendado.` : `El servicio empieza a las ${time}.`,
-        data: { bookingId: b.id },
+        message: kind === 'day'
+          ? `Mañana a las ${time} tienes ${service} con ${b.user?.name ?? 'el cliente'} en ${b.address}, ${b.city}. Antes de salir toca «Voy a salir» en la app.`
+          : `${service} con ${b.user?.name ?? 'el cliente'} empieza a las ${time} en ${b.address}, ${b.city}. Al llegar, márcalo como iniciado.`,
+        data: { bookingId: b.id, url: '/partner?tab=bookings' },
       })
     }
     sent++

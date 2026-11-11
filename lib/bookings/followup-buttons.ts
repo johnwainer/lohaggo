@@ -1,5 +1,5 @@
 /**
- * Quick replies of the booking follow-up templates (B30–B34, C36, C39) are applied by the server, not by the
+ * Quick replies of the booking follow-up templates (B30–B34, C19, C36, C39) are applied by the server, not by the
  * AI agent: they work even when no agent covers the conversation. The person acting is the platform user
  * linked to the conversation; ownership is checked by applyFollowup.
  */
@@ -39,6 +39,8 @@ export const FOLLOWUP_BUTTONS: Record<string, { action: FollowupAction; method?:
   here_yes: { action: 'here_yes' },
   here_later: { action: 'here_later' },
   depart_now: { action: 'partner_departing' },
+  // C19 «Sí, terminé» (its «Aún no» stays with the agent)
+  booking_complete: { action: 'partner_done' },
 }
 
 /** The templates whose buttons are applied here: the same id on another template («Cancelar»…) goes to the agent */
@@ -47,6 +49,7 @@ export const FOLLOWUP_TEMPLATES = new Set([
   'lh_cliente_servicio_termino', 'lh_socio_llegada_pendiente', 'lh_socio_te_pagaron',
   'lh_cliente_cambio_fecha_propuesto', 'lh_cliente_socio_no_te_encontro', 'lh_cliente_precio_final',
   'lh_cliente_reconfirmar_cita', 'lh_cliente_reconfirmar_urgente', 'lh_cliente_socio_sale', 'lh_socio_cliente_confirmo',
+  'lh_socio_marcar_terminado',
 ])
 
 /** Templates a typed «sí» also answers on WhatsApp (an SMS «sí» answers them always). */
@@ -132,7 +135,7 @@ export async function handleFollowupButton(p: { conversationId: string; userId: 
 
   const { action, method } = FOLLOWUP_BUTTONS[btn.id]
   // A button only answers the side it was sent to (a partner's «Voy a salir», a client's «Confirmo»)
-  if (action === 'partner_departing' && actor.role !== 'PARTNER') return false
+  if ((action === 'partner_departing' || action === 'partner_done') && actor.role !== 'PARTNER') return false
   let reply: string
   try {
     // The template's send time: a button answers the proposal of that message, never a newer one

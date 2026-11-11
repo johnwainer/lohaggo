@@ -1,6 +1,7 @@
 /**
  * WhatsApp templates sent by time rather than by an action, run from the existing crons:
- * - request-lifecycle (every 15 min): C14, D6, C19, D7, D4, and the daily D10 (7:00) and D8 (9:00).
+ * - request-lifecycle (every 15 min): C14, D6, D7, D4, and the daily D10 (7:00) and D8 (9:00). C19 («¿terminaste?»)
+ *   is the booking follow-up's (lib/bookings/followups.ts), timed by the service's duration.
  * - notification-reminders (every 30 min): B15.
  * - automations (hourly): C3, C8, C9, B23, C30, C29, B24.
  * Every send is deduplicated in lib/messaging/wa-send.ts, so a window spanning several runs sends once.
@@ -72,19 +73,6 @@ export async function runWaLifecycle(now = new Date()): Promise<Tally> {
       if (age < 2 * H || age > 3 * DAY) continue
       if (b.partner?.userId) count(t, 'C14', await sendWaToUser(b.partner.userId, WA.C14(dataOf(b)), now))
       if (age >= 6 * H) count(t, 'D6', await sendWaToAdmins((a) => WA.D6({ ...dataOf(b), adminName: a.name }), {}, now))
-    }
-  })
-
-  await step(t, 'C19', async () => {
-    const running = await prisma.booking.findMany({
-      where: { status: 'IN_PROGRESS', updatedAt: { gte: new Date(now.getTime() - 3 * DAY) } },
-      select: bookingSelect, take: 200,
-    })
-    const since = await statusClock(running.map((b) => b.id), ['IN_PROGRESS'], false)
-    for (const b of running) {
-      const age = now.getTime() - (since.get(b.id) ?? b.updatedAt.getTime())
-      if (age < 3 * H || age > 2 * DAY) continue
-      if (b.partner?.userId) count(t, 'C19', await sendWaToUser(b.partner.userId, WA.C19(dataOf(b)), now))
     }
   })
 

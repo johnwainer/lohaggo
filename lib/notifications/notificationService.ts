@@ -852,6 +852,11 @@ export async function notifyBookingStatusChange(bookingId: string, status: strin
 
     if (!booking) return
 
+    if (status === 'COMPLETED') {
+      await notifyBookingCompleted(booking)
+      return
+    }
+
     const clientMessages: Record<string, { title: string; message: string; type: NotificationType }> = {
       CONFIRMED: {
         title: "Reserva confirmada",
@@ -929,5 +934,46 @@ export async function notifyBookingStatusChange(bookingId: string, status: strin
     }
   } catch (error) {
     logger.error("Error notifying booking status change", { bookingId, status, error })
+  }
+}
+
+/**
+ * Once per booking, when it is completed (by the partner, the client's «ya terminó» or the platform): the
+ * client hears the amount, how to pay (the methods on in PlatformConfig, the partner's account masked) and to
+ * rate; the partner to confirm the payment when it is reported and to rate the client. The «followup» mark
+ * keeps it to one and shows it in the admin's history. At night the client gets it only in the app and push.
+ */
+async function notifyBookingCompleted(booking: { id: string; userId: string; serviceId: string; totalPrice: number; service: { name: string }; user: { name: string }; partner: { id: string; userId: string; user: { name: string } } | null }) {
+  const { FOLLOWUP_MARK, completionNotices, isNight } = await import('@/lib/bookings/followups-core')
+  const done = await prisma.bookingEvent.findFirst({ where: { bookingId: booking.id, type: 'followup', detail: FOLLOWUP_MARK.completionNotices }, select: { id: true } })
+  if (done) return
+  const { APP_ORIGIN, originColumns } = await import('@/lib/ops/origin')
+  await prisma.bookingEvent.create({ data: { bookingId: booking.id, type: 'followup', actorType: 'system', ...originColumns(APP_ORIGIN), detail: FOLLOWUP_MARK.completionNotices } })
+  const [config, bank] = await Promise.all([
+    prisma.platformConfig.findFirst({ select: { cashEnabled: true, transferEnabled: true, mercadoPagoEnabled: true } }),
+    booking.partner
+      ? prisma.partnerBankAccount.findFirst({ where: { partnerId: booking.partner.id, isActive: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }], select: { bankName: true, accountType: true, accountNumber: true } })
+      : null,
+  ])
+  const { maskAccountNumber } = await import('@/lib/admin/pagination')
+  const notices = completionNotices({
+    ref: booking.id.slice(-6),
+    service: booking.service.name,
+    price: booking.totalPrice,
+    clientName: booking.user.name,
+    partnerName: booking.partner?.user.name ?? null,
+    methods: { cash: config?.cashEnabled ?? true, transfer: config?.transferEnabled ?? true, mercadoPago: Boolean(config?.mercadoPagoEnabled) },
+    bank: bank ? { bankName: bank.bankName, accountType: bank.accountType, masked: maskAccountNumber(bank.accountNumber) ?? '' } : null,
+  })
+  await createNotification({
+    userId: booking.userId, type: 'BOOKING_COMPLETED', ...notices.client,
+    data: { bookingId: booking.id, serviceId: booking.serviceId, kind: 'COMPLETED_PAY_AND_RATE', url: '/dashboard?tab=bookings' },
+    ...(isNight(Date.now()) ? { channels: ['PUSH' as const] } : {}),
+  })
+  if (booking.partner) {
+    await createNotification({
+      userId: booking.partner.userId, type: 'BOOKING_COMPLETED', ...notices.partner,
+      data: { bookingId: booking.id, serviceId: booking.serviceId, kind: 'COMPLETED_CONFIRM_PAYMENT', url: '/partner?tab=bookings' },
+    })
   }
 }
