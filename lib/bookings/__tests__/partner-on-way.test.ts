@@ -34,3 +34,9 @@ describe('el socio escribe que va en camino (texto libre)', () => {
     expect(etaMinutesIn('llego pronto')).toBeNull()
   })
 })
+
+describe('no es «voy en camino» (sin avisos falsos al cliente)', () => {
+  it.each(['¿A qué hora llego?', 'llego mañana a cotizar', 'ya salí del otro servicio', 'Buenas, en camino de aprender', 'gracias, ya llegó el material'])('«%s»', (t) => {
+    expect(partnerOnWaySignal(t)).toBeNull()
+  })
+})

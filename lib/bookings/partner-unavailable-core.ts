@@ -45,9 +45,12 @@ export function partnerUnavailableSignal(text: string | null | undefined): Unava
 
 const ON_WAY = [
   /\b(?:ya )?(?:voy|vamos|estoy|ando|sigo|iba) (?:en camino|camino (?:a|para|hacia)|de camino|para (?:alla|alli)|saliendo|llegando)\b/,
-  /\b(?:ya )?(?:sali|salimos|voy saliendo)\b(?! de (?:viaje|la ciudad))/,
-  /\b(?:ya )?(?:casi )?(?:llego|llegamos|llegare)\b/,
-  /\ben camino\b/,
+  // «ya salí para allá», «voy saliendo» (not «ya salí del otro servicio»)
+  /\b(?:ya )?(?:sali|salimos) (?:para|hacia) (?:alla|alli|alla mismo|su casa|la casa|donde)\b|\bvoy saliendo\b/,
+  // «ya casi llego», «llego en 20» (not «¿a qué hora llego?» nor «llego mañana»)
+  /\b(?:ya casi|casi) (?:llego|llegamos)\b|\b(?:llego|llegamos|llegare) (?:en|como en|dentro de) (?:\d{1,3}|un|una|media|cinco|diez|quince|veinte|treinta)\b/,
+  // «en 10 llego», «estoy allá en hora y media»
+  /\ben \d{1,3} (?:llego|estoy)\b|\bestoy (?:alla|ahi) (?:en|como en|dentro de)\b/,
 ]
 const NEGATED_ON_WAY = /\bno (?:voy|vamos|estoy|llego|llegare|sali)\b/
 const WORD_NUMBER: Record<string, number> = { una: 1, un: 1, dos: 2 }

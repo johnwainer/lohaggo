@@ -719,8 +719,9 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       if (b.status !== 'CONFIRMED') return { message: 'Esta reserva ya no está activa.' }
       if (paid(b)) throw new OpsError('Tu reserva tiene un pago registrado: escríbenos y el equipo la cancela con el reembolso.')
       if (!m.has('noShowReported') && !lateOptionsOpen(m, now.getTime())) throw new OpsError('Aún no hay retraso del socio. Si quieres cancelar, hazlo desde tus reservas con el motivo.')
-      await reportNoShow(b, m, actor, origin, now)
+      // Cancelled first: a failed cancel never leaves a claim open on a live booking
       if (!(await systemCancel(b, 'no_show'))) throw new OpsError('La reserva cambió de estado; recarga', 409)
+      await reportNoShow(b, m, actor, origin, now).catch((err) => logger.warn('No-show claim after free cancel failed', { bookingId: b.id, err: err instanceof Error ? err.message : err }))
       if (!m.has('rebookDeclined')) await mark(b, 'rebookDeclined', actor, origin)
       return { message: `Cancelamos tu reserva de ${service} sin costo y reportamos el retraso al equipo. Si aún necesitas el servicio, crea una solicitud nueva cuando quieras.` }
     }

@@ -135,10 +135,13 @@ export async function handlePartnerOnWayText(p: { conversationId: string; userId
   })
   const t = p.lastTemplate
   const fromTemplate = t?.entityType === 'Booking' && t.entityId && t.at && now.getTime() - Date.parse(t.at) < 6 * H ? t.entityId : null
-  const around = rows.filter((b) => {
+  const inWindow = rows.filter((b) => {
     const w = bookingWhen(b).getTime()
-    return now.getTime() >= w - H && now.getTime() <= w + 3 * H && (!fromTemplate || b.id === fromTemplate)
+    return now.getTime() >= w - H && now.getTime() <= w + 3 * H
   })
+  // Several bookings around the hour: never guess which client to tell (the agent asks the partner)
+  if (inWindow.length !== 1) return false
+  const around = fromTemplate && inWindow[0].id !== fromTemplate ? [] : inWindow
   if (around.length !== 1) return false
   const conversation = await prisma.conversation.findUnique({ where: { id: p.conversationId } })
   if (!conversation) return false

@@ -249,8 +249,16 @@ export function partnerLateState(m: Marks, now: number): 'on_way' | 'overdue' | 
 /** The same «voy en camino» again (same time, a moment later): the client is not told twice. */
 export function onWayRepeat(m: Marks, etaMinutes: number | null, now: number) {
   const prev = m.get('partnerOnWay')
-  if (!prev || now - prev.getTime() >= T.onWayRepeatMs) return false
-  return (m.minutes?.get('partnerOnWay') ?? null) === etaMinutes
+  if (!prev) return false
+  const before = m.minutes?.get('partnerOnWay') ?? null
+  if (now - prev.getTime() < T.onWayRepeatMs && before === etaMinutes) return true
+  // A new arrival time closer than 10 min to the one the client already has is not worth another notice
+  if (before !== null && etaMinutes !== null) {
+    const prevArrival = prev.getTime() + before * MIN
+    const newArrival = now + etaMinutes * MIN
+    return Math.abs(newArrival - prevArrival) < 10 * MIN
+  }
+  return false
 }
 
 /** The client was given the options (wait, another partner, cancel without cost) and the partner is still not on the way. */
