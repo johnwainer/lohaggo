@@ -15,6 +15,9 @@ import { isRepeatedGibberish, isUndeliverableError } from '@/lib/ai/conversation
 import { isUndeliverableMarked, markUndeliverable, mergeCustomField, removeCustomField } from '@/lib/ai/closing'
 import { AUDIO_NOTICE_TEXT, audioNoticeSent, markAudioNoticeSent, transcribeTurnAudio } from '@/lib/ai/transcribe'
 import {
+  FOLLOWUP_EVENT, SECOND_FOLLOWUP_EVENT, SECOND_FOLLOWUP_GAP_MS, funnelProgress, isHalfWay, isStopText, reengageInstruction, secondFollowupDecision, type PendingProposals,
+} from '@/lib/ai/funnel-core'
+import {
   HUMAN_GRACE_MS,
   accountAllowed,
   accountKeysOf,
@@ -326,66 +329,128 @@ export async function drainAgentTasks() {
 
 // ─── Re-engagement ──────────────────────────────────────────────────────────
 
+/** Open requests of the client with proposals nobody answered yet: real counts and lowest prices. */
+async function pendingProposalsOf(userId: string | null, now: Date): Promise<PendingProposals[]> {
+  if (!userId) return []
+  const rows = await prisma.serviceRequest.findMany({
+    where: { userId, status: 'ACTIVE', expiresAt: { gt: now }, proposals: { some: { status: 'PENDING' } } },
+    select: { id: true, service: { select: { name: true } }, proposals: { where: { status: 'PENDING' }, select: { price: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 3,
+  })
+  return rows.map((r) => ({ requestRef: r.id.slice(-6), service: r.service.name, count: r.proposals.length, minPrice: Math.min(...r.proposals.map((p) => Number(p.price))) }))
+}
+
+async function isOptedOut(conv: Conversation) {
+  const row = await prisma.messagingOptOut.findFirst({
+    where: { channel: conv.channel, isActive: true, OR: [{ destination: conv.contactPhone }, ...(conv.userId ? [{ userId: conv.userId }] : [])] },
+    select: { id: true },
+  })
+  return Boolean(row)
+}
+
+/** The agent writes the follow-up from the conversation and the internal notice; null when it has nothing to say. */
+async function writeFollowup(conv: Conversation, agent: AiAgent, tz: string, instruction: string) {
+  const settings = await getAiSettings()
+  const memory = await AgentRuntimeService.memory(conv, agent)
+  const knowledge = await retrieve({ workspaceId: conv.workspaceId, agentId: agent.id, query: memory.history.map((h) => h.content).join('\n').slice(-1500) })
+  const system = buildSystem(agent, {
+    knowledge, nowText: describeNow(new Date(), tz), timezone: tz, channel: conv.channel,
+    contact: { name: conv.contactName, tags: conv.tags, fields: (conv.customFields as Record<string, unknown>) || {}, linkedUser: Boolean(conv.userId) },
+    summary: memory.summary, toolGuidance: '',
+  })
+  const call = await callClaude(
+    {
+      model: settings.allowAgentModelOverride && agent.model ? agent.model : settings.defaultModel,
+      system,
+      maxTokens: agent.maxTokens,
+      effort: 'low',
+      messages: [
+        ...(memory.history.length ? memory.history : toTurns([{ direction: 'INBOUND', body: '(sin mensajes)' }])),
+        { role: 'user', content: instruction },
+      ],
+    },
+    { kind: 'reengagement', workspaceId: conv.workspaceId, agentId: agent.id, conversationId: conv.id },
+  )
+  const markers = parseMarkers(textOf(call.message))
+  if (call.message.stop_reason === 'refusal' || !markers.text || markers.handoff) return null
+  return applySignature(formatForChannel(markers.text, conv.channel), agent.signatureMode, agent.signatureText, false)
+}
+
 /**
- * One follow-up, once, when the client stopped answering for N hours: never outside hours, never to
- * a conversation with a person in charge, never outside the channel's 24h window.
+ * Follow-ups when the client stopped answering, aimed at the next step (lib/ai/funnel-core.ts
+ * reengageInstruction): the proposals waiting for them with their real count and lowest price, what a
+ * half-built request lacks, or else where it stopped. One per silence (reengagedAt, shared with the funnel
+ * nudge); a second one only with proposals waiting, late in the 24 h window. Never at night (team hours of
+ * the inbox settings and the agent's hours), never after a STOP, never to a conversation a person has.
  */
 export async function runReengagement(limit = 30) {
   const agents = await prisma.aiAgent.findMany({ where: { status: 'active', reengageAfterHours: { gt: 0 } } })
   if (!agents.length) return { sent: 0 }
   const settings = await getAiSettings()
   if (!hasTextProvider(settings)) return { sent: 0 }
+  const now = new Date()
+  const { getInboxSettings } = await import('@/lib/inbox/settings')
+  const { teamHours } = await import('@/lib/inbox/escalation-core')
+  const teamOpen = teamHours(now, (await getInboxSettings()).escalation).open
+  if (!teamOpen) return { sent: 0 }
+  const { cop } = await import('@/lib/ai/actions-core')
   let sent = 0
+  let second = 0
 
   for (const agent of agents) {
-    const cutoff = new Date(Date.now() - agent.reengageAfterHours * 3600_000)
-    const convs = await prisma.conversation.findMany({
-      where: {
-        aiHandled: true, aiAgentId: agent.id, assignedToId: null, reengagedAt: null, isTest: false, aiSpam: false,
-        channel: { notIn: ['FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT'] },
-        automationsPaused: false, status: { in: ['OPEN', 'IN_PROGRESS'] }, lastMessageAt: { lt: cutoff, gt: new Date(Date.now() - DAY_MS) },
-      },
+    const base = {
+      aiHandled: true, aiAgentId: agent.id, assignedToId: null, isTest: false, aiSpam: false,
+      channel: { notIn: ['FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT'] as Conversation['channel'][] },
+      automationsPaused: false, status: { in: ['OPEN', 'IN_PROGRESS'] as Conversation['status'][] },
+    }
+    const cutoff = new Date(now.getTime() - agent.reengageAfterHours * 3600_000)
+    const firsts = await prisma.conversation.findMany({ where: { ...base, reengagedAt: null, lastMessageAt: { lt: cutoff, gt: new Date(now.getTime() - DAY_MS) } }, take: limit })
+    const seconds = await prisma.conversation.findMany({
+      where: { ...base, reengagedAt: { not: null, lt: new Date(now.getTime() - SECOND_FOLLOWUP_GAP_MS) }, userId: { not: null }, lastMessageAt: { gt: new Date(now.getTime() - DAY_MS) } },
       take: limit,
     })
-    for (const conv of convs) {
-      if (!(await auxBudgetAvailable())) return { sent, stopped: 'aux_budget' }
+
+    for (const [conv, isSecond] of [...firsts.map((c) => [c, false] as const), ...seconds.map((c) => [c, true] as const)]) {
+      if (!(await auxBudgetAvailable())) return { sent, second, stopped: 'aux_budget' }
       const last = await prisma.conversationMessage.findFirst({ where: { conversationId: conv.id, isInternal: false }, orderBy: { sentAt: 'desc' } })
-      const lastInbound = await prisma.conversationMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, select: { sentAt: true } })
+      const lastInbound = await prisma.conversationMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, select: { sentAt: true, body: true } })
       if (!last || last.direction !== 'OUTBOUND' || last.senderType !== 'AI') continue
-      if (!lastInbound || Date.now() - lastInbound.sentAt.getTime() > DAY_MS - 30 * 60_000) continue
+      if (!lastInbound || now.getTime() - lastInbound.sentAt.getTime() > DAY_MS - 30 * 60_000) continue
+      if (isStopText(lastInbound.body) || (await isOptedOut(conv))) continue
       const ws = await prisma.workspace.findUnique({ where: { id: conv.workspaceId }, select: { timezone: true } })
       const tz = ws?.timezone || 'America/Bogota'
-      if (!isWithinHours(agent, new Date(), tz)) continue
-      if (!(await stillOurs(conv.id, agent.id))) continue
+      if (!isWithinHours(agent, now, tz)) continue
+      const pending = await pendingProposalsOf(conv.userId, now)
 
-      const memory = await AgentRuntimeService.memory(conv, agent)
-      const knowledge = await retrieve({ workspaceId: conv.workspaceId, agentId: agent.id, query: memory.history.map((h) => h.content).join('\n').slice(-1500) })
-      const system = buildSystem(agent, {
-        knowledge, nowText: describeNow(new Date(), tz), timezone: tz, channel: conv.channel,
-        contact: { name: conv.contactName, tags: conv.tags, fields: (conv.customFields as Record<string, unknown>) || {}, linkedUser: Boolean(conv.userId) },
-        summary: memory.summary, toolGuidance: '',
-      })
+      if (isSecond) {
+        const already = await prisma.conversationEvent.findFirst({ where: { conversationId: conv.id, type: SECOND_FOLLOWUP_EVENT, createdAt: { gte: lastInbound.sentAt } }, select: { id: true } })
+        const decision = secondFollowupDecision({
+          now, channel: conv.channel, teamOpen, optedOut: false, lastInbound, lastMessage: last, reengagedAt: conv.reengagedAt,
+          alreadySecond: Boolean(already), pendingCount: pending.reduce((n, p) => n + p.count, 0),
+        })
+        if (!decision.send) continue
+      }
+      const fresh = await stillOurs(conv.id, agent.id)
+      if (!fresh) continue
+      const hours = Math.max(1, Math.round((now.getTime() - lastInbound.sentAt.getTime()) / 3600_000))
+      const progress = isSecond ? null : funnelProgress(conv.customFields as Record<string, unknown> | null, null)
+
       try {
-        const call = await callClaude(
-          {
-            model: settings.allowAgentModelOverride && agent.model ? agent.model : settings.defaultModel,
-            system,
-            maxTokens: agent.maxTokens,
-            effort: 'low',
-            messages: [
-              ...(memory.history.length ? memory.history : toTurns([{ direction: 'INBOUND', body: '(sin mensajes)' }])),
-              { role: 'user', content: `[Aviso interno de la plataforma, no lo escribió el cliente] El cliente no responde desde hace ${agent.reengageAfterHours} horas. Escribe un único mensaje breve y amable de seguimiento para retomar la conversación donde quedó, sin presionar.` },
-            ],
-          },
-          { kind: 'reengagement', workspaceId: conv.workspaceId, agentId: agent.id, conversationId: conv.id },
-        )
-        const markers = parseMarkers(textOf(call.message))
-        if (call.message.stop_reason === 'refusal' || !markers.text) continue
-        const text = applySignature(formatForChannel(markers.text, conv.channel), agent.signatureMode, agent.signatureText, false)
-        const res = await sendAsAgent(conv, agent, text)
-        await prisma.conversation.update({ where: { id: conv.id }, data: { reengagedAt: new Date() } })
+        if (!isSecond) {
+          // Claimed before writing: two overlapping runs (or the funnel nudge) never both follow up
+          const claim = await prisma.conversation.updateMany({ where: { id: conv.id, reengagedAt: null }, data: { reengagedAt: now } })
+          if (claim.count !== 1) continue
+        }
+        const text = await writeFollowup(fresh, agent, tz, reengageInstruction({ hours, pending, progress, second: isSecond, money: cop }))
+        await prisma.conversationEvent.create({
+          data: { conversationId: conv.id, type: isSecond ? SECOND_FOLLOWUP_EVENT : FOLLOWUP_EVENT, actorType: 'ai', actorId: agent.id, actorName: agent.name, detail: pending.length ? `propuestas: ${pending.map((p) => p.count).join('+')}` : progress && isHalfWay(progress) ? 'solicitud a medias' : 'retomar' },
+        })
+        if (!text) continue
+        const res = await sendAsAgent(fresh, agent, text)
         if (res.ok) {
-          sent++
+          if (isSecond) second++
+          else sent++
           emitInboxEvent({ type: 'new-message', conversationId: conv.id, workspaceId: conv.workspaceId })
         }
       } catch (err) {
@@ -393,5 +458,5 @@ export async function runReengagement(limit = 30) {
       }
     }
   }
-  return { sent }
+  return { sent, second }
 }

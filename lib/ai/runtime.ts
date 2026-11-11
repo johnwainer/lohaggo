@@ -24,6 +24,7 @@ import { UNSEEN_PHOTOS_NOTICE, attachImages, describedImages, extractPhotoDescri
 import {
   describeNow,
   effectiveWindow,
+  historyTake,
   needsSummary,
   pickAgent,
   preHandoff as preHandoffCore,
@@ -171,10 +172,9 @@ export const AgentRuntimeService = {
   async memory(conversation: Pick<Conversation, 'id' | 'workspaceId' | 'aiSummary' | 'aiSummaryCount'>, agent: AiAgent, opts: { excludeMessageId?: string } = {}) {
     const window = effectiveWindow(agent.memoryWindow)
     const where = { conversationId: conversation.id, isInternal: false, ...(opts.excludeMessageId ? { id: { not: opts.excludeMessageId } } : {}) }
-    const [total, recent] = await Promise.all([
-      prisma.conversationMessage.count({ where }),
-      prisma.conversationMessage.findMany({ where, orderBy: { sentAt: 'desc' }, take: window, select: { id: true, direction: true, body: true, mediaType: true, mediaUrl: true } }),
-    ])
+    const total = await prisma.conversationMessage.count({ where })
+    // The window plus what fell out of it and the summary does not cover yet: no turn is left unseen
+    const recent = await prisma.conversationMessage.findMany({ where, orderBy: { sentAt: 'desc' }, take: historyTake(total, window, conversation.aiSummaryCount), select: { id: true, direction: true, body: true, mediaType: true, mediaUrl: true } })
     // Photos the agent already saw read as their description, not as a bare «📷 Imagen»
     const photoIds = recent.filter((m) => m.direction === 'INBOUND' && m.mediaUrl && (m.mediaType ?? '').toLowerCase().startsWith('image')).map((m) => m.id)
     const descriptions = await loadImageDescriptions(conversation.id, photoIds)
@@ -201,11 +201,11 @@ export const AgentRuntimeService = {
     const { message } = await callClaude(
       {
         model: settings.fallbackModel,
-        maxTokens: 400,
+        maxTokens: 600,
         effort: 'low',
         messages: [{
           role: 'user',
-          content: `${conversation.aiSummary ? `Resumen previo:\n${conversation.aiSummary}\n\n` : ''}Mensajes nuevos:\n${transcript}\n\nEscribe un resumen de 4 a 6 frases en texto corrido, sin Markdown, con los nombres, cifras, fechas y acuerdos, y lo que quedó pendiente.`,
+          content: `${conversation.aiSummary ? `Resumen previo:\n${conversation.aiSummary}\n\n` : ''}Mensajes nuevos:\n${transcript}\n\nEscribe un resumen de 4 a 8 frases en texto corrido, sin Markdown, con los nombres, cifras, fechas y acuerdos; los datos que la persona ya dio (servicio, qué hay que hacer, barrio o dirección, fecha y hora, presupuesto) y las preguntas que ya respondió, para no volver a hacérselas; las referencias de solicitudes, propuestas y reservas; y lo que quedó pendiente.`,
         }],
       },
       { kind: 'summary', workspaceId: conversation.workspaceId, agentId: agent.id, conversationId: conversation.id, allowFallback: false },

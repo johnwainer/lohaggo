@@ -155,7 +155,7 @@ export function waProposalNotChosen(proposalId: string) {
  * C22 (partner); cancelled by the client → C16 (partner) and reserva_cancelada (client, not from the chat);
  * cancelled by the partner → B9 if it was pending, B19 if it was confirmed (the request was reopened).
  */
-export function waBookingStatus(p: { bookingId: string; from: string; to: string; actorRole: 'CLIENT' | 'PARTNER' | 'ADMIN'; origin?: OriginLike; reopened?: boolean; reason?: string | null }) {
+export function waBookingStatus(p: { bookingId: string; from: string; to: string; actorRole: 'CLIENT' | 'PARTNER' | 'ADMIN'; origin?: OriginLike; reopened?: boolean; reason?: string | null; clientInformed?: boolean }) {
   return safe(`booking:${p.to}`, async () => {
     const b = await loadBooking(p.bookingId)
     if (!b) return null
@@ -177,12 +177,15 @@ export function waBookingStatus(p: { bookingId: string; from: string; to: string
       }
       if (p.actorRole === 'PARTNER') {
         if (!p.reopened) return sendWaToUser(clientId, WA.reservaCancelada(b.data))
+        // Already told in their open chat, with the proposals still there (lib/proposals/chat-digest.ts)
+        if (p.clientInformed) return true
         return sendWaToUser(clientId, p.from === 'CONFIRMED' ? WA.B19(b.data) : WA.B9(b.data))
       }
       if (p.actorRole === 'ADMIN') {
         // The team cancelled: both sides hear it (reopened → the client is told other partners can propose)
         const reason = p.reason ?? ''
         if (partnerUserId) await sendWaToUser(partnerUserId, WA.C32({ ...b.data, reason }))
+        if (p.reopened && p.clientInformed) return true
         await sendWaToUser(clientId, p.reopened ? (p.from === 'CONFIRMED' ? WA.B19(b.data) : WA.B9(b.data)) : WA.B28({ ...b.data, reason }))
         return true
       }

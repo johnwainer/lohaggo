@@ -30,6 +30,7 @@ const m = vi.hoisted(() => ({
   notifyNewRequest: vi.fn(async (..._a: any[]) => 3),
   waBookingStatus: vi.fn(async (_a: any) => null),
   waBookingRescheduled: vi.fn(async (_a: any) => null),
+  partnerCancelledInChat: vi.fn(async (_a: any) => false),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -54,6 +55,7 @@ vi.mock('@/lib/notifications/notificationService', () => ({ notifyBookingStatusC
 vi.mock('@/lib/messaging/wa-events', () => ({ waBookingStatus: m.waBookingStatus, waBookingRescheduled: m.waBookingRescheduled, waRefundStatus: vi.fn(async () => null) }))
 vi.mock('@/lib/messaging/automation-service', () => ({ scheduleAutomationsForUser: m.automations }))
 vi.mock('@/lib/pwa/adoption-strategy', () => ({ recordPromptContext: m.promptContext }))
+vi.mock('@/lib/proposals/chat-digest', () => ({ partnerCancelledInChat: m.partnerCancelledInChat }))
 
 import {
   BOOKING_STATUS_LABEL, bookingSummaryForChat, bookingWhen, bookingsFor, canTransition, rescheduleBooking, systemTransition, transitionBooking,
@@ -318,6 +320,15 @@ describe('el socio suelta la reserva: la solicitud se reabre', () => {
     expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: 'REQUEST_REOPEN', entityId: 'sr1' })
     expect(m.notifyNewRequest).toHaveBeenCalledWith('sr1', { partnersOnly: true, round: 21 })
     expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ from: 'CONFIRMED', to: 'CANCELLED', actorRole: 'PARTNER', reopened: true }))
+  })
+
+  it('solicitud pedida por chat: el cliente recibe en su chat las otras propuestas y no la plantilla', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking({ status: 'CONFIRMED', proposalId: 'pr1' }))
+    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'ACCEPTED', partnerId: null } })
+    m.partnerCancelledInChat.mockResolvedValueOnce(true)
+    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Estoy fuera de la ciudad' })
+    expect(m.partnerCancelledInChat).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'sr1' }))
+    expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ reopened: true, clientInformed: true }))
   })
 
   it('sin marca de la aceptación no recupera propuestas; si la solicitud ya no está aceptada no hace nada', async () => {

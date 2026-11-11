@@ -730,9 +730,13 @@ export async function notifyNewProposal(proposalId: string) {
 
     // Approved WhatsApp template B3 (works outside the 24 h window); while Meta has not approved it the
     // regular free-text WhatsApp channel stays in place.
+    // A request asked from a chat that is still open: one consolidated, ranked message there instead of a
+    // template per proposal (lib/proposals/chat-digest.ts)
+    const { proposalArrivedInChat } = await import('@/lib/proposals/chat-digest')
+    const inChat = await proposalArrivedInChat(proposal.serviceRequestId)
     const { waNewProposal } = await import('@/lib/messaging/wa-events')
-    const wa = await waNewProposal(proposal.id)
-    const whatsappByTemplate = Boolean(wa?.ok)
+    const wa = inChat ? null : await waNewProposal(proposal.id)
+    const whatsappByTemplate = inChat || Boolean(wa?.ok)
 
     await createNotification({
       userId: proposal.serviceRequest.userId,

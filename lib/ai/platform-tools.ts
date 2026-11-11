@@ -39,6 +39,7 @@ import { eligibility, SLA_PROPOSAL_HOURS, SLA_RESOLUTION_HOURS, TYPE_LABEL, type
 import { loadEffectiveRates } from '@/lib/payments/commission'
 import { zoneName } from '@/lib/geo/zones'
 import { rankProposals } from '@/lib/proposals/ranking'
+import type { UnavailableKind } from '@/lib/bookings/partner-unavailable-core'
 import { recordSearch } from '@/lib/analytics/search-log'
 import { PROPOSAL_REASONS, PROPOSAL_REASON_LABEL, isProposalReason } from '@/lib/proposals/feedback'
 import { MAX_CHAT_OPTIONS, PROPOSAL_OPTIONS_KEY, choosePrompt, compareLine, optionFromText, readProposalOptions, type ProposalOption } from '@/lib/proposals/chat-compare'
@@ -110,7 +111,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   crear_solicitud: {
     label: 'Crear solicitud de servicio',
     description: 'Crea una solicitud de servicio a nombre de la persona, igual que desde la app: los socios verificados de su ciudad la reciben y envían propuestas.',
-    guidance: `Úsala solo después de tener: servicio del catálogo, dirección completa, cuándo lo necesita y una descripción de lo que necesita. Para el cuándo hay tres opciones: fecha (y hora si la dice); urgente (lo necesita ya, hoy); o sin fecha fija, si dice que no tiene fecha («cuando puedan», «lo que demore», «lo antes posible», «no tengo afán»): entonces deja fecha y hora vacías y urgente: false, y no le insistas con la fecha. Pregúntale el cuándo una sola vez. Pregunta una cosa a la vez. ${CONFIRM_RULE} ${NEEDS_LINK} Si la persona mandó fotos de lo que necesita en este chat (mensajes «📷 Imagen»), pon incluir_fotos: true y dile que van con la solicitud; nunca digas que hay fotos si no las mandó.`,
+    guidance: `Úsala solo después de tener: servicio del catálogo, dirección completa, cuándo lo necesita y una descripción de lo que necesita. Para el cuándo hay tres opciones: fecha (y hora si la dice); urgente (lo necesita ya, hoy); o sin fecha fija, si dice que no tiene fecha («cuando puedan», «lo que demore», «lo antes posible», «no tengo afán»): entonces deja fecha y hora vacías y urgente: false, y no le insistas con la fecha. Pregúntale el cuándo una sola vez. Los datos que falten (qué hay que hacer, barrio o dirección, cuándo) pídelos juntos en un solo mensaje corto, no uno por uno. ${CONFIRM_RULE} ${NEEDS_LINK} Si la persona mandó fotos de lo que necesita en este chat (mensajes «📷 Imagen»), pon incluir_fotos: true y dile que van con la solicitud; nunca digas que hay fotos si no las mandó.`,
     writes: true, group: 'client', platform: true, confirm: true,
     schema: () => ({
       type: 'object',
@@ -354,7 +355,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   enviar_mensaje_reserva: {
     label: 'Enviar mensaje al chat de la reserva',
     description: 'Escribe en el chat de una propuesta o reserva a nombre de la persona (cliente → socio o socio → cliente), con fotos de este chat si quiere. Queda guardado en la reserva y le llega a la otra parte por WhatsApp o por la app.',
-    guidance: `Úsala cuando la persona quiera decirle algo al socio (si es cliente) o al cliente (si es socio) sobre una solicitud o reserva, o responda a un mensaje que le reenviamos («💬 … te escribió sobre … · ref …»: usa esa ref). Escribe el mensaje con sus palabras, sin inventar ni agregar nada. No se pueden enviar teléfonos, correos, redes ni pedir contacto por fuera: si lo intenta, explícale que por seguridad todo va por LoHaggo. Si quiere mandar fotos, que las envíe aquí primero y pon incluir_fotos: true. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    guidance: `Úsala cuando la persona quiera decirle algo al socio (si es cliente) o al cliente (si es socio) sobre una solicitud o reserva, o responda a un mensaje que le reenviamos («💬 … te escribió sobre … · ref …»: usa esa ref). Escribe el mensaje con sus palabras, sin inventar ni agregar nada. No se pueden enviar teléfonos, correos, redes ni pedir contacto por fuera: si lo intenta, explícale que por seguridad todo va por LoHaggo. Si quiere mandar fotos, que las envíe aquí primero y pon incluir_fotos: true. Si es el socio y dice que no podrá ir, que está en otra ciudad o que llegará tarde a una reserva, pon aviso (no_puede_ir, otra_ciudad o llega_tarde): el cliente recibe sus opciones y el equipo una alerta. ${CONFIRM_RULE} ${NEEDS_LINK}`,
     writes: true, group: 'booking_chat', platform: true, confirm: true,
     schema: () => ({
       type: 'object',
@@ -362,9 +363,10 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
         ref: str('Referencia de la reserva, la propuesta o la solicitud'),
         mensaje: str('El mensaje con las palabras de la persona (puede ir vacío si solo manda fotos)'),
         incluir_fotos: { type: 'boolean', description: 'true para enviar también las fotos nuevas que mandó en este chat' },
+        aviso: { type: 'string', enum: ['ninguno', 'no_puede_ir', 'otra_ciudad', 'llega_tarde'], description: 'Solo si es el socio: no_puede_ir, otra_ciudad o llega_tarde cuando el mensaje dice eso de una reserva; si no, ninguno' },
         confirmado,
       },
-      required: ['ref', 'mensaje', 'incluir_fotos', 'confirmado'],
+      required: ['ref', 'mensaje', 'incluir_fotos', 'aviso', 'confirmado'],
       additionalProperties: false,
     }),
   },
@@ -437,6 +439,8 @@ function originFor(ctx: ToolContext): Origin {
 const NOT_LINKED = 'Esta conversación no está vinculada a una cuenta de LoHaggo. Pregúntale si ya tiene cuenta: si sí, usa vincular_cuenta; si no, crear_cuenta_cliente o crear_cuenta_socio.'
 /** Chats whose WhatsApp number has no account: they write from it, so saying so reveals nothing. */
 const noAccountOnNumber = new WeakSet<ToolContext>()
+/** enviar_mensaje_reserva · aviso → what the partner's message means for the booking */
+const RELAY_NOTICE: Record<string, UnavailableKind> = { no_puede_ir: 'cannot', otra_ciudad: 'other_city', llega_tarde: 'late' }
 export const NO_ACCOUNT_ON_WHATSAPP = 'No hay ninguna cuenta de LoHaggo con el número de WhatsApp desde el que escribe (puedes decírselo: escribe desde ese número). No le pidas ningún código: si es su primera vez, crea su cuenta con crear_cuenta_cliente usando solo su nombre (en WhatsApp el correo es opcional) y sigue enseguida con lo que pidió. Solo si dice que ya tiene cuenta con OTRO número o un correo, usa vincular_cuenta con ese dato.'
 const notLinked = (ctx: ToolContext) => (noAccountOnNumber.has(ctx) ? NO_ACCOUNT_ON_WHATSAPP : NOT_LINKED)
 const NOT_PARTNER = 'La persona vinculada no es socio (no tiene perfil de socio). Esta herramienta es solo para socios.'
@@ -930,12 +934,14 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
       wouldRecord: 'el mensaje en el chat de la reserva (ChatMessage, origen chat) y el aviso a la otra parte',
       run: async () => {
         const stored = photos.length ? await storeChatPhotos(photos.map((ph) => ph.mediaUrl), 'lohaggo/chat') : { urls: [], failed: 0 }
-        const first = await sendChatMessage(actor, chat.id, { content: text, imageUrl: stored.urls[0] ?? null }, originFor(ctx))
+        const notice = isClient ? null : RELAY_NOTICE[s(input, 'aviso')] ?? null
+        const first = await sendChatMessage(actor, chat.id, { content: text, imageUrl: stored.urls[0] ?? null }, originFor(ctx), { unavailable: notice })
         if (first.blocked) throw new OpsError(`El mensaje se bloqueó por traer ${first.reason} (fragmento: «${first.fragment}»). No lo reenvíes igual: quita ese fragmento o díselo a la persona una vez.`)
         for (const url of stored.urls.slice(1)) await sendChatMessage(actor, chat.id, { content: '', imageUrl: url }, originFor(ctx))
         const how = first.delivery === 'whatsapp' ? 'le llegó por WhatsApp' : first.delivery === 'template' ? 'le avisamos por WhatsApp y en la app' : 'le llegó a la app'
         const failed = stored.failed ? ` ${photosText(stored.failed)} no se pudieron enviar (formato no válido o muy pesadas).` : ''
-        return { text: `Mensaje enviado a ${other} y guardado en el chat de la reserva (${how}).${failed} Cuando responda, se lo haremos llegar.`, entityType: 'Chat', entityId: chat.id }
+        const alerted = !first.blocked && first.unavailable ? ' Como avisa que no puede cumplir la reserva, le dimos al cliente sus opciones y el equipo de LoHaggo ya tiene la alerta para ayudarle.' : ''
+        return { text: `Mensaje enviado a ${other} y guardado en el chat de la reserva (${how}).${failed}${alerted} Cuando responda, se lo haremos llegar.`, entityType: 'Chat', entityId: chat.id }
       },
     }
   },

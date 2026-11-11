@@ -233,8 +233,17 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
     await recordOperationalStrike({ id: booking.id, partnerId: booking.partnerId, partnerUserId: updated.partner?.user?.id ?? null, service: updated.service?.name ?? 'el servicio' }, 'late_cancel')
   }
   // WhatsApp template first: the notifications' free-text WhatsApp is then skipped for that person
+  // Reopened after the partner dropped it: the client's open chat gets the proposals still there (numbered) instead of the template
+  const clientInformed = reopened && booking.proposalId
+    ? await (async () => {
+      const req = await prisma.proposal.findUnique({ where: { id: booking.proposalId! }, select: { serviceRequestId: true } })
+      if (!req) return false
+      const { partnerCancelledInChat } = await import('@/lib/proposals/chat-digest')
+      return partnerCancelledInChat({ requestId: req.serviceRequestId, bookingConversationId: updated.originConversationId, partnerName: updated.partner?.user?.name ?? null })
+    })().catch(() => false)
+    : false
   const { waBookingStatus } = await import('@/lib/messaging/wa-events')
-  await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened, reason: opts.reason ?? null })
+  await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened, reason: opts.reason ?? null, clientInformed })
   await afterStatusChange(actor, booking, to)
   if (to === 'COMPLETED') schedulePurchaseConversion(bookingId)
 

@@ -15,24 +15,57 @@ export const CSAT_ANSWER_MS = WINDOW_MS
 
 const KEYCAPS: Record<string, number> = { '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5 }
 
-/** «5», « 4. », «3!» or the keycap emoji → the score; anything else (text, 0, 6, «45») → null. */
+const SCORE_WORDS: Record<string, number> = { uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5 }
+/** Words that may go with the score («5 estrellas», «excelente 5», «le doy un 5», «5/5 gracias») */
+const SCORE_FILLER = new Set([
+  'estrella', 'estrellas', 'punto', 'puntos', 'de', 'sobre', 'un', 'una', 'le', 'les', 'te', 'doy', 'damos', 'pongo', 'mi', 'nota', 'calificacion', 'es', 'el', 'la',
+  'excelente', 'excelentes', 'muy', 'bien', 'buena', 'bueno', 'buenisimo', 'super', 'perfecto', 'genial', 'regular', 'mal', 'malo', 'mala', 'pesimo', 'todo', 'gracias', 'ok', 'si',
+  'servicio', 'atencion', 'y', 'por', 'favor', 'muchas',
+])
+
+/**
+ * «5», « 4. », «3!», the keycap emoji, «5 estrellas», «⭐⭐⭐⭐⭐», «excelente 5», «le doy un 5», «5/5» → the
+ * score; anything else (other words, 0, 6, «45», two different numbers, «5 minutos») → null.
+ */
 export function parseCsatScore(body: string | null | undefined): number | null {
   const text = (body ?? '').trim()
+  if (!text) return null
   if (text in KEYCAPS) return KEYCAPS[text]
-  const m = /^([1-5])\s*[.!]?$/.exec(text)
-  return m ? Number(m[1]) : null
+  const compact = text.replace(/[\s️]+/g, '')
+  const stars = compact.match(/⭐|🌟/g)
+  if (stars && stars.length <= 5 && !compact.replace(/⭐|🌟/g, '')) return stars.length
+  const folded = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/⭐|🌟/g, ' ')
+    .replace(/\b([1-5])\s*(?:\/|de|sobre)\s*5\b/g, '$1')
+    .replace(/[^a-z0-9ñ\s]/g, ' ')
+  const words = folded.split(/\s+/).filter(Boolean)
+  if (!words.length || words.length > 8) return null
+  let score: number | null = null
+  for (const w of words) {
+    const n = /^\d+$/.test(w) ? Number(w) : SCORE_WORDS[w] ?? null
+    if (n !== null) {
+      if (n < 1 || n > 5 || (score !== null && score !== n)) return null
+      score = n
+    } else if (!SCORE_FILLER.has(w)) return null
+  }
+  return score
 }
 
 /**
- * The score when this message answers a pending survey (asked < 24 h ago, not answered yet, and the
- * conversation still closed: once it reopened, a lone digit is an ordinary answer for the team or the agent).
+ * The score when this message answers a pending survey (asked < 24 h ago, not answered yet). Right after
+ * the question (the contact wrote nothing since) it counts even if the conversation was reopened meanwhile
+ * (a last agent message after the close, a status change); once the contact wrote something else after the
+ * question and the conversation reopened, a lone digit is an ordinary answer for the team or the agent.
  */
-export function csatReplyScore(state: Pick<InboxState, 'csatAskedAt' | 'csat'>, body: string | null | undefined, now: number = Date.now(), status?: string | null): number | null {
+export function csatReplyScore(state: Pick<InboxState, 'csatAskedAt' | 'csat'> & { lastInboundAt?: string | null }, body: string | null | undefined, now: number = Date.now(), status?: string | null): number | null {
   if (!state.csatAskedAt) return null
-  if (status && status !== 'RESOLVED' && status !== 'CLOSED') return null
   const asked = new Date(state.csatAskedAt).getTime()
   if (Number.isNaN(asked) || now - asked > CSAT_ANSWER_MS || now < asked) return null
   if (state.csat && state.csat.at >= state.csatAskedAt) return null
+  if (status && status !== 'RESOLVED' && status !== 'CLOSED') {
+    const lastIn = state.lastInboundAt ? new Date(state.lastInboundAt).getTime() : NaN
+    if (Number.isNaN(lastIn) || lastIn >= asked) return null
+  }
   return parseCsatScore(body)
 }
 

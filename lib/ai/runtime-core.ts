@@ -172,6 +172,16 @@ export function effectiveWindow(memoryWindow: number) {
   return Math.max(MIN_MEMORY_WINDOW, memoryWindow || 20)
 }
 
+/**
+ * How many recent messages the agent reads: the window, plus the ones that already fell out of it but the
+ * stored summary does not cover yet (it is refreshed only every half window), so no turn is ever invisible.
+ * Capped at a window and a half (the summary covers the rest).
+ */
+export function historyTake(total: number, window: number, summarizedCount: number) {
+  const unsummarized = Math.max(0, total - Math.max(0, summarizedCount))
+  return Math.min(Math.max(window, unsummarized), window + Math.max(2, Math.floor(window / 2)))
+}
+
 /** Summarise when there is no summary yet or half a window of new messages fell out of the window. */
 export function needsSummary(total: number, window: number, summarizedCount: number) {
   const older = total - window

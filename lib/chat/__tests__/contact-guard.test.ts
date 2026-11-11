@@ -74,6 +74,46 @@ describe('detectContactInfo: datos de contacto reales que SÍ se bloquean', () =
   })
 })
 
+describe('falsos positivos reales: mensajes de logística que pasan', () => {
+  const ok = [
+    'Tímbrame cuando llegues a la portería',
+    'Me llamas cuando estés abajo para bajar a abrir',
+    'Llámame apenas llegues a la entrada del conjunto',
+    'Hola por privado no, mejor aquí',
+    'La propuesta de 180.000 me parece bien, ¿puede el sábado 15 de 8 a 12?',
+    'Ofrezco 180 000 por el trabajo, entre 180 000 - 200 000',
+    'Dirección: Calle 30 # 45 - 67, apto 1203, Belén',
+    'Dir: Cl. 34 #43-90 int. 1302 Unidad Toscana',
+    'te espero el 16 de 9 a 11 en la cra 80 # 34 - 120',
+    'Valor: 250.000. Fecha: 16/11. Hora: 10:00',
+    'son dos, tres o cuatro lámparas, 120.000 c/u',
+    'tengo 2 puertas de 80 x 200 y 1 de 90 x 210',
+  ]
+  for (const t of ok) it(`pasa: ${t}`, () => expect(detectContactInfo(t)).toEqual({ isValid: true }))
+})
+
+describe('números escritos en palabras y WhatsApp por fuera', () => {
+  const cases: Array<[string, string]> = [
+    ['mi número es tres cero cero uno dos tres cuatro cinco seis siete', 'números de teléfono'],
+    ['marca al 300 uno dos tres cuatro cinco seis siete', 'números de teléfono'],
+    ['tres cero cinco, cuatro cuatro dos, uno uno dos dos', 'números de teléfono'],
+    ['escríbeme al WhatsApp y cuadramos', 'solicitudes de contacto externo'],
+    ['mándame un wasap', 'solicitudes de contacto externo'],
+    ['te escribo por whatsapp más tarde', 'solicitudes de contacto externo'],
+    ['llámame cuando puedas', 'solicitudes de contacto externo'],
+  ]
+  for (const [t, reason] of cases) {
+    it(`bloquea: ${t}`, () => {
+      const r = detectContactInfo(t)
+      expect(r.isValid).toBe(false)
+      if (!r.isValid) {
+        expect(r.reason).toBe(reason)
+        expect(t.toLowerCase()).toContain(r.fragment.toLowerCase())
+      }
+    })
+  }
+})
+
 describe('celular escrito con puntos', () => {
   it('un móvil con puntos de miles sigue siendo un teléfono, un precio no', async () => {
     const { detectContactInfo } = await import('@/lib/chat/contact-guard')

@@ -11,6 +11,7 @@ import { emitProposalBroadcast } from '@/lib/supabase-admin'
 import { computeChatState } from '@/lib/chat-status'
 import { detectHelpQuery, formatHelpSystemMessage } from '@/lib/chat/help-responses'
 import { detectContactInfo } from '@/lib/chat/contact-guard'
+import { partnerUnavailableSignal, type UnavailableKind } from '@/lib/bookings/partner-unavailable-core'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 
@@ -94,14 +95,14 @@ export function withoutLinks(text: string) {
 }
 
 export type SendChatResult =
-  | { blocked: false; message: { id: string }; helpReply: { id: string } | null; delivery: DeliveryResult }
+  | { blocked: false; message: { id: string }; helpReply: { id: string } | null; delivery: DeliveryResult; unavailable?: UnavailableKind | null }
   | { blocked: true; reason: string; fragment: string; systemMessage: { id: string } }
 
 /**
  * Sends a message (text and/or photo) as the actor. Participants only, open chats only, no contact
  * details (those are blocked and the other party is warned, as in the app).
  */
-export async function sendChatMessage(actor: Actor, chatId: string, input: { content: string; imageUrl?: string | null }, origin: Origin): Promise<SendChatResult> {
+export async function sendChatMessage(actor: Actor, chatId: string, input: { content: string; imageUrl?: string | null }, origin: Origin, opts: { unavailable?: UnavailableKind | null } = {}): Promise<SendChatResult> {
   const imageUrl = input.imageUrl?.trim() || null
   if (imageUrl && !isOwnPhotoUrl(imageUrl)) throw new OpsError('La foto no viene de un origen permitido.', 400)
   const content = input.content.trim() || (imageUrl ? PHOTO_ONLY_TEXT : '')
@@ -169,7 +170,17 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
 
   const senderName = side === 'CLIENT' ? chat.client.name : chat.partner.user.name
   const delivery = await deliverChatMessage({ chat, messageId: message.id, recipientUserId, recipientSide: side === 'CLIENT' ? 'PARTNER' : 'CLIENT', senderName, content, imageUrl, origin })
-  return { blocked: false, message, helpReply, delivery }
+
+  // The partner says they cannot come / are away / will be late: the client gets options, the team a task and an alert
+  const booking = chat.proposal.bookings[0]
+  const unavailable = side === 'PARTNER' && booking && (booking.status === 'PENDING' || booking.status === 'CONFIRMED')
+    ? opts.unavailable ?? partnerUnavailableSignal(content)
+    : null
+  if (unavailable && booking) {
+    const { handlePartnerUnavailable } = await import('@/lib/bookings/partner-unavailable')
+    await handlePartnerUnavailable({ bookingId: booking.id, kind: unavailable, partnerName: chat.partner.user.name })
+  }
+  return { blocked: false, message, helpReply, delivery, unavailable }
 }
 
 export type DeliveryResult = 'whatsapp' | 'template' | 'app'

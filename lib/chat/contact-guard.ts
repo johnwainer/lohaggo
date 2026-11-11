@@ -51,6 +51,23 @@ function findPhone(message: string): string | null {
   return null
 }
 
+const DIGIT_WORDS: Record<string, string> = { cero: '0', uno: '1', dos: '2', tres: '3', cuatro: '4', cinco: '5', seis: '6', siete: '7', ocho: '8', nueve: '9' }
+const DIGIT_TOKEN = '(?:cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|\\d{1,4})'
+const SPELLED_RUN = `(?<![a-z\\u00C0-\\u017F\\d])${DIGIT_TOKEN}(?:[\\s,.-]+${DIGIT_TOKEN}){3,}(?![a-z\\u00C0-\\u017F\\d])`
+
+/** «tres cero cero uno dos tres cuatro cinco seis siete», «300 uno dos tres 45 67»: a number said in words. */
+function findSpelledPhone(message: string): string | null {
+  const re = new RegExp(SPELLED_RUN, 'gi')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(message))) {
+    const tokens: string[] = m[0].toLowerCase().split(/[\s,.-]+/).filter(Boolean)
+    const spelled = tokens.filter((t) => t in DIGIT_WORDS).length
+    const digits = tokens.map((t) => DIGIT_WORDS[t] ?? t).join('')
+    if (spelled >= 2 && digits.length >= 7) return m[0]
+  }
+  return null
+}
+
 const EMAIL_PATTERNS = [
   /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/i,
   /[a-z0-9._%+-]+\s*@\s*(?:gmail|hotmail|outlook|yahoo|icloud|live|msn|aol|proton(?:mail)?)\s*\.\s*[a-z]{2,}/i,
@@ -72,9 +89,19 @@ const LINK_PATTERNS = [
   /\b(?:https?:\/\/)?(?:www\.)?(?:wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com|t\.me|m\.me|instagram\.com|facebook\.com|fb\.com|fb\.me|tiktok\.com|linktr\.ee|telegram\.me)\/\S*/i,
 ]
 
+const WA_WORD = '(?:whats\\w*|wasap\\w*|guasap\\w*|wsp|wpp|wa)'
+/**
+ * «Llámame / tímbrame / me llamas cuando llegues»: the partner rings to be let in at the door, an ordinary
+ * arrival message (the number never travels: the call goes through the platform's data the partner already has).
+ */
+const ARRIVAL_CALL = /\b(?:llamame|llameme|me llamas|me llama|marcame|marqueme|timbrame|timbreme|me timbras)\s+(?:(?:apenas|cuando|al|si)\s+(?:llegue|llegues|llega|lleguen|llegar|este|estes|esta|esten|salgas|sale|salga|estar)|(?:desde\s+)?(?:la\s+)?(?:porteria|puerta|entrada|recepcion|afuera|abajo))/
+const NEGATED_PRIVATE = /\b(?:no|nada)\s+(?:por\s+)?(?:interno|privado)\b|\bpor\s+(?:interno|privado)\s+no\b/
+
 /** Folded (no accents) text: asking to talk outside the platform. */
 const OUTSIDE_PATTERNS = [
   /\b(?:llamame|llameme|me llamas|me llama al|marcame|marqueme|timbrame)\b/,
+  new RegExp(`\\b(?:escribeme|escribame|hablame|hableme|mandame|enviame|agregame|agregueme)\\s+(?:un|una|al|por|a mi|el|mensaje al|mensaje por|mensaje a mi)?\\s*${WA_WORD}\\b`),
+  new RegExp(`\\b(?:te|le)\\s+(?:escribo|mando|envio|hablo)\\s+(?:un|una|al|por|a tu|a su)\\s+${WA_WORD}\\b`),
   /\b(?:escribeme|escribame|hablame|hableme)\s+(?:al|por|a mi)\s+(?:whats|whatsapp|wsp|wpp|interno|privado|cel|celular|numero|telefono|correo|mail|email)\b/,
   /\b(?:te|le)\s+(?:escribo|llamo|marco|hablo)\s+(?:al|por|a tu|a su)\s+(?:whats|whatsapp|wsp|wpp|interno|privado|cel|celular|numero|telefono)\b/,
   /\b(?:hablemos|sigamos|cuadremos|cuadramos|arreglemos|arreglamos)\s+(?:por|al)\s+(?:whats|whatsapp|wsp|wpp|interno|privado|fuera|aparte|telefono|cel)\b/,
@@ -97,13 +124,15 @@ export function detectContactInfo(message: string): ContactCheck {
     const m = text.match(p)
     if (m) return { isValid: false, reason: REASON.email, fragment: clip(m[0]) }
   }
-  const phone = findPhone(text)
+  const phone = findPhone(text) ?? findSpelledPhone(text)
   if (phone) return { isValid: false, reason: REASON.phone, fragment: clip(phone) }
   for (const p of SOCIAL_PATTERNS) {
     const m = text.match(p)
     if (m) return { isValid: false, reason: REASON.social, fragment: clip(m[0]) }
   }
-  const folded = fold(text)
+  // Ringing at the door on arrival and «por privado no» are ordinary messages, not a way out of the platform
+  const blank = (x: string) => ' '.repeat(x.length)
+  const folded = fold(text).replace(new RegExp(ARRIVAL_CALL.source, 'g'), blank).replace(new RegExp(NEGATED_PRIVATE.source, 'g'), blank)
   for (const p of OUTSIDE_PATTERNS) {
     const m = folded.match(p)
     if (m) return { isValid: false, reason: REASON.outside, fragment: clip(text.slice(m.index ?? 0, (m.index ?? 0) + m[0].length) || m[0]) }

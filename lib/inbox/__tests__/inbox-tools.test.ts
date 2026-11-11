@@ -53,8 +53,20 @@ describe('CSAT survey', () => {
     expect(parseCsatScore('0')).toBeNull()
     expect(parseCsatScore('6')).toBeNull()
     expect(parseCsatScore('45')).toBeNull()
-    expect(parseCsatScore('5 estrellas')).toBeNull()
     expect(parseCsatScore('')).toBeNull()
+  })
+
+  it('reads the score said with a few words or stars', () => {
+    expect(parseCsatScore('5 estrellas')).toBe(5)
+    expect(parseCsatScore('Excelente 5')).toBe(5)
+    expect(parseCsatScore('le doy un 4')).toBe(4)
+    expect(parseCsatScore('5/5 gracias')).toBe(5)
+    expect(parseCsatScore('⭐⭐⭐⭐⭐')).toBe(5)
+    expect(parseCsatScore('cinco')).toBe(5)
+    expect(parseCsatScore('5 minutos')).toBeNull()
+    expect(parseCsatScore('entre 4 y 5')).toBeNull()
+    expect(parseCsatScore('4 o 5 lámparas')).toBeNull()
+    expect(parseCsatScore('necesito 5 tomas nuevas')).toBeNull()
   })
 
   it('takes the answer only within 24 h of the question and once', () => {
@@ -187,6 +199,10 @@ describe('Encuesta · casos de borde', () => {
     const asked = new Date(Date.now() - 3600_000).toISOString()
     expect(csatReplyScore({ csatAskedAt: asked }, '5', Date.now(), 'CLOSED')).toBe(5)
     expect(csatReplyScore({ csatAskedAt: asked }, '5', Date.now(), 'OPEN')).toBeNull()
+    // Reopened after the question but the contact wrote nothing since: the «5» is the answer
+    const before = new Date(Date.now() - 2 * 3600_000).toISOString()
+    expect(csatReplyScore({ csatAskedAt: asked, lastInboundAt: before }, '5', Date.now(), 'OPEN')).toBe(5)
+    expect(csatReplyScore({ csatAskedAt: asked, lastInboundAt: new Date(Date.now() - 60_000).toISOString() }, '5', Date.now(), 'IN_PROGRESS')).toBeNull()
   })
   it('no pregunta en una conversación que nadie respondió', async () => {
     const { csatSkipReason } = await import('@/lib/inbox/csat-core')

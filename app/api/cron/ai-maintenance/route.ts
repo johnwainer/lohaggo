@@ -8,6 +8,7 @@ import { createLogger } from '@/lib/logger'
 import { indexPending } from '@/lib/ai/knowledge'
 import { runReengagement } from '@/lib/ai/autopilot'
 import { runFunnelNudges } from '@/lib/ai/funnel'
+import { flushProposalDigests } from '@/lib/proposals/chat-digest'
 import { bogotaDateKey, isSweepHour } from '@/lib/inbox/escalation-core'
 
 const logger = createLogger('cron-ai-maintenance')
@@ -30,9 +31,14 @@ async function handle(request: NextRequest) {
       return { nudged: 0 }
     })
     const reengagement = await runReengagement()
+    // Proposals that arrived right after a digest: one updated message in the chat (or their template if it closed)
+    const digests = await flushProposalDigests().catch((err) => {
+      logger.warn('Proposal digests failed', { message: err instanceof Error ? err.message : 'error' })
+      return { sent: 0, templates: 0 }
+    })
     const staleLeads = await dailyStaleLeads()
-    if (indexed || reengagement.sent || funnel.nudged || staleLeads) logger.info('AI maintenance', { indexed, ...reengagement, funnelNudged: funnel.nudged, staleLeads })
-    return NextResponse.json({ ok: true, indexed, ...reengagement, funnelNudged: funnel.nudged, staleLeads })
+    if (indexed || reengagement.sent || funnel.nudged || staleLeads || digests.sent || digests.templates) logger.info('AI maintenance', { indexed, ...reengagement, funnelNudged: funnel.nudged, staleLeads, digests })
+    return NextResponse.json({ ok: true, indexed, ...reengagement, funnelNudged: funnel.nudged, staleLeads, digests })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'error'
     logger.error('AI maintenance error', { message })

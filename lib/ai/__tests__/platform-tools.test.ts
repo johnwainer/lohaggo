@@ -282,8 +282,15 @@ describe('runPlatformTool · chat de la reserva', () => {
     expect(chatOps.sendChatMessage).not.toHaveBeenCalled()
     actions.latestProposed.mockResolvedValue({ id: 'prop-m', createdAt: new Date(Date.now() - 60_000), input: i } as never)
     const out = await runPlatformTool('enviar_mensaje_reserva', { ...i, confirmado: true }, ctx())
-    expect(chatOps.sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }), 'chat1', { content: i.mensaje, imageUrl: null }, expect.objectContaining({ via: 'chat', conversationId: 'conv1' }))
+    expect(chatOps.sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }), 'chat1', { content: i.mensaje, imageUrl: null }, expect.objectContaining({ via: 'chat', conversationId: 'conv1' }), { unavailable: null })
     expect(out).toMatch(/le llegó por WhatsApp/)
+  })
+  it('el aviso del socio («no puede ir») viaja con el mensaje; el del cliente se ignora', async () => {
+    const i = { ref: '000abc', mensaje: 'Qué pena, no voy a poder ir', incluir_fotos: false, aviso: 'no_puede_ir', confirmado: false }
+    actions.latestProposed.mockResolvedValue({ id: 'prop-m', createdAt: new Date(Date.now() - 60_000), input: i } as never)
+    await runPlatformTool('enviar_mensaje_reserva', { ...i, confirmado: true }, ctx())
+    // The actor here is the client: a client never flags the partner as unavailable
+    expect(chatOps.sendChatMessage).toHaveBeenLastCalledWith(expect.anything(), 'chat1', expect.anything(), expect.anything(), { unavailable: null })
   })
   it('no propone mensajes con datos de contacto', async () => {
     const out = await runPlatformTool('enviar_mensaje_reserva', { ref: '000abc', mensaje: 'escríbeme al 3001234567', incluir_fotos: false, confirmado: false }, ctx())

@@ -145,6 +145,78 @@ export function nudgeInstruction(p: FunnelProgress, hours: number) {
   ].filter(Boolean).join(' ')
 }
 
+// ─── Goal-oriented re-engagement (lib/ai/autopilot.ts runReengagement) ─────────
+
+export const FOLLOWUP_EVENT = 'ai_followup'
+export const SECOND_FOLLOWUP_EVENT = 'ai_followup_2'
+/** The second follow-up: only with proposals waiting, late in the 24 h window and well after the first */
+export const SECOND_FOLLOWUP_MIN_SILENCE_MS = 20 * 3600_000
+export const SECOND_FOLLOWUP_GAP_MS = 6 * 3600_000
+
+/** Real data from the database: one open request with proposals the client has not answered. */
+export type PendingProposals = { requestRef: string; service: string; count: number; minPrice: number }
+
+/** «2 propuestas para Plomería, desde $120.000 (solicitud ref abc123)» */
+export function pendingProposalsText(list: PendingProposals[], money: (n: number) => string) {
+  return list
+    .filter((p) => p.count > 0)
+    .map((p) => `${p.count === 1 ? '1 propuesta' : `${p.count} propuestas`} para ${p.service}, ${p.count === 1 ? 'por' : 'desde'} ${money(p.minPrice)} (solicitud ref ${p.requestRef})`)
+    .join('; ')
+}
+
+/**
+ * The internal notice the agent writes a follow-up from, aimed at the next step: answer the proposals
+ * waiting (with their real count and lowest price), finish a half-built request, or else retake where it
+ * stopped. One message, respectful, nothing invented.
+ */
+export function reengageInstruction(p: { hours: number; pending: PendingProposals[]; progress: FunnelProgress | null; second: boolean; money: (n: number) => string }) {
+  const head = `[Aviso interno de la plataforma, no lo escribió el cliente] El cliente no responde desde hace ${p.hours} horas.`
+  const rules = 'Un único mensaje breve y respetuoso, sin presionar, sin inventar precios, fechas ni socios, sin repetir palabra por palabra lo que ya le dijiste. No uses [[HANDOFF]].'
+  const pending = pendingProposalsText(p.pending, p.money)
+  if (pending) {
+    return [
+      head,
+      p.second ? 'Es el segundo y último seguimiento: después de este no le volveremos a escribir si no responde.' : '',
+      `Tiene propuestas sin responder: ${pending}.`,
+      'Recuérdale cuántas propuestas tiene y el precio más bajo (estas cifras exactas, no otras) y pídele que elija una o te diga qué le hace dudar (precio, fecha, el socio); ofrécele mostrárselas comparadas.',
+      rules,
+    ].filter(Boolean).join(' ')
+  }
+  if (p.progress && isHalfWay(p.progress)) {
+    return [head, `Empezó a pedir un servicio y la solicitud no se creó. Lo que ya te dio: ${collectedText(p.progress) || 'nada concreto'}. Lo que falta: ${missingText(p.progress)}.`, 'Dile exactamente qué falta con una pregunta fácil de responder.', rules].join(' ')
+  }
+  return [head, 'Retoma la conversación donde quedó con una pregunta concreta que lo acerque al siguiente paso (por ejemplo, el dato que faltaba o si quiere que le ayudes a pedir el servicio).', rules].join(' ')
+}
+
+export type SecondFollowupInput = {
+  now: Date
+  channel: string
+  teamOpen: boolean
+  optedOut: boolean
+  lastInbound: { sentAt: Date; body: string } | null
+  lastMessage: { direction: string; senderType: string | null } | null
+  reengagedAt: Date | null
+  alreadySecond: boolean
+  pendingCount: number
+}
+
+/** A second follow-up only when proposals are waiting, the first one got no answer, and the window is still open. */
+export function secondFollowupDecision(i: SecondFollowupInput): { send: true } | { send: false; reason: string } {
+  if (!i.reengagedAt) return { send: false, reason: 'no_first' }
+  if (i.alreadySecond) return { send: false, reason: 'already_sent' }
+  if (i.optedOut || isStopText(i.lastInbound?.body)) return { send: false, reason: 'opted_out' }
+  if (!i.lastInbound) return { send: false, reason: 'no_inbound' }
+  if (!i.lastMessage || i.lastMessage.direction !== 'OUTBOUND' || i.lastMessage.senderType !== 'AI') return { send: false, reason: 'not_waiting' }
+  if (i.pendingCount <= 0) return { send: false, reason: 'no_pending_proposals' }
+  const silent = i.now.getTime() - i.lastInbound.sentAt.getTime()
+  if (silent < SECOND_FOLLOWUP_MIN_SILENCE_MS) return { send: false, reason: 'too_soon' }
+  if (i.now.getTime() - i.reengagedAt.getTime() < SECOND_FOLLOWUP_GAP_MS) return { send: false, reason: 'too_close_to_first' }
+  const windowLimit = WINDOW_CHANNELS.has(i.channel) ? DAY_MS - WINDOW_MARGIN_MS : DAY_MS
+  if (silent >= windowLimit) return { send: false, reason: 'window_closing' }
+  if (!i.teamOpen) return { send: false, reason: 'night' }
+  return { send: true }
+}
+
 /** The reminder when the model is not available: plain, specific, one question. */
 export function nudgeFallbackText(p: FunnelProgress, firstName?: string | null) {
   const name = firstName?.trim().split(/\s+/)[0]
