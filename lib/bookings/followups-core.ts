@@ -211,7 +211,8 @@ export function arrivalStep(p: { when: number; now: number; marks: Marks; paid: 
   const out: ArrivalAction[] = []
   if (!m.has('askedPartnerArrival')) out.push('ask_partner_start')
   if (now >= when + T.askClientArrivalMs && !m.has('askedClientArrival')) out.push('ask_client_arrival')
-  if (now >= when + T.urgePartnerStartMs && m.has('askedPartnerArrival') && !m.has('urgedPartnerStart') && !m.has('partnerOnWay')) out.push('urge_partner_start')
+  // Only around the hour: a booking from before this step existed never gets a late second notice
+  if (now >= when + T.urgePartnerStartMs && now < when + 2 * 60 * MIN && m.has('askedPartnerArrival') && !m.has('urgedPartnerStart') && !m.has('partnerOnWay')) out.push('urge_partner_start')
   return out
 }
 

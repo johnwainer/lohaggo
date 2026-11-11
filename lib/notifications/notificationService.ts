@@ -965,15 +965,16 @@ async function notifyBookingCompleted(booking: { id: string; userId: string; ser
     methods: { cash: config?.cashEnabled ?? true, transfer: config?.transferEnabled ?? true, mercadoPago: Boolean(config?.mercadoPagoEnabled) },
     bank: bank ? { bankName: bank.bankName, accountType: bank.accountType, masked: maskAccountNumber(bank.accountNumber) ?? '' } : null,
   })
+  // Each notice on its own: one failing never drops the other (the mark already keeps it to one)
   await createNotification({
     userId: booking.userId, type: 'BOOKING_COMPLETED', ...notices.client,
     data: { bookingId: booking.id, serviceId: booking.serviceId, kind: 'COMPLETED_PAY_AND_RATE', url: '/dashboard?tab=bookings' },
     ...(isNight(Date.now()) ? { channels: ['PUSH' as const] } : {}),
-  })
+  }).catch((err) => logger.error('Completion notice to client failed', { bookingId: booking.id, err: err instanceof Error ? err.message : err }))
   if (booking.partner) {
     await createNotification({
       userId: booking.partner.userId, type: 'BOOKING_COMPLETED', ...notices.partner,
       data: { bookingId: booking.id, serviceId: booking.serviceId, kind: 'COMPLETED_CONFIRM_PAYMENT', url: '/partner?tab=bookings' },
-    })
+    }).catch((err) => logger.error('Completion notice to partner failed', { bookingId: booking.id, err: err instanceof Error ? err.message : err }))
   }
 }
