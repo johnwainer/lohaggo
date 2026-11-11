@@ -229,7 +229,9 @@ export async function listOpenRequestsForPartner(partnerId: string) {
   if (!partner.verified || !partner.isActive) throw new OpsError('Debes estar verificado para ver solicitudes de servicio', 403)
 
   const offers = partner.services.map((s) => ({ serviceId: s.serviceId, city: s.city }))
-  const zones = partner.coverageZones ?? []
+  const { ZONES_RESTRICT } = await import('@/lib/geo/zones')
+  // Zones only limit what a partner sees while ZONES_RESTRICT is on (lib/geo/zones.ts)
+  const zones = ZONES_RESTRICT ? partner.coverageZones ?? [] : []
   // A partner with zones only sees open requests in them (or with no zone), plus those we told them about
   // outside their zones because nobody answered (lib/service-requests/reach.ts); direct ones always
   const widened = zones.length > 0 && offers.length > 0 ? await widenedRequestIdsFor(partner.userId).catch(() => [] as string[]) : []

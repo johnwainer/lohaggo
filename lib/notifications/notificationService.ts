@@ -680,7 +680,11 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
         { coverageZones: ps.partner.coverageZones, schedule: ps.partner.availability },
         { zone: serviceRequest.zone, preferredDate: serviceRequest.preferredDate, preferredTime: serviceRequest.preferredTime, isUrgent: serviceRequest.isUrgent },
       ))
-      const partners = matching.length > 0 ? matching : cityPartners.filter(ps => coversZone(ps.partner.coverageZones, serviceRequest.zone))
+      const { ZONES_RESTRICT } = await import('@/lib/geo/zones')
+      // Without zone restriction every partner of the city hears about it: those whose schedule fits go first
+      const partners = !ZONES_RESTRICT
+        ? [...matching, ...cityPartners.filter(ps => !matching.includes(ps))]
+        : matching.length > 0 ? matching : cityPartners.filter(ps => coversZone(ps.partner.coverageZones, serviceRequest.zone))
       for (const { partner } of partners) {
         await notifyPartner(partner, false)
       }

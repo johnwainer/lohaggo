@@ -93,8 +93,20 @@ for (const [a, list] of BORDERS) {
 /** The zones that border `zone` (not the zone itself). */
 export const nearbyZones = (zone: string | null | undefined): string[] => (zone ? Array.from(NEARBY.get(zone) ?? []) : [])
 
-/** Partners that cover a zone: those that listed it, and those with no zones (they cover the whole city). */
-export function coversZone(coverage: string[] | null | undefined, zone: string | null | undefined) {
+/**
+ * Whether a partner's coverage zones LIMIT which requests reach them. Off for now (decision of 2026-11-11): every
+ * partner of a city covers every request of that city, whatever the address; zones only order who hears first.
+ * Set to true to go back to zone-restricted requests.
+ */
+export const ZONES_RESTRICT = false
+
+/** Partners that listed the zone, or have no zones (they cover the whole city). Ordering only: see coversZone. */
+export function listsZone(coverage: string[] | null | undefined, zone: string | null | undefined) {
   if (!zone || !coverage || coverage.length === 0) return true
   return coverage.includes(zone)
+}
+
+/** Partners that cover a request's zone. With ZONES_RESTRICT off, every partner of the city does. */
+export function coversZone(coverage: string[] | null | undefined, zone: string | null | undefined) {
+  return !ZONES_RESTRICT || listsZone(coverage, zone)
 }

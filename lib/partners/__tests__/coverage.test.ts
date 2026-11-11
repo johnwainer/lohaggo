@@ -45,8 +45,8 @@ describe('matchesRequest', () => {
   it('no zones and no schedule matches anything', () => {
     expect(matchesRequest({ coverageZones: [], schedule: [] }, { zone: 'belen', isUrgent: true }, now)).toBe(true)
   })
-  it('filters by zone; a request without zone matches every partner', () => {
-    expect(matchesRequest({ coverageZones: ['el-poblado'] }, { zone: 'belen' }, now)).toBe(false)
+  it('zones do not exclude while ZONES_RESTRICT is off; a request without zone matches every partner', () => {
+    expect(matchesRequest({ coverageZones: ['el-poblado'] }, { zone: 'belen' }, now)).toBe(true)
     expect(matchesRequest({ coverageZones: ['el-poblado'] }, { zone: 'el-poblado' }, now)).toBe(true)
     expect(matchesRequest({ coverageZones: ['el-poblado'] }, { zone: null }, now)).toBe(true)
   })

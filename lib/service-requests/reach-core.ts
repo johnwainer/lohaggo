@@ -1,4 +1,4 @@
-import { coversZone, nearbyZones } from '@/lib/geo/zones'
+import { listsZone, nearbyZones } from '@/lib/geo/zones'
 
 /**
  * Who else hears about a request nobody answered, pure: first the partners of its zone who were left out
@@ -21,7 +21,7 @@ export type ReachCandidate = {
 
 /** 0 = covers the zone, 1 = covers a bordering zone, 2 = elsewhere in the city; null = out of this scope. */
 export function reachRing(coverage: string[], zone: string | null | undefined, scope: ReachScope): 0 | 1 | 2 | null {
-  if (coversZone(coverage, zone)) return 0
+  if (listsZone(coverage, zone)) return 0
   if (nearbyZones(zone).some((z) => coverage.includes(z))) return 1
   return scope === 'city' ? 2 : null
 }

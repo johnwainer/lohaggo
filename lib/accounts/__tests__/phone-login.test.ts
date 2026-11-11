@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hashPhoneCode, isPlaceholderEmail, phoneLoginDecision, placeholderEmail, sameHash } from '@/lib/accounts/phone-login-core'
-import { ZONES, coversZone, zoneFromText } from '@/lib/geo/zones'
+import { ZONES, coversZone, listsZone, ZONES_RESTRICT, zoneFromText } from '@/lib/geo/zones'
 
 const acc = (o: Partial<{ id: string; role: string; isActive: boolean; email: string; phoneVerifiedAt: Date | null }> = {}) => ({ id: 'u1', role: 'CLIENT', isActive: true, email: 'ana@mail.com', phoneVerifiedAt: null, ...o })
 
@@ -43,10 +43,14 @@ describe('zones', () => {
     expect(zoneFromText('Carrera 76, Suramericana')).toBe('laureles')
     expect(zoneFromText('Calle 1')).toBeNull()
   })
-  it('empty coverage = whole city', () => {
-    expect(coversZone([], 'belen')).toBe(true)
-    expect(coversZone(['belen'], 'belen')).toBe(true)
-    expect(coversZone(['belen'], 'bello')).toBe(false)
-    expect(coversZone(['belen'], null)).toBe(true)
+  it('empty coverage = whole city (listsZone keeps the zone for ordering)', () => {
+    expect(listsZone([], 'belen')).toBe(true)
+    expect(listsZone(['belen'], 'belen')).toBe(true)
+    expect(listsZone(['belen'], 'bello')).toBe(false)
+    expect(listsZone(['belen'], null)).toBe(true)
+  })
+  it('zones do not restrict while ZONES_RESTRICT is off (2026-11-11): every city partner covers every request', () => {
+    expect(ZONES_RESTRICT).toBe(false)
+    expect(coversZone(['belen'], 'bello')).toBe(true)
   })
 })
