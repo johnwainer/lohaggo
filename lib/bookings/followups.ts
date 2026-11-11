@@ -8,10 +8,17 @@
  *   started («Ya empecé»), 15 min later the client «¿Ya llegó el socio?», at 45 min a second notice to the
  *   partner. «No ha llegado» opens a NO_SHOW guarantee claim; 30 min later without starting it is cancelled
  *   and the client is offered another partner. The strike stays the team's decision (the claim).
+ *   A late partner keeps the client informed: «Voy en camino» / «llego en 20» (button, app, booking chat or
+ *   their own WhatsApp) tells the client at once with the arrival time (once per update), the partner is not
+ *   urged while within that time and the client's «¿Ya llegó?» waits for it; without a word, the +15 notice
+ *   says we are confirming with the partner, and at +45 (or past the time they gave) the client gets the
+ *   options: wait, another partner now, or cancel without cost. A start more than 30 min late is registered
+ *   (admin mark, no strike) and the client is told.
  * - IN_PROGRESS → at start + the service's duration (2–3 h) the partner is asked «¿Terminaste?» («Sí,
  *   terminé» completes it), 30 min later the client «¿Ya terminó?»; 24 h without an answer it is completed.
  * - COMPLETED → at once (notifyBookingStatusChange) the client hears how to pay and to rate, the partner to
- *   confirm the payment and rate.
+ *   confirm the payment and rate. Rating reminders at 24 h, 72 h and a last one at 5 days; 1–2 stars open a
+ *   follow-up case for the team (openLowRatingFollowup).
  * - COMPLETED unpaid → second reminder to the client, the partner is asked if they got paid, and the team
  *   steps in on what nobody solves (support case + D11).
  * - Appointment guarantee: the client re-confirms the day before (18:00) and again 3 h before; 90 min before
@@ -35,8 +42,10 @@ import { addBookingEvent, assertBookingAccess, reopenRequestAfterPartnerCancel, 
 import type { OfflineMethod } from '@/lib/payments/ops'
 import { recordOperationalStrike } from '@/lib/partners/strikes'
 import {
-  APPOINTMENT_MARKS, DAY, FOLLOWUP_MARK, FOLLOWUP_TIMING, H, MARK_BY_TEXT, MIN, appointmentStep, arrivalStep, clientConfirmed,
-  inProgressStep, isNight, openDeparture, releaseKind, toldNotToGo, type FollowupMark, type Marks,
+  APPOINTMENT_MARKS, DAY, FOLLOWUP_MARK, FOLLOWUP_TIMING, H, MIN, appointmentStep, arrivalAskClientText, arrivalStep, clientConfirmed,
+  inProgressStep, isNight, lateOptionsClientText, lateOptionsOpen, lateStartClientText, lateStartMinutes, lowRatingCase,
+  bogotaClock, markDetail, onWay, readyHint, onWayClientText, onWayRepeat, openDeparture, parseMarkDetail, partnerLateState, ratingReminderStep, releaseKind,
+  toldNotToGo, type FollowupMark, type Marks,
 } from '@/lib/bookings/followups-core'
 
 const logger = createLogger('booking-followups')
@@ -80,17 +89,20 @@ const bookingSelect = {
   totalPrice: true, address: true, city: true, createdAt: true, updatedAt: true,
   service: { select: { name: true, duration: true } },
   user: { select: { name: true } },
-  partner: { select: { id: true, userId: true, user: { select: { name: true } } } },
+  partner: { select: { id: true, userId: true, rating: true, totalReviews: true, user: { select: { name: true } } } },
   payment: { select: { status: true, confirmationStatus: true, clientReportedAt: true } },
-  proposal: { select: { serviceRequestId: true, serviceRequest: { select: { status: true } } } },
+  proposal: { select: { serviceRequestId: true, notes: true, serviceRequest: { select: { status: true } } } },
 } as const
 type Row = {
   id: string; userId: string; partnerId: string | null; proposalId: string | null; status: string; scheduledDate: Date; scheduledTime: string
   totalPrice: number; address: string; city: string; createdAt: Date; updatedAt: Date
-  service: { name: string; duration?: number | null } | null; user: { name: string } | null; partner: { id: string; userId: string; user: { name: string } | null } | null
+  service: { name: string; duration?: number | null } | null; user: { name: string } | null
+  partner: { id: string; userId: string; rating?: number | null; totalReviews?: number | null; user: { name: string } | null } | null
   payment: { status: string; confirmationStatus: string; clientReportedAt: Date | null } | null
-  proposal: { serviceRequestId: string; serviceRequest: { status: string } } | null
+  proposal: { serviceRequestId: string; notes?: string | null; serviceRequest: { status: string } } | null
 }
+/** «Carlos (★ 4.8)»: the partner's first name and rating, when they have reviews. */
+const partnerLabel = (b: Row) => `${b.partner?.user?.name?.trim().split(/\s+/)[0] || 'el socio'}${b.partner?.rating && (b.partner.totalReviews ?? 0) > 0 ? ` (★ ${b.partner.rating.toFixed(1)})` : ''}`
 const dataOf = (b: Row) => ({ id: b.id, when: bookingWhen(b), service: b.service?.name ?? 'servicio', price: b.totalPrice, clientName: b.user?.name ?? null, partnerName: b.partner?.user?.name ?? null, address: b.address, city: b.city })
 
 async function loadRow(bookingId: string): Promise<Row> {
@@ -110,13 +122,19 @@ export async function marksFor(ids: string[]): Promise<Map<string, Marks>> {
   for (const r of rows) if (r.type === 'reschedule' && (!moved.get(r.bookingId) || moved.get(r.bookingId)! < r.createdAt)) moved.set(r.bookingId, r.createdAt)
   for (const r of rows) {
     if (r.type !== 'followup') continue
-    const kind = r.detail ? MARK_BY_TEXT.get(r.detail) : undefined
-    if (!kind) continue
+    const parsed = parseMarkDetail(r.detail)
+    if (!parsed) continue
+    const { kind, minutes } = parsed
     const since = moved.get(r.bookingId)
     if (since && r.createdAt < since && APPOINTMENT_MARKS.includes(kind)) continue
-    const m = out.get(r.bookingId) ?? new Map<FollowupMark, Date>()
+    const m: Marks = out.get(r.bookingId) ?? new Map<FollowupMark, Date>()
     const prev = m.get(kind)
-    if (!prev || prev < r.createdAt) m.set(kind, r.createdAt)
+    if (!prev || prev < r.createdAt) {
+      m.set(kind, r.createdAt)
+      // The minutes of the latest one of its kind (an update without minutes clears them)
+      if (minutes != null) (m.minutes ??= new Map()).set(kind, minutes)
+      else m.minutes?.delete(kind)
+    }
     out.set(r.bookingId, m)
   }
   return out
@@ -132,12 +150,13 @@ function broadcast(b: { userId: string; partner?: { userId: string } | null }) {
 }
 
 /** A mark by the platform (actorType system) or, with an actor, by that person. */
-async function mark(b: Row, kind: FollowupMark, actor?: Actor, origin: Origin = APP_ORIGIN) {
+async function mark(b: Row, kind: FollowupMark, actor?: Actor, origin: Origin = APP_ORIGIN, minutes?: number | null) {
+  const detail = markDetail(kind, minutes)
   if (actor) {
-    await addBookingEvent({ bookingId: b.id, type: 'followup', actor, origin, detail: FOLLOWUP_MARK[kind] })
+    await addBookingEvent({ bookingId: b.id, type: 'followup', actor, origin, detail })
     return
   }
-  await prisma.bookingEvent.create({ data: { bookingId: b.id, type: 'followup', actorType: 'system', ...originColumns(APP_ORIGIN), detail: FOLLOWUP_MARK[kind] } })
+  await prisma.bookingEvent.create({ data: { bookingId: b.id, type: 'followup', actorType: 'system', ...originColumns(APP_ORIGIN), detail } })
   broadcast(b)
 }
 
@@ -152,6 +171,8 @@ async function enteredAt(bookingIds: string[], status: string): Promise<Map<stri
   }
   return out
 }
+
+export { enteredAt as enteredAtOf }
 
 const paid = (b: Row) => b.payment?.status === 'APPROVED' || b.payment?.confirmationStatus === 'CONFIRMED'
 
@@ -332,7 +353,7 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
         } else if (action === 'reconfirm_ask') {
           await mark(b, 'reconfirmAsked')
           await sendWaToUser(b.userId, WA.B38(dataOf(b)), now)
-          await critical(b.userId, 'BOOKING_REMINDER_24H', 'Confirma tu cita', `Confirma tu servicio de ${b.service?.name ?? 'servicio'} con ${b.partner?.user?.name ?? 'el socio'} ${formatBookingWhen(b)}. El socio solo sale hacia tu dirección cuando confirmes.`, { bookingId: b.id, kind: 'RECONFIRM_ASK', url: '/dashboard?tab=bookings', actionLink: await clientLink(b) }, { quiet: isNight(at) })
+          await critical(b.userId, 'BOOKING_REMINDER_24H', 'Confirma tu cita', `Confirma tu servicio de ${b.service?.name ?? 'servicio'} con ${partnerLabel(b)} ${formatBookingWhen(b)}. El socio solo sale hacia tu dirección cuando confirmes. ${readyHint(b.proposal?.notes)}`, { bookingId: b.id, kind: 'RECONFIRM_ASK', url: '/dashboard?tab=bookings', actionLink: await clientLink(b) }, { quiet: isNight(at) })
           bump(t, 'reconfirm_asked')
         } else if (action === 'reconfirm_urge' && holdAt) {
           await mark(b, 'reconfirmUrged')
@@ -389,16 +410,25 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
           }).catch(() => null)
           bump(t, 'asked_partner_arrival')
         } else if (action === 'ask_client_arrival') {
-          // At night only in the app (and push)
+          // What we know first (on the way and when, or that we are confirming with the partner), then the B32
+          // question with its buttons. At night only in the app (and push).
           await mark(b, 'askedClientArrival')
+          const onTheWay = partnerLateState(m, at) === 'on_way'
+          await critical(b.userId, 'BOOKING_STARTING_SOON', onTheWay ? `${b.partner?.user?.name?.split(' ')[0] ?? 'Tu socio'} va en camino` : 'Estamos confirmando con el socio',
+            arrivalAskClientText({ partnerName: b.partner?.user?.name ?? null, service: b.service?.name ?? 'servicio', when, marks: m, now: at }),
+            { bookingId: b.id, kind: 'ARRIVAL_ASK_CLIENT', url: '/dashboard?tab=bookings' }, { quiet: night })
           if (!night) await sendWaToUser(b.userId, WA.B32(dataOf(b)), now)
-          await createNotification({
-            userId: b.userId, type: 'BOOKING_STARTING_SOON', title: '¿Ya llegó el socio?',
-            message: `Tu servicio de ${b.service?.name ?? 'servicio'} era ${formatBookingWhen(b)}. Si el socio no ha llegado, avísanos desde tus reservas («El socio no llegó»).`,
-            data: { bookingId: b.id, kind: 'ARRIVAL_ASK_CLIENT', url: '/dashboard?tab=bookings' },
-            ...(night ? { channels: ['PUSH' as const] } : {}),
-          }).catch(() => null)
           bump(t, 'asked_client_arrival')
+        } else if (action === 'client_late_options') {
+          // +45 min without starting nor a word from the partner (or past the time they gave): the client's options, once
+          await mark(b, 'clientToldOptions')
+          await critical(b.userId, 'BOOKING_STARTING_SOON', 'Tu socio está retrasado: tus opciones',
+            lateOptionsClientText({ partnerName: b.partner?.user?.name ?? null, service: b.service?.name ?? 'servicio', when, marks: m, now: at }),
+            { bookingId: b.id, kind: 'LATE_OPTIONS', url: '/dashboard?tab=bookings' }, { quiet: night })
+          const { notifyAdminsInApp } = await import('@/lib/inbox/escalation')
+          const admins = (await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { id: true }, take: 50 })).map((u) => u.id)
+          await notifyAdminsInApp(admins, { title: 'Socio retrasado sin respuesta', message: `Reserva #${b.id.slice(-6)} de ${b.service?.name ?? 'servicio'} (${formatBookingWhen(b)}): ${b.partner?.user?.name ?? 'el socio'} no inicia ni responde. Le dimos al cliente sus opciones.`, url: '/admin/operations', kind: 'booking:partner-late' })
+          bump(t, 'client_late_options')
         } else if (action === 'urge_partner_start' && b.partner?.userId) {
           await mark(b, 'urgedPartnerStart')
           await createNotification({
@@ -510,16 +540,20 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
     const [marks, completed] = await Promise.all([marksFor(ids), enteredAt(ids, 'COMPLETED')])
     for (const b of rows) {
       const doneAt = (completed.get(b.id) ?? b.updatedAt).getTime()
-      const age = at - doneAt
-      if (!live(doneAt) || age < T.secondRatingReminderMs || age > 7 * DAY || marks.get(b.id)?.has('askedRatingAgain') || isNight(at)) continue
-      await mark(b, 'askedRatingAgain')
-      await sendWaToUser(b.userId, WA.B18({ ...dataOf(b), round: 2 }), now)
+      if (!live(doneAt)) continue
+      const due = ratingReminderStep({ doneAt, now: at, marks: marks.get(b.id) ?? new Map() })
+      if (!due) continue
+      const final = due === 'final'
+      await mark(b, final ? 'askedRatingFinal' : 'askedRatingAgain')
+      await sendWaToUser(b.userId, WA.B18({ ...dataOf(b), round: final ? 3 : 2 }), now)
       await createNotification({
-        userId: b.userId, type: 'RATING_REMINDER', title: '¿Cómo te fue con el servicio?',
-        message: `Califica a ${b.partner?.user?.name ?? 'tu socio'} por ${b.service?.name ?? 'el servicio'}: ayuda a otros clientes a elegir.`,
-        data: { bookingId: b.id, kind: 'RATING_REMINDER_2' },
+        userId: b.userId, type: 'RATING_REMINDER', title: final ? 'Último recordatorio: califica tu servicio' : '¿Cómo te fue con el servicio?',
+        message: final
+          ? `¿Cómo te fue con ${b.partner?.user?.name?.split(' ')[0] ?? 'tu socio'} en ${b.service?.name ?? 'el servicio'}? Califícalo en tus reservas; si algo salió mal, cuéntanos y el equipo te ayuda.`
+          : `Califica a ${b.partner?.user?.name ?? 'tu socio'} por ${b.service?.name ?? 'el servicio'}: ayuda a otros clientes a elegir.`,
+        data: { bookingId: b.id, kind: final ? 'RATING_REMINDER_3' : 'RATING_REMINDER_2' },
       }).catch(() => null)
-      bump(t, 'rating_reminder_2')
+      bump(t, final ? 'rating_reminder_final' : 'rating_reminder_2')
     }
   })
 
@@ -528,7 +562,7 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
 
 // ─── Answers of the client and the partner ──────────────────────────────────
 
-export const CLIENT_FOLLOWUP_ACTIONS = ['rebook', 'decline_rebook', 'wait', 'arrived', 'no_show', 'done', 'not_done', 'reschedule_ok', 'reschedule_no', 'price_ok', 'price_no', 'client_here', 'client_cancel', 'reconfirm_yes', 'reconfirm_change', 'reconfirm_cancel', 'here_yes', 'here_later'] as const
+export const CLIENT_FOLLOWUP_ACTIONS = ['rebook', 'decline_rebook', 'wait', 'arrived', 'no_show', 'cancel_free', 'done', 'not_done', 'reschedule_ok', 'reschedule_no', 'price_ok', 'price_no', 'client_here', 'client_cancel', 'reconfirm_yes', 'reconfirm_change', 'reconfirm_cancel', 'here_yes', 'here_later'] as const
 export const PARTNER_FOLLOWUP_ACTIONS = ['partner_started', 'partner_done', 'partner_on_way', 'partner_cant_go', 'partner_paid', 'partner_not_paid', 'client_absent', 'propose_price', 'partner_departing', 'partner_release'] as const
 export type FollowupAction = (typeof CLIENT_FOLLOWUP_ACTIONS)[number] | (typeof PARTNER_FOLLOWUP_ACTIONS)[number]
 
@@ -547,7 +581,72 @@ export async function rebookAvailability(b: Pick<Row, 'id' | 'status' | 'proposa
  * The client or the partner answers a follow-up (a WhatsApp button or the app). Checks the role, ownership
  * and state; returns the sentence to show or send back.
  */
-export async function applyFollowup(actor: Actor, bookingId: string, action: FollowupAction, origin: Origin, opts: { method?: OfflineMethod; amount?: number; note?: string; sentAt?: Date; etaMinutes?: number } = {}, now = new Date()): Promise<FollowupResult> {
+/**
+ * The client's «el socio no llegó» on their behalf when they pick an option of the late notice: the mark and
+ * the NO_SHOW claim (the strike stays the team's decision), like the «No ha llegado» button.
+ */
+async function reportNoShow(b: Row, m: Marks, actor: Actor, origin: Origin, now: Date) {
+  if (m.has('noShowReported')) return
+  await mark(b, 'noShowReported', actor, origin)
+  const { openGuaranteeClaim } = await import('@/lib/guarantee/ops')
+  await openGuaranteeClaim(actor, { bookingId: b.id, type: 'NO_SHOW', description: `El cliente reportó que el socio no llegó al servicio programado ${formatBookingWhen(b)} (seguimiento automático).` }, origin, now)
+    .catch((err) => logger.info('No-show claim not opened', { bookingId: b.id, err: err instanceof Error ? err.message : err }))
+}
+
+/**
+ * The booking just started (the partner, the client's «ya llegó» or the team): more than 30 min after the hour
+ * the delay is registered once (an admin-visible mark, no strike: lateness is not an operational strike) and
+ * the client and the partner are told so in the app. Never throws.
+ */
+export async function noteLateStart(bookingId: string, now = new Date()) {
+  try {
+    const b = await loadRow(bookingId)
+    const when = bookingWhen(b).getTime()
+    const late = lateStartMinutes(when, now.getTime())
+    if (!late || when < FOLLOWUP_SINCE.getTime() || late > 12 * 60) return false
+    const m = await marksOf(b.id)
+    if (m.has('lateStart')) return false
+    await mark(b, 'lateStart', undefined, APP_ORIGIN, late)
+    const service = b.service?.name ?? 'servicio'
+    // B13 (the template) already told the client it started: this is the app's word on the delay
+    await createNotification({ userId: b.userId, type: 'BOOKING_IN_PROGRESS', title: 'Tu servicio ya empezó', message: lateStartClientText({ partnerName: b.partner?.user?.name ?? null, service, minutesLate: late }), data: { bookingId: b.id, kind: 'LATE_START', url: '/dashboard?tab=bookings' }, channels: ['PUSH'] }).catch(() => null)
+    if (b.partner?.userId) await createNotification({ userId: b.partner.userId, type: 'BOOKING_IN_PROGRESS', title: 'Iniciaste con retraso', message: `Iniciaste ${service} ${late} min después de la hora acordada y quedó registrado. Si vas tarde, avisa «Voy en camino» con el tiempo de llegada: así el cliente sabe cuándo llegas.`, data: { bookingId: b.id, kind: 'LATE_START', url: '/partner?tab=bookings' }, channels: ['PUSH'] }).catch(() => null)
+    return true
+  } catch (err) {
+    logger.warn('Late start not noted', { bookingId, err: err instanceof Error ? err.message : err })
+    return false
+  }
+}
+
+/**
+ * The client rated the partner with 1–2 stars: once per booking a support case for the team (guarantee
+ * queue) and the client hears that someone will contact them. Not when a guarantee claim is already open. Never throws.
+ */
+export async function openLowRatingFollowup(bookingId: string, rating: number, comment: string | null) {
+  try {
+    const b = await loadRow(bookingId)
+    const c = lowRatingCase({ rating, comment, ref: b.id.slice(-6), service: b.service?.name ?? 'servicio', partnerName: b.partner?.user?.name ?? null, clientName: b.user?.name ?? null })
+    if (!c) return false
+    const m = await marksOf(b.id)
+    if (m.has('lowRatingFollowup')) return false
+    const claim = await prisma.guaranteeClaim.findFirst({ where: { bookingId: b.id, status: { in: ['OPEN', 'REDO_SCHEDULED', 'REFUND_REVIEW'] } }, select: { id: true } })
+    if (claim) return false
+    await mark(b, 'lowRatingFollowup')
+    await prisma.adminSupportCase.create({
+      data: { userId: b.userId, role: 'CLIENT', bookingId: b.id, priority: c.priority, status: 'OPEN', queue: 'GUARANTEE', subject: c.subject, description: c.description, slaDueAt: new Date(Date.now() + DAY) },
+    }).catch((err) => logger.warn('Low rating case not created', { bookingId, err: err instanceof Error ? err.message : err }))
+    await createNotification({ userId: b.userId, type: 'NEW_MESSAGE', title: 'Sentimos que no saliera bien', message: c.clientMessage, data: { bookingId: b.id, kind: 'LOW_RATING_FOLLOWUP', url: '/dashboard?tab=bookings' }, channels: ['PUSH'] }).catch(() => null)
+    const { notifyAdminsInApp } = await import('@/lib/inbox/escalation')
+    const admins = (await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { id: true }, take: 50 })).map((u) => u.id)
+    await notifyAdminsInApp(admins, { title: c.subject, message: c.description.slice(0, 300), url: '/admin/operations', kind: 'booking:low-rating' })
+    return true
+  } catch (err) {
+    logger.warn('Low rating follow-up failed', { bookingId, err: err instanceof Error ? err.message : err })
+    return false
+  }
+}
+
+export async function applyFollowup(actor: Actor, bookingId: string, action: FollowupAction, origin: Origin, opts: { method?: OfflineMethod; amount?: number; note?: string; sentAt?: Date; etaMinutes?: number | null; viaChat?: boolean } = {}, now = new Date()): Promise<FollowupResult> {
   const b = await loadRow(bookingId)
   assertBookingAccess(actor, b)
   const isClientAction = (CLIENT_FOLLOWUP_ACTIONS as readonly string[]).includes(action)
@@ -565,7 +664,9 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
         if (!m.has('askedClientRebook')) throw new OpsError('El socio aún tiene tiempo de confirmar. Si ya no quieres esperar, cancela la reserva desde tus reservas.')
         if (!(await systemCancel(b, 'unconfirmed'))) throw new OpsError('La reserva cambió de estado; recarga', 409)
       } else if (b.status === 'CONFIRMED') {
-        if (!m.has('noShowReported')) throw new OpsError('Tu reserva sigue confirmada. Si el socio no llegó, primero cuéntanos con «El socio no llegó».')
+        // After the late notice (+45 min without a word from the partner) the client may ask for another one at once
+        if (!m.has('noShowReported') && !lateOptionsOpen(m, now.getTime())) throw new OpsError('Tu reserva sigue confirmada. Si el socio no llegó, primero cuéntanos con «El socio no llegó».')
+        await reportNoShow(b, m, actor, origin, now)
         if (!(await systemCancel(b, 'no_show'))) throw new OpsError('La reserva cambió de estado; recarga', 409)
       } else if (!(await rebookAvailability(b, now))) {
         if (m.has('rebooked')) return { message: 'Tu solicitud ya está abierta de nuevo: te avisamos apenas lleguen propuestas.' }
@@ -592,6 +693,7 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       if (now.getTime() < when - 30 * MIN) throw new OpsError(`Tu servicio es ${formatBookingWhen(b)}: el socio lo inicia al llegar.`)
       if (!(await systemTransition(b.id, 'IN_PROGRESS', 'El cliente confirmó que el socio llegó'))) throw new OpsError('La reserva cambió de estado; recarga', 409)
       broadcast(b)
+      await noteLateStart(b.id, now)
       if (b.partner?.userId) {
         await createNotification({ userId: b.partner.userId, type: 'BOOKING_IN_PROGRESS', title: 'Servicio en curso', message: `El cliente confirmó que llegaste: marcamos el servicio de ${service} en curso. Al terminar, márcalo como completado.`, data: { bookingId: b.id, kind: 'ARRIVAL_CONFIRMED' } }).catch(() => null)
       }
@@ -611,6 +713,17 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       }
       return { message: 'Gracias por avisarnos. Le escribimos al socio: si en 30 minutos no inicia el servicio, cancelamos la reserva sin costo y te ofrecemos otro socio.' }
     }
+    case 'cancel_free': {
+      // One of the options of the late notice: cancelled without cost for the client (the claim goes to the team)
+      if (b.status === 'IN_PROGRESS') return { message: 'El socio ya marcó el servicio como iniciado. Si no está contigo, escríbenos y lo revisamos.' }
+      if (b.status !== 'CONFIRMED') return { message: 'Esta reserva ya no está activa.' }
+      if (paid(b)) throw new OpsError('Tu reserva tiene un pago registrado: escríbenos y el equipo la cancela con el reembolso.')
+      if (!m.has('noShowReported') && !lateOptionsOpen(m, now.getTime())) throw new OpsError('Aún no hay retraso del socio. Si quieres cancelar, hazlo desde tus reservas con el motivo.')
+      await reportNoShow(b, m, actor, origin, now)
+      if (!(await systemCancel(b, 'no_show'))) throw new OpsError('La reserva cambió de estado; recarga', 409)
+      if (!m.has('rebookDeclined')) await mark(b, 'rebookDeclined', actor, origin)
+      return { message: `Cancelamos tu reserva de ${service} sin costo y reportamos el retraso al equipo. Si aún necesitas el servicio, crea una solicitud nueva cuando quieras.` }
+    }
     case 'done':
       if (b.status === 'COMPLETED') return { message: 'El servicio ya está terminado.' }
       if (b.status !== 'IN_PROGRESS') throw new OpsError('El servicio no está en curso')
@@ -624,7 +737,7 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
     case 'partner_started':
       if (b.status === 'IN_PROGRESS') return { message: 'El servicio ya está en curso.' }
       await transitionBooking(actor, b.id, 'IN_PROGRESS', origin)
-      // transitionBooking tells the client it started (B13 + notification)
+      // transitionBooking tells the client it started (B13 + notification) and registers a late start
       return { message: 'Listo, marcamos el servicio en curso y le avisamos al cliente. Cuando termines, márcalo como completado (te lo recordamos).' }
     case 'partner_done':
       // The same as the app's «Marcar completado»: the client then gets how to pay and to rate
@@ -632,11 +745,17 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       if (b.status !== 'IN_PROGRESS') throw new OpsError(b.status === 'CONFIRMED' ? 'El servicio aún no está iniciado: primero márcalo como iniciado.' : 'El servicio no está en curso')
       await transitionBooking(actor, b.id, 'COMPLETED', origin)
       return { message: `¡Gracias! Marcamos ${service} como terminado y le enviamos al cliente cómo pagarte y calificarte. Cuando reporte el pago, confírmalo en tus reservas y califica al cliente: ${APP_URL}/partner?tab=bookings` }
-    case 'partner_on_way':
+    case 'partner_on_way': {
       if (b.status !== 'CONFIRMED') return { message: b.status === 'IN_PROGRESS' ? 'El servicio ya está en curso.' : 'Esta reserva ya no está confirmada.' }
-      await mark(b, 'partnerOnWay', actor, origin)
-      await createNotification({ userId: b.userId, type: 'BOOKING_STARTING_SOON', title: 'El socio va en camino', message: `${b.partner?.user?.name ?? 'El socio'} avisó que va en camino a tu servicio de ${service}.`, data: { bookingId: b.id, kind: 'PARTNER_ON_WAY' } }).catch(() => null)
-      return { message: 'Le avisamos al cliente que vas en camino. Al llegar, marca el servicio como iniciado.' }
+      const eta = opts.etaMinutes ? Math.max(5, Math.min(120, Math.round(Number(opts.etaMinutes)))) : null
+      const after = eta ? ` Llegas hacia las ${bogotaClock(now.getTime() + eta * MIN)}.` : ' Si puedes, dinos en cuánto llegas («llego en 20»).'
+      // The same update again (a double tap, the button and the text): the client is not told twice
+      if (onWayRepeat(m, eta, now.getTime())) return { message: `Ya le avisamos al cliente que vas en camino.${after}` }
+      await mark(b, 'partnerOnWay', actor, origin, eta)
+      // Once per update, on every channel (at night only in the app); from the booking chat the client already read the partner's words
+      await critical(b.userId, 'BOOKING_STARTING_SOON', `${b.partner?.user?.name?.split(' ')[0] ?? 'Tu socio'} va en camino`, onWayClientText({ partnerName: b.partner?.user?.name ?? null, service, etaMinutes: eta, now: now.getTime() }), { bookingId: b.id, kind: 'PARTNER_ON_WAY', url: '/dashboard?tab=bookings' }, { quiet: opts.viaChat || isNight(now.getTime()) })
+      return { message: `Le avisamos al cliente que vas en camino.${after} Al llegar, marca el servicio como iniciado.` }
+    }
     case 'partner_cant_go':
       if (b.status !== 'CONFIRMED' && b.status !== 'PENDING') return { message: 'Esta reserva ya no está activa.' }
       await transitionBooking(actor, b.id, 'CANCELLED', origin, { reason: 'El socio avisó que no puede llegar' })
@@ -687,7 +806,7 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       if (last && now.getTime() - last.getTime() < 30 * MIN) throw new OpsError('Ya le avisaste al cliente hace poco: espera 30 minutos para volver a avisarle o escríbele por el chat de la reserva.')
       const later = m.get('clientNeedsOtherTime')
       if (last && later && later >= last && !(m.get('clientReconfirmed') && m.get('clientReconfirmed')! > later)) throw new OpsError('El cliente pidió otra hora: espera a que reprograme o confirme de nuevo.')
-      await mark(b, 'partnerDeparting', actor, origin)
+      await mark(b, 'partnerDeparting', actor, origin, eta)
       const at = now.toISOString()
       await sendWaToUser(b.userId, WA.B40({ ...dataOf(b), etaMinutes: eta, at }), now)
       await critical(b.userId, 'BOOKING_STARTING_SOON', `${b.partner?.user?.name ?? 'Tu socio'} va a salir hacia tu dirección`, `${b.partner?.user?.name ?? 'Tu socio'} sale ahora para ${service} y llega en unos ${eta} minutos. ¿Estarás en el lugar? Respóndenos para que salga.`, { bookingId: b.id, kind: 'PARTNER_DEPARTING', url: '/dashboard?tab=bookings', actionLink: await clientLink(b) })
@@ -763,6 +882,11 @@ export type FollowupInfo = {
    * departure: the partner's «Voy a salir» and the client's answer (waiting | later | no_answer | null = pending).
    */
   appointment?: { state: 'confirmed' | 'pending' | 'on_hold' | 'not_asked'; departure?: { at: string; answer: 'waiting' | 'later' | 'no_answer' | null } }
+  /**
+   * Confirmed and the hour passed without starting: whether the partner said they are on the way (and the
+   * estimated arrival), is past it, or said nothing; options = the client was given wait / another partner / cancel.
+   */
+  arrival?: { state: 'on_way' | 'overdue' | 'silent'; expectedAt: string | null; options: boolean }
 }
 export type FollowupView = { actions: FollowupAction[]; info: FollowupInfo }
 
@@ -798,6 +922,10 @@ export async function followupViews(actor: Actor, bookingIds: string[], now = ne
       const answer = !departed ? null : departOpen ? (now.getTime() >= departed.getTime() + T.departAnswerMs ? 'no_answer' : null) : m.get('clientNeedsOtherTime') && m.get('clientNeedsOtherTime')! >= departed ? 'later' : 'waiting'
       info.appointment = { state, ...(departed ? { departure: { at: departed.toISOString(), answer } } : {}) }
     }
+    if (b.status === 'CONFIRMED' && now.getTime() >= when && now.getTime() < when + 6 * H && !toldNotToGo(m) && !absentOpen) {
+      const way = onWay(m)
+      info.arrival = { state: partnerLateState(m, now.getTime()), expectedAt: way ? new Date(way.expectedAt).toISOString() : null, options: lateOptionsOpen(m, now.getTime()) && !m.has('noShowReported') }
+    }
     const canRelease = b.status === 'CONFIRMED' && !paid(b) && Boolean(releaseKind(m, when, now.getTime()))
     const list: FollowupAction[] = []
     if (actor.role === 'CLIENT') {
@@ -807,7 +935,8 @@ export async function followupViews(actor: Actor, bookingIds: string[], now = ne
       if (info.price) list.push('price_ok', 'price_no')
       if (absentOpen) list.push('client_here', 'client_cancel')
       if (b.status === 'PENDING' && m.has('askedClientRebook') && !paid(b)) list.push('rebook')
-      if (b.status === 'CONFIRMED' && !absentOpen && !toldNotToGo(m) && now.getTime() >= when + 10 * MIN && !m.has('noShowReported')) list.push('no_show', 'arrived')
+      if (b.status === 'CONFIRMED' && info.arrival?.options && !paid(b)) list.push('arrived', 'rebook', 'cancel_free')
+      else if (b.status === 'CONFIRMED' && !absentOpen && !toldNotToGo(m) && now.getTime() >= when + 10 * MIN && !m.has('noShowReported')) list.push('no_show', 'arrived')
       if (b.status === 'CONFIRMED' && m.has('noShowReported') && !paid(b)) list.push('rebook')
       if (b.status === 'IN_PROGRESS' && !info.price) list.push('done')
       if (b.status === 'CANCELLED' && b.proposal?.serviceRequest.status === 'ACCEPTED' && !m.has('rebooked') && !m.has('rebookDeclined') && !m.has('clientNoShow')) {

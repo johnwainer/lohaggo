@@ -3,7 +3,7 @@
  * - request-lifecycle (every 15 min): C14, D6, D7, D4, and the daily D10 (7:00) and D8 (9:00). C19 («¿terminaste?»)
  *   is the booking follow-up's (lib/bookings/followups.ts), timed by the service's duration.
  * - notification-reminders (every 30 min): B15.
- * - automations (hourly): C3, C8, C9, B23, C30, C29, B24.
+ * - automations (hourly): C3, C8, C9, B23 (a week after a completed and paid booking), C30, C29, B24.
  * Every send is deduplicated in lib/messaging/wa-send.ts, so a window spanning several runs sends once.
  */
 import { prisma } from '@/lib/prisma'
@@ -11,11 +11,13 @@ import { createLogger } from '@/lib/logger'
 import { bookingWhen } from '@/lib/bookings/when'
 import { WA } from '@/lib/messaging/wa-specs'
 import { deliverWa, sendWaToAdmins, sendWaToUser, type WaOutcome } from '@/lib/messaging/wa-send'
-import { bogotaClock, cityLabel } from '@/lib/messaging/wa-format'
+import { bogotaClock, cityLabel, isMarketingQuietHour } from '@/lib/messaging/wa-format'
+import { FOLLOWUP_TIMING } from '@/lib/bookings/followups-core'
 
 const logger = createLogger('wa-scheduled')
 const H = 3600_000
 const DAY = 24 * H
+const REBOOK_INVITE_MS = FOLLOWUP_TIMING.rebookInviteMs
 const IDENTITY = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'] as const
 
 type Tally = Record<string, number>
@@ -182,15 +184,33 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
   })
 
   await step(t, 'B23', async () => {
+    // A week after a completed and paid booking (FOLLOWUP_TIMING.rebookInviteMs): «¿lo pedimos de nuevo?».
+    // Chat clients by WhatsApp (B23); app clients without it get the same invite in the app, once every 60 days.
     const last = await prisma.booking.findMany({
-      where: { status: 'COMPLETED', updatedAt: { lte: new Date(now.getTime() - 30 * DAY), gt: new Date(now.getTime() - 31 * DAY) }, user: { excludedFromMarketing: false } },
-      select: { id: true, userId: true, updatedAt: true, service: { select: { name: true } }, user: { select: { name: true } }, partner: { select: { user: { select: { name: true } } } } }, take: 100,
+      where: {
+        status: 'COMPLETED', updatedAt: { lte: new Date(now.getTime() - REBOOK_INVITE_MS), gt: new Date(now.getTime() - REBOOK_INVITE_MS - DAY) }, user: { excludedFromMarketing: false },
+        payment: { is: { OR: [{ status: 'APPROVED' }, { confirmationStatus: 'CONFIRMED' }] } },
+      },
+      select: { id: true, userId: true, updatedAt: true, service: { select: { name: true, slug: true } }, user: { select: { name: true } }, partner: { select: { id: true, user: { select: { name: true } } } } }, take: 100,
     })
+    const quiet = isMarketingQuietHour(now)
     for (const b of last) {
       const since = { gt: b.updatedAt }
       const again = await prisma.serviceRequest.count({ where: { userId: b.userId, createdAt: since } }) + await prisma.booking.count({ where: { userId: b.userId, createdAt: since } })
       if (again) continue
-      count(t, 'B23', await sendWaToUser(b.userId, WA.B23({ userId: b.userId, clientName: b.user.name, service: b.service.name, partnerName: b.partner?.user?.name ?? 'tu socio', bookingId: b.id }), now))
+      const r = await sendWaToUser(b.userId, WA.B23({ userId: b.userId, clientName: b.user.name, service: b.service.name, partnerName: b.partner?.user?.name ?? 'tu socio', bookingId: b.id }), now)
+      count(t, 'B23', r)
+      if (!r || r.ok || ('skipped' in r && ['duplicate', 'marketing_blocked', 'inactive'].includes(String(r.skipped))) || quiet) continue
+      const invited = await prisma.notification.findFirst({ where: { userId: b.userId, createdAt: { gte: new Date(now.getTime() - 60 * DAY) }, data: { contains: '"kind":"REBOOK_INVITE"' } }, select: { id: true } })
+      if (invited) continue
+      const partnerFirst = b.partner?.user?.name?.trim().split(/\s+/)[0]
+      const { createNotification } = await import('@/lib/notifications/notificationService')
+      await createNotification({
+        userId: b.userId, type: 'BOOKING_COMPLETED', title: '¿Lo pedimos de nuevo?',
+        message: `¿Necesitas de nuevo ${b.service.name.toLowerCase()}?${partnerFirst ? ` Pídeselo otra vez a ${partnerFirst} en un toque.` : ' Pídelo otra vez en un toque.'}`,
+        data: { bookingId: b.id, kind: 'REBOOK_INVITE', url: b.partner && b.service.slug ? `/servicios/${b.service.slug}?partnerId=${b.partner.id}` : '/dashboard?tab=bookings' },
+        channels: ['PUSH'],
+      }).then(() => { t.B23_app = (t.B23_app ?? 0) + 1 }).catch(() => null)
     }
   })
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { bookingWhen } from '@/lib/bookings/when'
 import { FOLLOWUP_SINCE, marksFor } from '@/lib/bookings/followups'
-import { reminderPlan } from '@/lib/bookings/followups-core'
+import { clientReminderText, partnerDayReminderText, reminderPlan } from '@/lib/bookings/followups-core'
 import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
 import { createNotification } from '@/lib/notifications/notificationService'
@@ -25,7 +25,7 @@ async function alreadyReminded(userId: string, type: 'BOOKING_REMINDER_24H' | 'B
 async function remindBookings(now: Date, kind: 'day' | 'soon') {
   const bookings = await prisma.booking.findMany({
     where: { status: 'CONFIRMED', scheduledDate: candidateScheduledRange(now) },
-    select: { id: true, userId: true, scheduledDate: true, scheduledTime: true, address: true, city: true, service: { select: { name: true } }, user: { select: { name: true } }, partner: { select: { userId: true } } },
+    select: { id: true, userId: true, scheduledDate: true, scheduledTime: true, address: true, city: true, totalPrice: true, service: { select: { name: true } }, user: { select: { name: true } }, partner: { select: { userId: true, rating: true, totalReviews: true, user: { select: { name: true } } } }, proposal: { select: { notes: true } } },
     take: 500,
   })
   const type = kind === 'day' ? 'BOOKING_REMINDER_24H' as const : 'BOOKING_STARTING_SOON' as const
@@ -52,20 +52,21 @@ async function remindBookings(now: Date, kind: 'day' | 'soon') {
         userId: b.userId,
         type,
         title: kind === 'day' ? 'Recordatorio: tu servicio es mañana' : 'Tu servicio empieza pronto',
-        message: kind === 'day' ? `Mañana a las ${time} tienes ${service} agendado.` : `Tu servicio de ${service} empieza a las ${time}.`,
+        // The partner's first name and rating, and what to have ready (access, materials when agreed)
+        message: clientReminderText({ kind, service, time: time ?? '', partnerName: b.partner?.user?.name ?? null, rating: b.partner?.rating ?? null, reviews: b.partner?.totalReviews ?? 0, proposalNotes: b.proposal?.notes ?? null }),
         data: { bookingId: b.id, url: '/dashboard?tab=bookings' },
         ...(client === 'app' ? { channels: ['PUSH' as const] } : {}),
       })
     }
 
     if (partnerUserId) {
-      // After the booking the partner sees the exact address
+      // After the booking the partner sees the exact address (and the day before, the client's first name and the agreed price)
       await createNotification({
         userId: partnerUserId,
         type,
         title: kind === 'day' ? 'Recordatorio: servicio agendado mañana' : 'Tu servicio empieza pronto',
         message: kind === 'day'
-          ? `Mañana a las ${time} tienes ${service} con ${b.user?.name ?? 'el cliente'} en ${b.address}, ${b.city}. Antes de salir toca «Voy a salir» en la app.`
+          ? partnerDayReminderText({ service, time: time ?? '', clientName: b.user?.name ?? null, address: b.address, city: b.city, price: b.totalPrice })
           : `${service} con ${b.user?.name ?? 'el cliente'} empieza a las ${time} en ${b.address}, ${b.city}. Al llegar, márcalo como iniciado.`,
         data: { bookingId: b.id, url: '/partner?tab=bookings' },
       })

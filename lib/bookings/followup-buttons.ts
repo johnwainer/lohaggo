@@ -10,6 +10,8 @@ import { sendToConversation } from '@/lib/inbox/send'
 import type { ButtonMark } from '@/lib/messaging/wa-format'
 import { applyFollowup, type FollowupAction } from '@/lib/bookings/followups'
 import type { OfflineMethod } from '@/lib/payments/ops'
+import { partnerOnWaySignal } from '@/lib/bookings/partner-unavailable-core'
+import { bookingWhen } from '@/lib/bookings/when'
 
 const logger = createLogger('followup-buttons')
 
@@ -112,7 +114,49 @@ export async function handleTextYes(p: { conversationId: string; userId: string 
   return true
 }
 
-export const isFollowupButton = (id: string) => Object.prototype.hasOwnProperty.call(FOLLOWUP_BUTTONS, id)
+/**
+ * A partner types «voy en camino», «llego en 20» or «voy tarde» in their own WhatsApp / SMS chat with us
+ * (after the C36 «¿Ya llegaste?» or on their own): the follow-up's «Voy en camino» with that time, when
+ * exactly one confirmed booking of theirs is around its hour (1 h before to 3 h after). Answers in the same
+ * chat; false when it does not apply (the agent takes the message).
+ */
+export async function handlePartnerOnWayText(p: { conversationId: string; userId: string | null; channel: string; body: string; lastTemplate?: { name?: string; at?: string; entityType?: string | null; entityId?: string | null } | null }, now = new Date()): Promise<boolean> {
+  if (!p.userId || (p.channel !== 'WHATSAPP' && p.channel !== 'SMS')) return false
+  const signal = partnerOnWaySignal(p.body)
+  if (!signal) return false
+  const user = await prisma.user.findUnique({ where: { id: p.userId }, select: { id: true, role: true, email: true, isActive: true, partnerProfile: { select: { id: true } } } })
+  if (!user?.isActive || user.role !== 'PARTNER' || !user.partnerProfile) return false
+  const assigned = await prisma.conversation.findUnique({ where: { id: p.conversationId }, select: { assignedToId: true } })
+  if (assigned?.assignedToId) return false
+  const H = 3600_000
+  const rows = await prisma.booking.findMany({
+    where: { partnerId: user.partnerProfile.id, status: 'CONFIRMED', scheduledDate: { gte: new Date(now.getTime() - 2 * 24 * H), lte: new Date(now.getTime() + 24 * H) } },
+    select: { id: true, scheduledDate: true, scheduledTime: true },
+  })
+  const t = p.lastTemplate
+  const fromTemplate = t?.entityType === 'Booking' && t.entityId && t.at && now.getTime() - Date.parse(t.at) < 6 * H ? t.entityId : null
+  const around = rows.filter((b) => {
+    const w = bookingWhen(b).getTime()
+    return now.getTime() >= w - H && now.getTime() <= w + 3 * H && (!fromTemplate || b.id === fromTemplate)
+  })
+  if (around.length !== 1) return false
+  const conversation = await prisma.conversation.findUnique({ where: { id: p.conversationId } })
+  if (!conversation) return false
+  const actor: Actor = { userId: user.id, role: 'PARTNER', email: user.email, partnerId: user.partnerProfile.id }
+  const origin: Origin = { via: 'chat', channel: conversation.channel, conversationId: conversation.id, agentId: FOLLOWUP_SENDER.agentId, agentName: FOLLOWUP_SENDER.agentName }
+  let reply: string
+  try {
+    reply = (await applyFollowup(actor, around[0].id, 'partner_on_way', origin, { etaMinutes: signal.etaMinutes }, now)).message
+  } catch (err) {
+    if (!(err instanceof OpsError)) return false
+    reply = err.message
+  }
+  const sent = await sendToConversation({ conversation, message: reply, sender: FOLLOWUP_SENDER })
+  if (!sent.ok) logger.warn('On-way reply not sent', { conversationId: p.conversationId, error: sent.error })
+  return true
+}
+
+export const isFollowupButton =(id: string) => Object.prototype.hasOwnProperty.call(FOLLOWUP_BUTTONS, id)
 
 export const FOLLOWUP_SENDER = { type: 'AI' as const, agentId: 'booking-followup', agentName: 'Seguimiento automático' }
 

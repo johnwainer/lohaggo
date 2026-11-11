@@ -247,6 +247,11 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened, reason: opts.reason ?? null, clientInformed })
   await afterStatusChange(actor, booking, to)
   if (to === 'COMPLETED') schedulePurchaseConversion(bookingId)
+  // Started more than 30 min after the hour: the delay is registered (admin mark, no strike) and both are told
+  if (to === 'IN_PROGRESS' && booking.status === 'CONFIRMED') {
+    const { noteLateStart } = await import('@/lib/bookings/followups')
+    await noteLateStart(bookingId)
+  }
 
   return updated
 }

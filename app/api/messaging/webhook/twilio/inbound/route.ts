@@ -19,7 +19,8 @@ import { recordCsatReply } from '@/lib/inbox/csat'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 import { parseButtonReply, withButtonMark, type ButtonMark } from '@/lib/messaging/wa-format'
-import { handleFollowupButton, handleTextYes, isFollowupButton, isPlainYes } from '@/lib/bookings/followup-buttons'
+import { handleFollowupButton, handlePartnerOnWayText, handleTextYes, isFollowupButton, isPlainYes } from '@/lib/bookings/followup-buttons'
+import { partnerOnWaySignal } from '@/lib/bookings/partner-unavailable-core'
 import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import type { Prisma } from '@prisma/client'
 
@@ -273,6 +274,12 @@ export async function POST(request: NextRequest) {
   if (!button && !media.length && isPlainYes(body)) {
     const fields = (await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true } }))?.customFields as { lastTemplate?: { name?: string; at?: string } } | null
     const handled = await handleTextYes({ conversationId, userId: user?.id ?? null, channel, body, lastTemplate: fields?.lastTemplate ?? null }).catch(() => false)
+    if (handled) return twiml()
+  }
+  // A partner's «voy en camino» / «llego en 20» / «voy tarde» around the hour: the client hears it with the time
+  if (!button && !media.length && partnerOnWaySignal(body)) {
+    const fields = (await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true } }))?.customFields as { lastTemplate?: { name?: string; at?: string; entityType?: string | null; entityId?: string | null } } | null
+    const handled = await handlePartnerOnWayText({ conversationId, userId: user?.id ?? null, channel, body, lastTemplate: fields?.lastTemplate ?? null }).catch(() => false)
     if (handled) return twiml()
   }
   after(async () => {

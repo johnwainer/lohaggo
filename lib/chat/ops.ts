@@ -11,20 +11,22 @@ import { emitProposalBroadcast } from '@/lib/supabase-admin'
 import { computeChatState } from '@/lib/chat-status'
 import { detectHelpQuery, formatHelpSystemMessage } from '@/lib/chat/help-responses'
 import { detectContactInfo } from '@/lib/chat/contact-guard'
-import { partnerUnavailableSignal, type UnavailableKind } from '@/lib/bookings/partner-unavailable-core'
+import { partnerOnWaySignal, partnerUnavailableSignal, type UnavailableKind } from '@/lib/bookings/partner-unavailable-core'
+import { bookingWhen } from '@/lib/bookings/when'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 
 const logger = createLogger('chat-ops')
 
 const DAY_MS = 24 * 3600_000
+const H_MS = 3600_000
 export const CHAT_MESSAGE_MAX = 5000
 export { PHOTO_ONLY_TEXT } from '@/lib/chat/constants'
 import { PHOTO_ONLY_TEXT } from '@/lib/chat/constants'
 
 const chatInclude = {
   serviceRequest: { select: { status: true, service: { select: { name: true } } } },
-  proposal: { select: { id: true, status: true, bookings: { orderBy: { createdAt: 'desc' as const }, take: 1, select: { id: true, status: true, updatedAt: true } } } },
+  proposal: { select: { id: true, status: true, bookings: { orderBy: { createdAt: 'desc' as const }, take: 1, select: { id: true, status: true, updatedAt: true, scheduledDate: true, scheduledTime: true } } } },
   client: { select: { id: true, name: true, isActive: true } },
   partner: { select: { id: true, isActive: true, userId: true, user: { select: { name: true } } } },
 }
@@ -176,6 +178,19 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
   const unavailable = side === 'PARTNER' && booking && (booking.status === 'PENDING' || booking.status === 'CONFIRMED')
     ? opts.unavailable ?? partnerUnavailableSignal(content)
     : null
+  // Around the hour «voy en camino» / «llego en 20» / «voy tarde» is the follow-up's «Voy en camino» with its time
+  // (the client gets the arrival time, the partner is not urged); a «late» signal then needs no team task
+  const onWayNow = side === 'PARTNER' && booking?.status === 'CONFIRMED' && unavailable !== 'cannot' && unavailable !== 'other_city' && booking.scheduledDate && booking.scheduledTime
+    && Math.abs(bookingWhen({ scheduledDate: booking.scheduledDate, scheduledTime: booking.scheduledTime }).getTime() + H_MS - Date.now()) <= 2 * H_MS
+    ? partnerOnWaySignal(content)
+    : null
+  if (onWayNow && booking) {
+    const { applyFollowup } = await import('@/lib/bookings/followups')
+    const applied = await applyFollowup({ ...actor, partnerId: actor.partnerId ?? chat.partner.id }, booking.id, 'partner_on_way', origin, { etaMinutes: onWayNow.etaMinutes, viaChat: true })
+      .then(() => true)
+      .catch((err) => { logger.warn('On-way from chat not applied', { bookingId: booking.id, err: err instanceof Error ? err.message : err }); return false })
+    if (applied) return { blocked: false, message, helpReply, delivery, unavailable }
+  }
   if (unavailable && booking) {
     const { handlePartnerUnavailable } = await import('@/lib/bookings/partner-unavailable')
     await handlePartnerUnavailable({ bookingId: booking.id, kind: unavailable, partnerName: chat.partner.user.name })

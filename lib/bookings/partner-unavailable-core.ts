@@ -43,6 +43,44 @@ export function partnerUnavailableSignal(text: string | null | undefined): Unava
   return null
 }
 
+const ON_WAY = [
+  /\b(?:ya )?(?:voy|vamos|estoy|ando|sigo|iba) (?:en camino|camino (?:a|para|hacia)|de camino|para (?:alla|alli)|saliendo|llegando)\b/,
+  /\b(?:ya )?(?:sali|salimos|voy saliendo)\b(?! de (?:viaje|la ciudad))/,
+  /\b(?:ya )?(?:casi )?(?:llego|llegamos|llegare)\b/,
+  /\ben camino\b/,
+]
+const NEGATED_ON_WAY = /\bno (?:voy|vamos|estoy|llego|llegare|sali)\b/
+const WORD_NUMBER: Record<string, number> = { una: 1, un: 1, dos: 2 }
+
+/** «en 20», «20 minutos», «media hora», «una hora», «hora y media» → minutes (5–120), or null. */
+export function etaMinutesIn(text: string | null | undefined): number | null {
+  const t = fold(text ?? '')
+  const clamp = (n: number) => Math.max(5, Math.min(120, Math.round(n)))
+  if (/\bhora y media\b/.test(t)) return 90
+  if (/\bmedia hora\b/.test(t)) return 30
+  const minutes = t.match(/\b(\d{1,3}) ?(?:min|mins|minutos|minuticos|minutitos)\b/)
+  if (minutes) return clamp(Number(minutes[1]))
+  const h = t.match(/\b(\d|una|un|dos) horas?\b/)
+  if (h) return clamp((WORD_NUMBER[h[1]] ?? Number(h[1])) * 60)
+  // A bare number after «llego en» is minutes
+  const bare = t.match(/\b(?:llego|llegare|llegamos|estoy (?:alla|ahi)) (?:en|como en|dentro de) (\d{1,3})\b/) ?? t.match(/\ben (\d{1,3}) (?:llego|estoy)\b/)
+  return bare ? clamp(Number(bare[1])) : null
+}
+
+/**
+ * The partner says they are on the way, about to arrive or running late («voy en camino», «llego en 20»,
+ * «voy tarde, llego en media hora»), with the minutes when they give them. Null when they cannot come or
+ * say something else. Pure.
+ */
+export function partnerOnWaySignal(text: string | null | undefined): { etaMinutes: number | null } | null {
+  const t = fold(text ?? '')
+  if (!t.trim()) return null
+  const kind = partnerUnavailableSignal(t)
+  if (kind === 'cannot' || kind === 'other_city') return null
+  if (kind !== 'late' && (NEGATED_ON_WAY.test(t) || !ON_WAY.some((re) => re.test(t)))) return null
+  return { etaMinutes: etaMinutesIn(t) }
+}
+
 export function asUnavailableKind(v: unknown): UnavailableKind | null {
   return typeof v === 'string' && (UNAVAILABLE_KINDS as string[]).includes(v) ? (v as UnavailableKind) : null
 }

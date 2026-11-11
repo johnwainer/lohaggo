@@ -70,6 +70,11 @@ export async function leaveReview(actor: Actor, input: ReviewInput, origin: Orig
     const { waReviewReceived } = await import('@/lib/messaging/wa-events')
     await waReviewReceived(bookingId, rating)
     await notifyRated(booking.partner.userId, booking.user.name, rating, bookingId, 'PARTNER')
+    // 1–2 stars: a follow-up case for the team and the client hears someone will contact them (once)
+    if (rating <= 2) {
+      const { openLowRatingFollowup } = await import('@/lib/bookings/followups')
+      await openLowRatingFollowup(bookingId, rating, comment)
+    }
     return review
   }
 

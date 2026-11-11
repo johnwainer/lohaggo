@@ -15,7 +15,9 @@ export const DAY = 24 * H
  * - the day before: partner reminder (22–25 h, notification-reminders) and the client's re-confirmation at 18:00
  * - 07:00 urge to confirm, 08:30 hold without it · 09:00–09:30 the «starts soon» reminder to both
  * - 10:00 the partner is asked to mark that they started · 10:15 the client «¿Ya llegó el socio?»
- * - 10:45 second notice to the partner if it has not started (and did not say they are on the way)
+ * - 10:45 second notice to the partner if it has not started (and is not on the way within the time they gave),
+ *   and the client's options (wait, another partner, cancel without cost)
+ * - «voy en camino, llego en 20» at any point: the client is told at once with the time, once per update
  * - started at 10:00 → 12:00 the partner «¿Terminaste?» · 12:30 the client «¿Ya terminó?»
  * - completed → at once the client gets how to pay and to rate; the partner to confirm the payment and rate
  * - 24 h + 18 h after asking without an answer it is completed by the platform (never at night)
@@ -67,8 +69,23 @@ export const FOLLOWUP_TIMING = {
   departAnswerMs: 10 * MIN,
   /** «Voy a salir» from this long before the service until 2 h after */
   departFromMs: 3 * H,
+  /** «Voy en camino» without a time: counted as this many minutes */
+  onWayDefaultEtaMinutes: 30,
+  /** On the way and this long past the time they gave: overdue (the client gets the options) */
+  onWayGraceMs: 15 * MIN,
+  /** The same «voy en camino» (same ETA) again within this: no new notice to the client */
+  onWayRepeatMs: 5 * MIN,
+  /** The partner did not start nor answer by this long after the hour: the client hears their options */
+  clientLateOptionsMs: 45 * MIN,
+  /** Started this long after the hour: the delay is registered (admin mark, the client is told; no strike) */
+  lateStartMs: 30 * MIN,
+  /** Last rating reminder to the client (after the 24 h and 72 h ones) */
+  finalRatingReminderMs: 5 * DAY,
+  /** «Pedir de nuevo» (B23): this long after a completed and paid booking */
+  rebookInviteMs: 7 * DAY,
 } as const
 const T = FOLLOWUP_TIMING
+const cop = (n: number) => `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n)}`
 
 /** The text of each mark: how it is found again and what the admin's history shows. */
 export const FOLLOWUP_MARK = {
@@ -102,12 +119,32 @@ export const FOLLOWUP_MARK = {
   clientNeedsOtherTime: 'El cliente pidió otra hora cuando el socio iba a salir',
   departNoAnswer: 'Garantía de cita: el cliente no respondió al aviso de salida',
   clientUnconfirmed: 'El cliente no confirmó la cita (falta del cliente)',
+  clientToldOptions: 'Seguimiento: el socio no inicia ni responde; le dimos al cliente sus opciones',
+  lateStart: 'El socio inició el servicio tarde (quedó registrado, sin falta)',
+  askedRatingFinal: 'Seguimiento: último recordatorio para calificar',
+  lowRatingFollowup: 'Seguimiento: calificación baja, el equipo contacta al cliente',
 } as const
 export type FollowupMark = keyof typeof FOLLOWUP_MARK
 export const MARK_BY_TEXT = new Map<string, FollowupMark>(Object.entries(FOLLOWUP_MARK).map(([k, v]) => [v, k as FollowupMark]))
 
-/** The latest time of each mark of one booking. */
-export type Marks = Map<FollowupMark, Date>
+/** A mark may carry minutes after its text («… · 20 min»: the ETA of «voy en camino», the delay of a late start). */
+const MINUTES_SEP = ' · '
+export const markDetail = (kind: FollowupMark, minutes?: number | null) => (minutes && minutes > 0 ? `${FOLLOWUP_MARK[kind]}${MINUTES_SEP}${Math.round(minutes)} min` : FOLLOWUP_MARK[kind])
+
+/** The mark of a BookingEvent detail, with its minutes when it has them. Pure. */
+export function parseMarkDetail(detail: string | null | undefined): { kind: FollowupMark; minutes: number | null } | null {
+  if (!detail) return null
+  const exact = MARK_BY_TEXT.get(detail)
+  if (exact) return { kind: exact, minutes: null }
+  const i = detail.lastIndexOf(MINUTES_SEP)
+  if (i < 0) return null
+  const kind = MARK_BY_TEXT.get(detail.slice(0, i))
+  const n = detail.slice(i + MINUTES_SEP.length).match(/^(\d{1,4}) min$/)
+  return kind && n ? { kind, minutes: Number(n[1]) } : null
+}
+
+/** The latest time of each mark of one booking (and the minutes of the latest one of each kind that has them). */
+export type Marks = Map<FollowupMark, Date> & { minutes?: Map<FollowupMark, number> }
 
 /** Marks about one date of the service: a reschedule starts them over (a «confirmo» is for the old date). */
 export const APPOINTMENT_MARKS: FollowupMark[] = ['reconfirmAsked', 'reconfirmUrged', 'clientReconfirmed', 'appointmentOnHold', 'partnerDeparting', 'clientWaiting', 'clientNeedsOtherTime', 'departNoAnswer', 'askedPartnerArrival', 'urgedPartnerStart', 'askedClientArrival']
@@ -188,11 +225,59 @@ export function appointmentStep(p: { when: number; now: number; marks: Marks }):
 
 // ─── At the hour ────────────────────────────────────────────────────────────
 
-export type ArrivalAction = 'cancel_client_absent' | 'cancel_no_show' | 'ask_partner_start' | 'ask_client_arrival' | 'urge_partner_start'
+/** The partner's latest «voy en camino» / «Voy a salir», with the arrival it implies. */
+export function onWay(m: Marks): { at: Date; etaMinutes: number | null; expectedAt: number } | null {
+  const way = m.get('partnerOnWay')
+  const dep = m.get('partnerDeparting')
+  const kind: FollowupMark | null = way && (!dep || way >= dep) ? 'partnerOnWay' : dep ? 'partnerDeparting' : null
+  if (!kind) return null
+  const at = m.get(kind)!
+  const etaMinutes = m.minutes?.get(kind) ?? null
+  return { at, etaMinutes, expectedAt: at.getTime() + (etaMinutes ?? T.onWayDefaultEtaMinutes) * MIN }
+}
+
+/**
+ * Where a confirmed, not started booking stands with the partner: «on_way» (said so and still within the time
+ * they gave), «overdue» (said so and is past it) or «silent» (nothing).
+ */
+export function partnerLateState(m: Marks, now: number): 'on_way' | 'overdue' | 'silent' {
+  const w = onWay(m)
+  if (!w) return 'silent'
+  return now < w.expectedAt + T.onWayGraceMs ? 'on_way' : 'overdue'
+}
+
+/** The same «voy en camino» again (same time, a moment later): the client is not told twice. */
+export function onWayRepeat(m: Marks, etaMinutes: number | null, now: number) {
+  const prev = m.get('partnerOnWay')
+  if (!prev || now - prev.getTime() >= T.onWayRepeatMs) return false
+  return (m.minutes?.get('partnerOnWay') ?? null) === etaMinutes
+}
+
+/** The client was given the options (wait, another partner, cancel without cost) and the partner is still not on the way. */
+export function lateOptionsOpen(m: Marks, now: number) {
+  const told = m.get('clientToldOptions')
+  if (!told) return false
+  const w = onWay(m)
+  // A «voy en camino» after the options closes them while it lasts
+  return !(w && w.at > told && partnerLateState(m, now) === 'on_way')
+}
+
+/** When the client is asked «¿Ya llegó el socio?»: 15 min after the hour, or after the time the partner gave. */
+export function clientArrivalAskAt(when: number, m: Marks) {
+  const base = when + T.askClientArrivalMs
+  const w = onWay(m)
+  if (!w) return base
+  return Math.max(base, Math.min(w.expectedAt + 5 * MIN, when + 3 * H))
+}
+
+export type ArrivalAction = 'cancel_client_absent' | 'cancel_no_show' | 'ask_partner_start' | 'ask_client_arrival' | 'urge_partner_start' | 'client_late_options'
 
 /**
  * CONFIRMED and the hour came without starting. The client's «no llegó» wins over the partner's «no estaba».
- * A partner told not to go is never asked about arriving (no «no llegó», no strike).
+ * A partner told not to go is never asked about arriving (no «no llegó», no strike). A partner on the way
+ * (within the time they gave) is not urged and the client is asked about the arrival after that time; a
+ * partner who neither starts nor answers by +45 min (or is past the time they gave) has the client told the
+ * options once: wait, another partner, or cancel without cost.
  */
 export function arrivalStep(p: { when: number; now: number; marks: Marks; paid: boolean }): ArrivalAction[] {
   const { when, now, marks: m } = p
@@ -208,12 +293,88 @@ export function arrivalStep(p: { when: number; now: number; marks: Marks; paid: 
     return now >= from + T.noShowGraceMs && !p.paid ? ['cancel_no_show'] : []
   }
   if (toldNotToGo(m)) return []
+  const state = partnerLateState(m, now)
   const out: ArrivalAction[] = []
   if (!m.has('askedPartnerArrival')) out.push('ask_partner_start')
-  if (now >= when + T.askClientArrivalMs && !m.has('askedClientArrival')) out.push('ask_client_arrival')
+  if (now >= clientArrivalAskAt(when, m) && !m.has('askedClientArrival')) out.push('ask_client_arrival')
   // Only around the hour: a booking from before this step existed never gets a late second notice
-  if (now >= when + T.urgePartnerStartMs && now < when + 2 * 60 * MIN && m.has('askedPartnerArrival') && !m.has('urgedPartnerStart') && !m.has('partnerOnWay')) out.push('urge_partner_start')
+  if (now >= when + T.urgePartnerStartMs && now < when + 2 * H && m.has('askedPartnerArrival') && !m.has('urgedPartnerStart') && state !== 'on_way') out.push('urge_partner_start')
+  if (now >= when + T.clientLateOptionsMs && now < when + 3 * H && state !== 'on_way' && !m.has('clientToldOptions') && (m.has('askedClientArrival') || out.includes('ask_client_arrival'))) out.push('client_late_options')
   return out
+}
+
+// ─── What the client and the partner are told around the hour ───────────────
+
+const first = (n: string | null | undefined, fallback: string) => n?.trim().split(/\s+/)[0] || fallback
+
+/** «10:35 a. m.» in Bogotá. */
+export function bogotaClock(ms: number) {
+  const d = new Date(ms - 5 * H)
+  const h = d.getUTCHours()
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h < 12 ? 'a. m.' : 'p. m.'}`
+}
+
+/** «Carlos va en camino…» with the time they gave (once per update). */
+export function onWayClientText(p: { partnerName: string | null; service: string; etaMinutes: number | null; now: number }) {
+  const who = first(p.partnerName, 'Tu socio')
+  const eta = p.etaMinutes ? `: llega en ~${p.etaMinutes} min (hacia las ${bogotaClock(p.now + p.etaMinutes * MIN)})` : ''
+  return `${who} va en camino a tu servicio de ${p.service}${eta}. Te avisamos cuando lo inicie; si necesitas algo, escríbenos.`
+}
+
+/** The «¿Ya llegó el socio?» of the app, with what we know: on the way (and when) or that we are confirming. */
+export function arrivalAskClientText(p: { partnerName: string | null; service: string; when: number; marks: Marks; now: number }) {
+  const who = first(p.partnerName, 'el socio')
+  const w = onWay(p.marks)
+  if (w && partnerLateState(p.marks, p.now) === 'on_way') return `${who} avisó que va en camino a tu servicio de ${p.service} (llegada estimada ${bogotaClock(w.expectedAt)}). ¿Ya llegó? Cuéntanos desde tus reservas.`
+  return `Tu servicio de ${p.service} era a las ${bogotaClock(p.when)} y ${who} aún no lo inicia. Estamos confirmando con ${who} y te avisamos. Si ya llegó, márcalo en tus reservas («Ya llegó»).`
+}
+
+/** The options of a client whose partner neither started nor answered (+45 min), or is past the time they gave. */
+export function lateOptionsClientText(p: { partnerName: string | null; service: string; when: number; marks: Marks; now: number }) {
+  const who = first(p.partnerName, 'El socio')
+  const w = onWay(p.marks)
+  const late = Math.max(0, Math.round((p.now - p.when) / MIN))
+  const why = w ? `dijo que llegaba hacia las ${bogotaClock(w.expectedAt)} y aún no inicia tu servicio de ${p.service}` : `lleva ${late} min de retraso con tu servicio de ${p.service} y no nos ha confirmado que va en camino`
+  return `${who} ${why}. Tienes tres opciones: esperarlo un poco más, pedir otro socio ahora (cancelamos esta reserva sin costo y reabrimos tu solicitud) o cancelar sin costo. Elige en tus reservas o respóndenos aquí.`
+}
+
+/** Minutes late of a start, or null when it is within T.lateStartMs of the hour. */
+export function lateStartMinutes(when: number, startedAt: number) {
+  const late = startedAt - when
+  return late > T.lateStartMs ? Math.round(late / MIN) : null
+}
+
+export function lateStartClientText(p: { partnerName: string | null; service: string; minutesLate: number }) {
+  return `${first(p.partnerName, 'Tu socio')} inició tu servicio de ${p.service} con ${p.minutesLate} min de retraso. Quedó registrado; si algo no está bien, escríbenos.`
+}
+
+// ─── Reminders of the service day ───────────────────────────────────────────
+
+const fold = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+/** What the client should have ready, from the agreed proposal: access always, materials when the proposal says. */
+export function readyHint(proposalNotes: string | null | undefined) {
+  const t = fold(proposalNotes ?? '')
+  const clientBuys = /\b(?:sin materiales|no incluye (?:los )?materiales|materiales (?:por cuenta del cliente|los (?:pone|compra|aporta) el cliente)|(?:el cliente|usted|tu) (?:pone|compra|aporta|consigue) (?:los )?materiales)\b/.test(t)
+  const included = !clientBuys && /\b(?:incluye|incluido|incluidos|con) (?:los )?materiales\b|\bmateriales incluidos\b|\b(?:llevo|lleva) (?:los )?materiales\b/.test(t)
+  const access = 'el acceso (portería o parqueadero avisados)'
+  if (clientBuys) return `Ten listos ${access} y los materiales acordados.`
+  if (included) return `Ten listo ${access}; el socio lleva los materiales acordados.`
+  return `Ten listo ${access}.`
+}
+
+/** The client's reminder (the day before / starts soon): partner's first name, rating and what to have ready. Short. */
+export function clientReminderText(p: { kind: 'day' | 'soon'; service: string; time: string; partnerName: string | null; rating: number | null; reviews: number; proposalNotes: string | null }) {
+  const who = first(p.partnerName, 'tu socio')
+  const stars = p.rating && p.reviews > 0 ? ` (★ ${p.rating.toFixed(1)})` : ''
+  const lead = p.kind === 'day' ? `Mañana a las ${p.time} tienes ${p.service} con ${who}${stars}.` : `Tu servicio de ${p.service} con ${who}${stars} empieza a las ${p.time}`
+  // «10:00 a. m.» already ends the sentence
+  return `${lead}${lead.endsWith('.') ? '' : '.'} ${readyHint(p.proposalNotes)}`
+}
+
+/** The partner's reminder the day before: client's first name, exact address (allowed after booking) and the agreed price. */
+export function partnerDayReminderText(p: { service: string; time: string; clientName: string | null; address: string; city: string; price: number }) {
+  return `Mañana a las ${p.time} tienes ${p.service} con ${first(p.clientName, 'el cliente')} en ${p.address}, ${p.city}. Precio acordado: ${cop(p.price)}. Antes de salir toca «Voy a salir» en la app.`
 }
 
 // ─── In progress ────────────────────────────────────────────────────────────
@@ -257,7 +418,6 @@ export function reminderPlan(kind: 'day' | 'soon', p: { now: number; when: numbe
 
 // ─── Completion ─────────────────────────────────────────────────────────────
 
-const cop = (n: number) => `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n)}`
 
 export type CompletionInput = {
   ref: string
@@ -289,4 +449,63 @@ export function completionNotices(p: CompletionInput) {
       message: `Completaste ${p.service} con ${client} (reserva #${p.ref}) por ${cop(p.price)}. Cuando ${client} reporte el pago, confírmalo en tus reservas («Confirmar pago»), y califica al cliente.${p.methods.transfer && !p.bank ? ' Registra tu cuenta bancaria para recibir transferencias.' : ''}`,
     },
   }
+}
+
+// ─── After completion ───────────────────────────────────────────────────────
+
+/**
+ * The client's rating reminders after the first one (24 h, notification-reminders): the second at 72 h and a
+ * last one at 5 days; never at night nor after 7 days.
+ */
+export function ratingReminderStep(p: { doneAt: number; now: number; marks: Marks }): 'second' | 'final' | null {
+  const age = p.now - p.doneAt
+  if (age > 7 * DAY || isNight(p.now)) return null
+  if (!p.marks.has('askedRatingAgain')) return age >= T.secondRatingReminderMs ? 'second' : null
+  return age >= T.finalRatingReminderMs && !p.marks.has('askedRatingFinal') ? 'final' : null
+}
+
+/** A rating of 1–2 stars opens a follow-up for the team (support case in the guarantee queue): what it says. */
+export function lowRatingCase(p: { rating: number; comment: string | null; ref: string; service: string; partnerName: string | null; clientName: string | null }) {
+  if (!(p.rating >= 1 && p.rating <= 2)) return null
+  const comment = p.comment?.trim() ? ` Comentario: «${p.comment.trim().slice(0, 500)}».` : ' Sin comentario.'
+  return {
+    subject: `Calificación baja (${p.rating}★) · reserva #${p.ref}`,
+    priority: p.rating === 1 ? 'HIGH' as const : 'MEDIUM' as const,
+    description: `${first(p.clientName, 'El cliente')} calificó con ${p.rating}★ a ${first(p.partnerName, 'el socio')} por ${p.service}.${comment} Llama al cliente, entiende qué pasó y, si aplica, ofrécele la garantía (corrección sin costo, otro socio o reembolso).`,
+    clientMessage: `Sentimos que tu servicio de ${p.service} no saliera bien. Alguien del equipo te contactará hoy para entender qué pasó; si el trabajo quedó incompleto o con daños, tienes la garantía LoHaggo.`,
+  }
+}
+
+// ─── Admin: services of today ───────────────────────────────────────────────
+
+export type TodayStage = 'pending' | 'confirmed' | 'reconfirmed' | 'on_way' | 'started' | 'finished' | 'paid' | 'cancelled'
+export type TodayFlag = 'late' | 'partner_silent' | 'not_reconfirmed' | 'on_hold' | 'no_show_claim' | 'client_absent' | 'late_start' | 'unpaid'
+
+/**
+ * Where a booking of today stands and what needs a person, from its status, marks and payment. Pure.
+ * late: the hour passed and it is not started (or the partner is past the time they gave).
+ */
+export function todayStatus(p: { status: string; when: number; now: number; marks: Marks; paid: boolean; startedAt?: number | null }): { stage: TodayStage; flags: TodayFlag[]; eta: number | null } {
+  const { status, when, now, marks: m } = p
+  const flags: TodayFlag[] = []
+  const w = onWay(m)
+  let stage: TodayStage
+  if (status === 'CANCELLED') stage = 'cancelled'
+  else if (status === 'PENDING') stage = 'pending'
+  else if (status === 'IN_PROGRESS') stage = 'started'
+  else if (status === 'COMPLETED') stage = p.paid ? 'paid' : 'finished'
+  else if (w && partnerLateState(m, now) === 'on_way') stage = 'on_way'
+  else stage = clientConfirmed(m) ? 'reconfirmed' : 'confirmed'
+  if (status === 'CONFIRMED' || status === 'PENDING') {
+    if (now >= when + 5 * MIN && partnerLateState(m, now) !== 'on_way') flags.push('late')
+    if (status === 'CONFIRMED' && now >= when + T.urgePartnerStartMs && !w) flags.push('partner_silent')
+    if (status === 'CONFIRMED' && m.has('reconfirmAsked') && !clientConfirmed(m)) flags.push(m.has('appointmentOnHold') ? 'on_hold' : 'not_reconfirmed')
+    if (m.has('noShowReported')) flags.push('no_show_claim')
+    const absent = m.get('clientAbsentReported')
+    const here = m.get('clientHere')
+    if (absent && (!here || here < absent)) flags.push('client_absent')
+  }
+  if (m.has('lateStart')) flags.push('late_start')
+  if (status === 'COMPLETED' && !p.paid) flags.push('unpaid')
+  return { stage, flags, eta: stage === 'on_way' && w ? w.expectedAt : null }
 }

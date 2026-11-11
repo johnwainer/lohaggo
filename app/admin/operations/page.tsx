@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react'
+import TodayServices from '@/components/admin/TodayServices'
 
 type Incident = {
   id: string
@@ -142,8 +143,10 @@ export default function AdminOperationsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Casos e incidentes</h1>
-        <p className="text-gray-600 mt-1">Casos de soporte, incidentes de la plataforma (incluidas tareas automáticas que fallan) y registro de acciones del equipo.</p>
+        <p className="text-gray-600 mt-1">Servicios de hoy, casos de soporte, incidentes de la plataforma (incluidas tareas automáticas que fallan) y registro de acciones del equipo.</p>
       </div>
+
+      <TodayServices />
 
       {loadError && (
         <div role="alert" className="flex flex-wrap items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  FOLLOWUP_TIMING, appointmentStep, arrivalStep, completionNotices, doneAskAt, inProgressStep, reminderPlan,
+  FOLLOWUP_TIMING, appointmentStep, arrivalAskClientText, arrivalStep, clientReminderText, completionNotices, doneAskAt, inProgressStep,
+  lateOptionsClientText, lateOptionsOpen, lateStartMinutes, lowRatingCase, markDetail, onWayClientText, onWayRepeat, parseMarkDetail,
+  partnerDayReminderText, partnerLateState, ratingReminderStep, readyHint, reminderPlan, todayStatus,
   type FollowupMark, type Marks,
 } from '@/lib/bookings/followups-core'
 import { REMINDER_WINDOWS, inReminderWindow } from '@/lib/notifications/reminder-window'
@@ -24,9 +26,11 @@ const clock = (ms: number) => {
 
 type Answer =
   | 'reconfirm_yes' | 'partner_started' | 'partner_done' | 'client_done' | 'client_not_done' | 'no_show' | 'client_absent'
+  | 'partner_on_way' | 'client_rebook'
 type Status = 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 
-function simulate(answers: Array<[string, Answer]>, opts: { durationMinutes?: number; until?: string } = {}) {
+
+function simulate(answers: Array<[string, Answer, number?]>, opts: { durationMinutes?: number; until?: string } = {}) {
   let status: Status = 'CONFIRMED'
   let startedAt = 0
   const marks: Marks = new Map()
@@ -40,7 +44,7 @@ function simulate(answers: Array<[string, Answer]>, opts: { durationMinutes?: nu
     say(t, 'cliente', n.client.title)
     say(t, 'socio', n.partner.title)
   }
-  const pending = answers.map(([s, a]) => ({ t: at(s), a }))
+  const pending = answers.map(([s, a, eta]) => ({ t: at(s), a, eta: eta ?? null }))
   const end = opts.until ? at(opts.until) : WHEN + 3 * 24 * 3600_000
 
   for (let now = ACCEPTED; now <= end; now += 15 * 60_000) {
@@ -48,7 +52,25 @@ function simulate(answers: Array<[string, Answer]>, opts: { durationMinutes?: nu
     for (const p of pending.filter((x) => x.t <= now)) {
       pending.splice(pending.indexOf(p), 1)
       if (p.a === 'reconfirm_yes') { mark('clientReconfirmed', p.t); say(p.t, 'socio', 'el cliente confirmó la cita') }
-      if (p.a === 'partner_started' && status === 'CONFIRMED') { status = 'IN_PROGRESS'; startedAt = p.t; say(p.t, 'cliente', 'el socio inició el servicio') }
+      if (p.a === 'partner_started' && status === 'CONFIRMED') {
+        status = 'IN_PROGRESS'
+        startedAt = p.t
+        say(p.t, 'cliente', 'el socio inició el servicio')
+        // More than 30 min late: registered once (admin mark, no strike) and the client is told
+        const late = lateStartMinutes(WHEN, p.t)
+        if (late && !marks.has('lateStart')) { mark('lateStart', p.t); say(p.t, 'cliente', `retraso registrado: ${late} min`) }
+      }
+      if (p.a === 'partner_on_way' && status === 'CONFIRMED' && !onWayRepeat(marks, p.eta, p.t)) {
+        mark('partnerOnWay', p.t)
+        if (p.eta) (marks.minutes ??= new Map()).set('partnerOnWay', p.eta)
+        else marks.minutes?.delete('partnerOnWay')
+        say(p.t, 'cliente', onWayClientText({ partnerName: 'Carlos Ruiz', service: 'Plomería', etaMinutes: p.eta, now: p.t }))
+      }
+      if (p.a === 'client_rebook' && status === 'CONFIRMED' && (marks.has('noShowReported') || lateOptionsOpen(marks, p.t))) {
+        status = 'CANCELLED'
+        say(p.t, 'socio', 'cancelada: el cliente reportó que no llegaste')
+        say(p.t, 'cliente', 'abrimos tu solicitud de nuevo')
+      }
       if (p.a === 'partner_done' && status === 'IN_PROGRESS') complete(p.t)
       if (p.a === 'client_done' && status === 'IN_PROGRESS') complete(p.t)
       if (p.a === 'client_not_done' && status === 'IN_PROGRESS') mark('clientNotDone', p.t)
@@ -69,7 +91,19 @@ function simulate(answers: Array<[string, Answer]>, opts: { durationMinutes?: nu
     if (status === 'CONFIRMED') {
       for (const a of arrivalStep({ when: WHEN, now, marks, paid: false })) {
         if (a === 'ask_partner_start') { mark('askedPartnerArrival', now); say(now, 'socio', 'es la hora: marca que empezaste') }
-        if (a === 'ask_client_arrival') { mark('askedClientArrival', now); say(now, 'cliente', '¿ya llegó el socio?') }
+        if (a === 'ask_client_arrival') {
+          say(now, 'cliente', `${partnerLateState(marks, now) === 'on_way' ? 'va en camino' : 'estamos confirmando'} · ¿ya llegó el socio?`)
+          const text = arrivalAskClientText({ partnerName: 'Carlos', service: 'Plomería', when: WHEN, marks, now })
+          expect(text).toContain(partnerLateState(marks, now) === 'on_way' ? 'llegada estimada' : 'Estamos confirmando con Carlos')
+          mark('askedClientArrival', now)
+        }
+        if (a === 'client_late_options') {
+          mark('clientToldOptions', now)
+          const text = lateOptionsClientText({ partnerName: 'Carlos', service: 'Plomería', when: WHEN, marks, now })
+          expect(text).toContain('esperarlo un poco más, pedir otro socio ahora')
+          expect(text).toContain('cancelar sin costo')
+          say(now, 'cliente', 'tus opciones: esperar, otro socio o cancelar sin costo')
+        }
         if (a === 'urge_partner_start') { mark('urgedPartnerStart', now); say(now, 'socio', 'el servicio aún no está iniciado') }
         if (a === 'cancel_no_show') { status = 'CANCELLED'; say(now, 'socio', 'cancelada: el cliente reportó que no llegaste'); say(now, 'cliente', 'cancelada sin costo, ¿buscamos otro socio?') }
         if (a === 'cancel_client_absent') { status = 'CANCELLED'; say(now, 'socio', 'cancelada: el cliente no estaba (sin falta)'); say(now, 'cliente', 'cancelamos tu reserva (no estabas)') }
@@ -120,8 +154,9 @@ describe('Seguimiento automático de una reserva · línea de tiempo', () => {
     expect(status).toBe('CANCELLED')
     expect(log.slice(5)).toEqual([
       '12 10:00 socio: es la hora: marca que empezaste',
-      '12 10:15 cliente: ¿ya llegó el socio?',
+      '12 10:15 cliente: estamos confirmando · ¿ya llegó el socio?',
       '12 10:45 socio: el servicio aún no está iniciado',
+      '12 10:45 cliente: tus opciones: esperar, otro socio o cancelar sin costo',
       '12 10:50 socio: el cliente dice que no has llegado',
       '12 11:30 socio: cancelada: el cliente reportó que no llegaste',
       '12 11:30 cliente: cancelada sin costo, ¿buscamos otro socio?',
@@ -158,9 +193,11 @@ describe('Seguimiento automático de una reserva · línea de tiempo', () => {
     expect(status).toBe('COMPLETED')
     expect(log.slice(5)).toEqual([
       '12 10:00 socio: es la hora: marca que empezaste',
-      '12 10:15 cliente: ¿ya llegó el socio?',
+      '12 10:15 cliente: estamos confirmando · ¿ya llegó el socio?',
       '12 10:45 socio: el servicio aún no está iniciado',
+      '12 10:45 cliente: tus opciones: esperar, otro socio o cancelar sin costo',
       '12 10:50 cliente: el socio inició el servicio',
+      '12 10:50 cliente: retraso registrado: 50 min',
       '12 13:30 socio: ¿ya terminaste?',
       '12 14:00 cliente: ¿ya terminó tu servicio?',
       '12 14:10 cliente: Servicio terminado: paga y califica',
@@ -194,7 +231,149 @@ describe('Seguimiento automático de una reserva · línea de tiempo', () => {
   })
 })
 
+describe('Seguimiento automático · socio retrasado', () => {
+  it('el socio va en camino tarde: el cliente recibe cada actualización con la hora una sola vez y el retraso queda registrado', () => {
+    const { log, status } = simulate([
+      ['11 18:05', 'reconfirm_yes'],
+      ['12 10:10', 'partner_on_way', 20],
+      ['12 10:12', 'partner_on_way', 20], // the same update again: no new notice
+      ['12 10:40', 'partner_on_way', 15],
+      ['12 10:58', 'partner_started'],
+    ], { until: '12 11:30' })
+    expect(status).toBe('IN_PROGRESS')
+    expect(log.slice(5)).toEqual([
+      '12 10:00 socio: es la hora: marca que empezaste',
+      '12 10:10 cliente: Carlos va en camino a tu servicio de Plomería: llega en ~20 min (hacia las 10:30 a. m.). Te avisamos cuando lo inicie; si necesitas algo, escríbenos.',
+      '12 10:40 cliente: Carlos va en camino a tu servicio de Plomería: llega en ~15 min (hacia las 10:55 a. m.). Te avisamos cuando lo inicie; si necesitas algo, escríbenos.',
+      '12 10:58 cliente: el socio inició el servicio',
+      '12 10:58 cliente: retraso registrado: 58 min',
+    ])
+  })
+
+  it('el socio dice «voy en camino» sin hora y no llega: sin segundo aviso mientras está en tiempo, luego las opciones al cliente', () => {
+    const { log } = simulate([['11 18:05', 'reconfirm_yes'], ['12 10:20', 'partner_on_way']], { until: '12 12:00' })
+    expect(log.slice(5)).toEqual([
+      '12 10:00 socio: es la hora: marca que empezaste',
+      '12 10:15 cliente: estamos confirmando · ¿ya llegó el socio?',
+      '12 10:20 cliente: Carlos va en camino a tu servicio de Plomería. Te avisamos cuando lo inicie; si necesitas algo, escríbenos.',
+      // Counted as 30 min (10:50) + 15 of margin: from 11:05 it is overdue
+      '12 11:15 socio: el servicio aún no está iniciado',
+      '12 11:15 cliente: tus opciones: esperar, otro socio o cancelar sin costo',
+    ])
+  })
+
+  it('el socio no responde hasta +45: el cliente recibe sus opciones y pide otro socio sin esperar más', () => {
+    const { log, status } = simulate([['11 18:05', 'reconfirm_yes'], ['12 10:50', 'client_rebook']])
+    expect(status).toBe('CANCELLED')
+    expect(log.slice(5)).toEqual([
+      '12 10:00 socio: es la hora: marca que empezaste',
+      '12 10:15 cliente: estamos confirmando · ¿ya llegó el socio?',
+      '12 10:45 socio: el servicio aún no está iniciado',
+      '12 10:45 cliente: tus opciones: esperar, otro socio o cancelar sin costo',
+      '12 10:50 socio: cancelada: el cliente reportó que no llegaste',
+      '12 10:50 cliente: abrimos tu solicitud de nuevo',
+    ])
+  })
+
+  it('antes del aviso de +45 el cliente no puede pedir otro socio sin reportar que no llegó', () => {
+    const { status } = simulate([['11 18:05', 'reconfirm_yes'], ['12 10:30', 'client_rebook']], { until: '12 10:40' })
+    expect(status).toBe('CONFIRMED')
+  })
+
+  it('un «voy en camino» después de las opciones las cierra mientras esté en tiempo', () => {
+    const m: Marks = new Map<FollowupMark, Date>([['clientToldOptions', new Date(at('12 10:45'))], ['partnerOnWay', new Date(at('12 10:50'))]])
+    m.minutes = new Map([['partnerOnWay', 10]])
+    expect(lateOptionsOpen(m, at('12 10:55'))).toBe(false)
+    expect(lateOptionsOpen(m, at('12 11:20'))).toBe(true) // 11:00 + 15 min of margin passed
+  })
+})
+
+describe('Seguimiento automático · después del servicio', () => {
+  it('calificación: recordatorios a 72 h y a 5 días; una de 2★ abre un caso para el equipo una vez', () => {
+    const doneAt = at('12 12:20')
+    const marks: Marks = new Map()
+    const log: string[] = []
+    let rated: number | null = null
+    const tasks: string[] = []
+    for (let now = doneAt; now <= doneAt + 8 * 24 * 3600_000; now += 15 * 60_000) {
+      if (rated === null) {
+        const step = ratingReminderStep({ doneAt, now, marks })
+        if (step === 'second') { marks.set('askedRatingAgain', new Date(now)); log.push(`${clock(now)} cliente: segundo recordatorio para calificar`) }
+        if (step === 'final') {
+          marks.set('askedRatingFinal', new Date(now))
+          log.push(`${clock(now)} cliente: último recordatorio para calificar`)
+          // The client answers the last reminder with 2 stars
+          rated = 2
+          const c = lowRatingCase({ rating: rated, comment: 'Dejó la llave goteando', ref: 'ABC123', service: 'Plomería', partnerName: 'Carlos Ruiz', clientName: 'Ana Pérez' })
+          if (c && !marks.has('lowRatingFollowup')) { marks.set('lowRatingFollowup', new Date(now)); tasks.push(c.subject); log.push(`${clock(now)} equipo: ${c.subject}`) }
+        }
+      }
+    }
+    expect(log).toEqual([
+      '15 12:20 cliente: segundo recordatorio para calificar',
+      '17 12:20 cliente: último recordatorio para calificar',
+      '17 12:20 equipo: Calificación baja (2★) · reserva #ABC123',
+    ])
+    expect(tasks).toHaveLength(1)
+  })
+
+  it('la calificación baja: 1★ prioridad alta, 2★ media, 3★ o más nada', () => {
+    const base = { comment: null, ref: 'ABC123', service: 'Plomería', partnerName: 'Carlos', clientName: 'Ana' }
+    expect(lowRatingCase({ ...base, rating: 1 })?.priority).toBe('HIGH')
+    expect(lowRatingCase({ ...base, rating: 2 })?.priority).toBe('MEDIUM')
+    expect(lowRatingCase({ ...base, rating: 3 })).toBeNull()
+    expect(lowRatingCase({ ...base, rating: 1 })?.clientMessage).toContain('garantía')
+    expect(lowRatingCase({ ...base, rating: 1 })?.description).toContain('Sin comentario')
+  })
+
+  it('los recordatorios de calificación nunca salen de noche ni después de 7 días', () => {
+    const doneAt = at('12 12:20')
+    expect(ratingReminderStep({ doneAt, now: Date.parse('2026-11-15T23:00:00-05:00'), marks: new Map() })).toBeNull()
+    expect(ratingReminderStep({ doneAt, now: doneAt + 8 * 24 * 3600_000, marks: new Map() })).toBeNull()
+  })
+})
+
 describe('Seguimiento automático · reglas puras', () => {
+  it('las marcas guardan los minutos (llegada estimada, retraso) sin romper las marcas viejas', () => {
+    expect(markDetail('partnerOnWay', 20)).toBe('El socio dijo que va en camino · 20 min')
+    expect(parseMarkDetail('El socio dijo que va en camino · 20 min')).toEqual({ kind: 'partnerOnWay', minutes: 20 })
+    expect(parseMarkDetail('El socio dijo que va en camino')).toEqual({ kind: 'partnerOnWay', minutes: null })
+    expect(parseMarkDetail(markDetail('lateStart', 76))).toEqual({ kind: 'lateStart', minutes: 76 })
+    expect(parseMarkDetail('Falta del socio: no confirmó la reserva antes de la hora del servicio')).toBeNull()
+  })
+
+  it('recordatorios del día: nombre y calificación del socio, qué tener listo; al socio nombre, dirección exacta y precio', () => {
+    expect(clientReminderText({ kind: 'soon', service: 'Plomería', time: '10:00 a. m.', partnerName: 'Carlos Ruiz', rating: 4.83, reviews: 12, proposalNotes: 'Incluye materiales' }))
+      .toBe('Tu servicio de Plomería con Carlos (★ 4.8) empieza a las 10:00 a. m. Ten listo el acceso (portería o parqueadero avisados); el socio lleva los materiales acordados.')
+    expect(clientReminderText({ kind: 'day', service: 'Pintura', time: '9:00 a. m.', partnerName: 'Laura', rating: 0, reviews: 0, proposalNotes: null })).toBe('Mañana a las 9:00 a. m. tienes Pintura con Laura. Ten listo el acceso (portería o parqueadero avisados).')
+    expect(readyHint('Precio sin materiales, el cliente compra la pintura')).toContain('los materiales acordados')
+    expect(readyHint('Precio sin materiales, el cliente compra la pintura')).not.toContain('el socio lleva')
+    const partner = partnerDayReminderText({ service: 'Plomería', time: '10:00 a. m.', clientName: 'Ana Pérez', address: 'Cra 70 #44-10, apto 301', city: 'Medellín', price: 120000 })
+    expect(partner).toContain('con Ana en Cra 70 #44-10, apto 301, Medellín')
+    expect(partner).toContain('$120.000')
+    expect(partner).not.toContain('Pérez')
+  })
+
+  it('servicios de hoy: etapa en vivo y alertas', () => {
+    const when = WHEN
+    const m = (entries: Array<[FollowupMark, string]>, minutes?: Array<[FollowupMark, number]>) => {
+      const x: Marks = new Map(entries.map(([k, s]) => [k, new Date(at(s))]))
+      if (minutes) x.minutes = new Map(minutes)
+      return x
+    }
+    expect(todayStatus({ status: 'CONFIRMED', when, now: at('12 09:00'), marks: m([['reconfirmAsked', '11 18:00'], ['clientReconfirmed', '11 18:05']]), paid: false })).toEqual({ stage: 'reconfirmed', flags: [], eta: null })
+    expect(todayStatus({ status: 'CONFIRMED', when, now: at('12 08:45'), marks: m([['reconfirmAsked', '11 18:00'], ['appointmentOnHold', '12 08:30']]), paid: false }).flags).toEqual(['on_hold'])
+    const onWay = todayStatus({ status: 'CONFIRMED', when, now: at('12 10:20'), marks: m([['clientReconfirmed', '11 18:05'], ['partnerOnWay', '12 10:10']], [['partnerOnWay', 20]]), paid: false })
+    expect(onWay.stage).toBe('on_way')
+    expect(onWay.flags).toEqual([])
+    expect(onWay.eta).toBe(at('12 10:30'))
+    expect(todayStatus({ status: 'CONFIRMED', when, now: at('12 10:50'), marks: m([['clientReconfirmed', '11 18:05']]), paid: false }).flags).toEqual(['late', 'partner_silent'])
+    expect(todayStatus({ status: 'CONFIRMED', when, now: at('12 10:50'), marks: m([['noShowReported', '12 10:40']]), paid: false }).flags).toContain('no_show_claim')
+    expect(todayStatus({ status: 'IN_PROGRESS', when, now: at('12 11:30'), marks: m([['lateStart', '12 11:16']], [['lateStart', 76]]), paid: false })).toEqual({ stage: 'started', flags: ['late_start'], eta: null })
+    expect(todayStatus({ status: 'COMPLETED', when, now: at('12 13:00'), marks: new Map(), paid: false })).toEqual({ stage: 'finished', flags: ['unpaid'], eta: null })
+    expect(todayStatus({ status: 'COMPLETED', when, now: at('12 13:00'), marks: new Map(), paid: true }).stage).toBe('paid')
+  })
+
   it('el «¿terminaste?» es inicio + duración, entre 2 y 3 horas', () => {
     const start = Date.parse('2026-11-12T15:00:00Z')
     expect(doneAskAt(start, 60) - start).toBe(2 * 3600_000)
