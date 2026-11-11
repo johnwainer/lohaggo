@@ -31,13 +31,13 @@ const ICON: Record<Action, typeof RotateCcw> = {
   reconfirm_yes: CalendarCheck, reconfirm_cancel: XCircle, here_yes: UserCheck, here_later: CalendarX,
 }
 
-type Group = { key: string; title: string; text: string; actions: Action[] }
+type Group = { key: string; title: string; text: string; actions: Action[]; tone?: 'info' | 'warn'; note?: string }
 
 /** Answers that cancel or report someone: asked once more before sending */
 const CONFIRM: Partial<Record<Action, string>> = {
   no_show: '¿Confirmas que el socio no ha llegado? Le avisaremos y, si no inicia en 30 minutos, cancelamos sin costo.',
   client_cancel: '¿Seguro que quieres cancelar el servicio? El socio ya está en el lugar.',
-  cancel_free: '¿Cancelamos tu reserva sin costo? Reportaremos el retraso del socio al equipo.',
+  cancel_free: 'Cancelamos tu reserva sin ningún cobro y avisamos al socio. ¿Confirmas?',
   reconfirm_cancel: '¿Seguro que quieres cancelar tu cita? Le avisaremos al socio.',
 }
 const SECONDARY: Action[] = ['no_show', 'cancel_free', 'client_cancel', 'price_no', 'reschedule_no', 'reconfirm_cancel', 'here_later']
@@ -57,8 +57,22 @@ function groupsFor(actions: Action[], status: string, info: FollowupInfo): Group
   const rest = actions.filter((a) => !['client_here', 'client_cancel', 'reschedule_ok', 'reschedule_no', 'price_ok', 'price_no', 'reconfirm_yes', 'reconfirm_cancel', 'here_yes', 'here_later'].includes(a))
   if (!rest.length) return out
   const a = info.arrival
-  if (rest.includes('cancel_free')) out.push({ key: 'late', title: 'Tu socio está retrasado', text: a?.state === 'overdue' && a.expectedAt ? `Dijo que llegaba hacia las ${clock(a.expectedAt)} y aún no inicia. Puedes esperarlo, pedir otro socio ahora o cancelar sin costo.` : 'No inicia ni nos ha confirmado que va en camino. Puedes esperarlo, pedir otro socio ahora o cancelar sin costo.', actions: rest })
-  else if (rest.includes('no_show')) out.push({ key: 'arrival', title: a?.state === 'on_way' ? 'Tu socio va en camino' : '¿Ya llegó el socio?', text: a?.state === 'on_way' && a.expectedAt ? `Llegada estimada: ${clock(a.expectedAt)}. Si no llega, avísanos: cancelamos sin costo y buscamos otro socio.` : a?.state === 'silent' ? 'Estamos confirmando con el socio y te avisamos. Si no llega en 30 min tras tu aviso, cancelamos sin costo y buscamos otro socio.' : 'Si no llega en 30 min, cancelamos sin costo y buscamos otro socio.', actions: rest })
+  if (rest.includes('cancel_free')) {
+    // Another partner first, cancelling last
+    const order: Action[] = ['rebook', ...rest.filter((x) => x !== 'rebook' && x !== 'cancel_free'), 'cancel_free']
+    out.push({ key: 'late', title: 'Tu socio está retrasado', text: a?.state === 'overdue' && a.expectedAt ? `Dijo que llegaba hacia las ${clock(a.expectedAt)} y aún no inicia.` : 'No inicia ni nos ha confirmado que va en camino.', actions: order.filter((x) => rest.includes(x)), note: 'Si prefieres esperar, no hagas nada: te seguimos avisando.' })
+  } else if (rest.includes('no_show')) {
+    const onWay = a?.state === 'on_way' && a.expectedAt
+    // While the partner is within the time they gave, «no llegó» is not offered yet
+    const inTime = onWay && new Date(a!.expectedAt!).getTime() > Date.now()
+    out.push({
+      key: 'arrival',
+      tone: onWay ? 'info' : 'warn',
+      title: onWay ? `Tu socio llega hacia las ${clock(a!.expectedAt!)}` : '¿Ya llegó el socio?',
+      text: onWay ? 'Va en camino. Cuando llegue, márcalo aquí.' : a?.state === 'silent' ? 'Estamos confirmando con tu socio y te avisamos en minutos. Si no llega, puedes cancelar sin costo o buscar otro socio.' : 'Si no llega en 30 min, cancelamos sin costo y buscamos otro socio.',
+      actions: inTime ? rest.filter((x) => x !== 'no_show') : rest,
+    })
+  }
   else if (rest.includes('done')) out.push({ key: 'done', title: '¿Ya terminó el servicio?', text: 'Confírmalo para pagar y calificar.', actions: rest })
   else if (status === 'PENDING') out.push({ key: 'pending', title: 'El socio aún no confirma', text: 'Puedes esperar o pedir otro socio. Si no confirma antes de la hora, cancelamos sin costo.', actions: rest })
   else if (status === 'CONFIRMED') out.push({ key: 'noshow', title: 'Reportaste que el socio no llegó', text: 'Si no quieres esperar más, buscamos otro socio ahora.', actions: rest })
@@ -102,9 +116,9 @@ export default function BookingFollowup({ bookingId, status, actions, info = {},
         </p>
       )}
       {groups.map((g, gi) => (
-        <section key={g.key} aria-labelledby={`${baseId}-${g.key}`} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <h3 id={`${baseId}-${g.key}`} className="font-bold text-amber-900">{g.title}</h3>
-          <p className="mt-1 break-words text-sm leading-relaxed text-amber-900">{g.text}</p>
+        <section key={g.key} aria-labelledby={`${baseId}-${g.key}`} className={`rounded-2xl border p-4 ${g.tone === 'info' ? 'border-violet-200 bg-violet-50 text-violet-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+          <h3 id={`${baseId}-${g.key}`} className="font-bold">{g.title}</h3>
+          <p className="mt-1 break-words text-sm leading-relaxed">{g.text}</p>
           {confirming && g.actions.includes(confirming) ? (
             <div className="mt-3 rounded-2xl bg-white p-3">
               <p className="text-sm font-medium text-gray-900">{CONFIRM[confirming]}</p>
@@ -137,6 +151,7 @@ export default function BookingFollowup({ bookingId, status, actions, info = {},
               })}
             </div>
           )}
+          {g.note && !confirming && <p className="mt-2 text-xs">{g.note}</p>}
         </section>
       ))}
       <span className="sr-only" role="status">{busy ? 'Enviando…' : message?.ok ? message.text : ''}</span>

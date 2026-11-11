@@ -179,11 +179,11 @@ const paid = (b: Row) => b.payment?.status === 'APPROVED' || b.payment?.confirma
 // ─── Appointment guarantee ─────────────────────────────────────────────────
 
 /** Every channel the person has (app, push, email, SMS, WhatsApp text in the window), with this exact text. */
-async function critical(userId: string, type: 'BOOKING_REMINDER_24H' | 'BOOKING_STARTING_SOON' | 'BOOKING_CONFIRMED' | 'BOOKING_CANCELLED', title: string, message: string, data: Record<string, unknown>, opts: { quiet?: boolean } = {}) {
+async function critical(userId: string, type: 'BOOKING_REMINDER_24H' | 'BOOKING_STARTING_SOON' | 'BOOKING_CONFIRMED' | 'BOOKING_CANCELLED', title: string, message: string, data: Record<string, unknown>, opts: { quiet?: boolean; noWhatsApp?: boolean } = {}) {
   // The reminder types are how the reminders cron dedupes B11/B12: these notices use their own types
   const own = type === 'BOOKING_CANCELLED' ? type : 'BOOKING_CONFIRMED'
   // At night (22:00–06:00 Bogotá) a client is told only in the app and by push: no SMS, email or WhatsApp at 4 a. m.
-  await createNotification({ userId, type: own, title, message, data, critical: true, ...(opts.quiet ? { channels: ['PUSH'] } : {}) }).catch((err) => logger.warn('Critical notice not sent', { userId, err: err instanceof Error ? err.message : err }))
+  await createNotification({ userId, type: own, title, message, data, critical: true, ...(opts.quiet ? { channels: ['PUSH'] } : opts.noWhatsApp ? { channels: ['PUSH', 'EMAIL', 'SMS'] } : {}) }).catch((err) => logger.warn('Critical notice not sent', { userId, err: err instanceof Error ? err.message : err }))
 }
 
 async function clientLink(b: Row) {
@@ -752,8 +752,12 @@ export async function applyFollowup(actor: Actor, bookingId: string, action: Fol
       // The same update again (a double tap, the button and the text): the client is not told twice
       if (onWayRepeat(m, eta, now.getTime())) return { message: `Ya le avisamos al cliente que vas en camino.${after}` }
       await mark(b, 'partnerOnWay', actor, origin, eta)
+      const quietOnWay = Boolean(opts.viaChat) || isNight(now.getTime())
+      // With a time, the approved B40 («sale ahora… llega en unos N minutos», «Sí, aquí estaré») reaches WhatsApp even
+      // outside the 24 h window; then the notice skips its free-text WhatsApp
+      const viaTemplate = !quietOnWay && eta ? Boolean((await sendWaToUser(b.userId, WA.B40({ ...dataOf(b), etaMinutes: eta, at: `onway-${now.getTime()}` }), now).catch(() => null))?.ok) : false
       // Once per update, on every channel (at night only in the app); from the booking chat the client already read the partner's words
-      await critical(b.userId, 'BOOKING_STARTING_SOON', `${b.partner?.user?.name?.split(' ')[0] ?? 'Tu socio'} va en camino`, onWayClientText({ partnerName: b.partner?.user?.name ?? null, service, etaMinutes: eta, now: now.getTime() }), { bookingId: b.id, kind: 'PARTNER_ON_WAY', url: '/dashboard?tab=bookings' }, { quiet: opts.viaChat || isNight(now.getTime()) })
+      await critical(b.userId, 'BOOKING_STARTING_SOON', `${b.partner?.user?.name?.split(' ')[0] ?? 'Tu socio'} va en camino`, onWayClientText({ partnerName: b.partner?.user?.name ?? null, service, etaMinutes: eta, now: now.getTime() }), { bookingId: b.id, kind: 'PARTNER_ON_WAY', url: '/dashboard?tab=bookings' }, { quiet: quietOnWay, noWhatsApp: viaTemplate })
       return { message: `Le avisamos al cliente que vas en camino.${after} Al llegar, marca el servicio como iniciado.` }
     }
     case 'partner_cant_go':
