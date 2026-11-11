@@ -99,7 +99,8 @@ export async function proposalArrivedInChat(requestId: string, now = new Date())
     const r = await loadRequest(requestId)
     if (!r || r.origin !== 'chat' || !r.originConversationId || r.status !== 'ACTIVE') return false
     const conv = await openClientChat([r.originConversationId], now)
-    if (!conv) return false
+    // Proposals only reach the chat of the request's own client
+    if (!conv || (conv.userId && conv.userId !== r.userId)) return false
     const decision = digestDecision(readDigestState(conv.customFields)[r.id], r.proposals.map((p) => p.id), now)
     if (decision !== 'send') return true
     // Two proposals at the same instant: only one of them writes the digest
@@ -153,7 +154,7 @@ export async function flushProposalDigests(now = new Date(), limit = 30) {
       const decision = digestDecision(last, r.proposals.map((p) => p.id), now)
       if (decision !== 'send') continue
       const open = await openClientChat([r.originConversationId], now)
-      if (open && (await sendDigest(open, r, 'new', null, now))) {
+      if (open && (!open.userId || open.userId === r.userId) && (await sendDigest(open, r, 'new', null, now))) {
         sent++
         continue
       }

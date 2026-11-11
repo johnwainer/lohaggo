@@ -234,7 +234,8 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   }
   // WhatsApp template first: the notifications' free-text WhatsApp is then skipped for that person
   // Reopened after the partner dropped it: the client's open chat gets the proposals still there (numbered) instead of the template
-  const clientInformed = reopened && booking.proposalId
+  // Only when the partner dropped it: the chat text says «<partner> canceló» (a team cancel keeps its templates)
+  const clientInformed = reopened && booking.proposalId && actor.role === 'PARTNER'
     ? await (async () => {
       const req = await prisma.proposal.findUnique({ where: { id: booking.proposalId! }, select: { serviceRequestId: true } })
       if (!req) return false
