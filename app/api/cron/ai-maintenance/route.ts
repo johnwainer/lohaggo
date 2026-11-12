@@ -15,12 +15,6 @@ const logger = createLogger('cron-ai-maintenance')
 
 /** Knowledge indexing left pending + one reminder for half-way requests + one-time re-engagement follow-ups + once a day the sweep of leads nobody answered. */
 async function handle(request: NextRequest) {
-  const secret = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && secret !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
     // A crashed invocation can leave a document "indexing" forever
     await prisma.aiKnowledgeDoc.updateMany({ where: { status: 'indexing', updatedAt: { lt: new Date(Date.now() - 15 * 60_000) } }, data: { status: 'pending' } })

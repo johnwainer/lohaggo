@@ -11,10 +11,11 @@ export async function requireAdmin() {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, email: true, name: true, role: true, isSuperAdmin: true },
+    select: { id: true, email: true, name: true, role: true, isSuperAdmin: true, isActive: true },
   })
 
-  if (!user || user.role !== 'ADMIN') {
+  // The token can be up to minutes old: role and active state are always the DB's
+  if (!user || user.role !== 'ADMIN' || !user.isActive) {
     return null
   }
 

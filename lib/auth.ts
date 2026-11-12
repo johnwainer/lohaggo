@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { overLimit, unhit } from "@/lib/rate-limit-store"
+import { refreshTokenFromDb } from "@/lib/auth-refresh"
 import { env } from "@/lib/env"
 import {
   getClientIpFromHeaders,
@@ -12,22 +14,14 @@ import {
 
 const LOGIN_LIMIT_WINDOW_MS = 15 * 60 * 1000
 const LOGIN_LIMIT_MAX_ATTEMPTS = 8
-const loginAttemptMap = new Map<string, { count: number; resetAt: number }>()
+const LOGIN_IP_MAX_ATTEMPTS = 60
 
-function isLoginLimited(key: string): boolean {
-  const now = Date.now()
-  const existing = loginAttemptMap.get(key)
-  if (!existing || now > existing.resetAt) {
-    loginAttemptMap.set(key, { count: 1, resetAt: now + LOGIN_LIMIT_WINDOW_MS })
-    return false
-  }
-  existing.count += 1
-  return existing.count > LOGIN_LIMIT_MAX_ATTEMPTS
-}
+/** Same text for unknown account, wrong password and deactivated account: nothing reveals which accounts exist. */
+export const INVALID_CREDENTIALS_MESSAGE = "Correo o contraseña incorrectos"
 
-function resetLoginLimit(key: string) {
-  loginAttemptMap.delete(key)
-}
+// Compared against when the account does not exist, so the response time does not tell either
+let dummyHash: string | null = null
+const getDummyHash = () => (dummyHash ??= bcrypt.hashSync("no-such-account", 10))
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -49,7 +43,9 @@ export const authOptions: NextAuthOptions = {
         const clientIp = getClientIpFromHeaders(req?.headers)
         const loginLimitKey = `${normalizedEmail}:${clientIp}`
 
-        if (isLoginLimited(loginLimitKey)) {
+        const accountLimit = await overLimit(`login:${loginLimitKey}`, LOGIN_LIMIT_WINDOW_MS, LOGIN_LIMIT_MAX_ATTEMPTS)
+        const ipLimit = await overLimit(`login-ip:${clientIp}`, LOGIN_LIMIT_WINDOW_MS, LOGIN_IP_MAX_ATTEMPTS)
+        if (accountLimit.blocked || ipLimit.blocked) {
           throw new Error("Demasiados intentos. Intenta nuevamente en unos minutos.")
         }
 
@@ -83,20 +79,16 @@ export const authOptions: NextAuthOptions = {
           include: { partnerProfile: true }
         })
 
-        if (!user) {
-          throw new Error("Usuario no encontrado")
-        }
-
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
-          user.password
+          user?.password ?? getDummyHash()
         )
 
-        if (!isPasswordValid) {
-          throw new Error("Contraseña incorrecta")
+        if (!user || !isPasswordValid || !user.isActive) {
+          throw new Error(INVALID_CREDENTIALS_MESSAGE)
         }
 
-        resetLoginLimit(loginLimitKey)
+        await unhit(`login:${loginLimitKey}`, LOGIN_LIMIT_WINDOW_MS)
 
         return {
           id: user.id,
@@ -125,6 +117,16 @@ export const authOptions: NextAuthOptions = {
         token.isActive = user.isActive
         token.needsPasswordUpdate = (user as any).needsPasswordUpdate ?? false
       }
+      if (!user) {
+        // Role and isActive are confirmed against the DB at most every 5 minutes (a demoted or deactivated user loses access in minutes)
+        token = await refreshTokenFromDb(token, async (id) => {
+          const u = await prisma.user.findUnique({ where: { id }, select: { role: true, isActive: true, partnerProfile: { select: { id: true } } } })
+          return u ? { role: u.role, isActive: u.isActive, partnerId: u.partnerProfile?.id ?? null } : null
+        })
+      } else {
+        token.checkedAt = Date.now()
+        token.invalid = false
+      }
       if (trigger === 'update' && session?.name) {
         token.name = session.name
       }
@@ -140,6 +142,10 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
+      if (token.invalid) {
+        // Deleted or deactivated account: no user, so every `session?.user` check refuses
+        return { expires: session.expires } as typeof session
+      }
       if (session.user) {
         session.user.id = token.sub!
         session.user.role = token.role as string

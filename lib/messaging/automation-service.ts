@@ -4,6 +4,7 @@ import { createLogger } from '@/lib/logger'
 import { sendMessageViaProvider, sendMetaWhatsAppTemplate, sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { recordAutomatedOutbound } from '@/lib/inbox/automated'
+import type { Deadline } from '@/lib/system/deadline'
 import {
   sendWelcomePartner,
   sendVerificationReminder,
@@ -102,7 +103,7 @@ export async function scheduleAutomationsForUser(
 /**
  * Processes due AutomationExecution rows. Called by cron every hour.
  */
-export async function processDueAutomations(limit = 100) {
+export async function processDueAutomations(limit = 100, deadline?: Deadline) {
   const due = await prisma.automationExecution.findMany({
     where: { status: 'PENDING', scheduledAt: { lte: new Date() } },
     include: {
@@ -119,7 +120,9 @@ export async function processDueAutomations(limit = 100) {
   let sent = 0, failed = 0, skipped = 0
 
   const relevance = new Map<string, string | null>()
+  let deferred = 0
   for (const execution of due) {
+    if (deadline?.expired()) { deferred++; continue }
     const { rule, user } = execution
 
     if (supersededWaExecution(execution.channel, rule.waTemplateFn)) {
@@ -244,8 +247,8 @@ export async function processDueAutomations(limit = 100) {
     }
   }
 
-  logger.info('processDueAutomations done', { sent, failed, skipped })
-  return { sent, failed, skipped }
+  logger.info('processDueAutomations done', { sent, failed, skipped, deferred })
+  return deferred ? { sent, failed, skipped, deferred } : { sent, failed, skipped }
 }
 
 /**

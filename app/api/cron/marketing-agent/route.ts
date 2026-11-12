@@ -10,15 +10,6 @@ const logger = createLogger('cron-marketing-agent')
 
 /** Every 30 min: each active marketing agent plans, writes, schedules and learns within its limits. */
 async function handle(request: NextRequest) {
-  // Fails closed: the agent spends on the model and can queue posts for the networks
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    logger.error('CRON_SECRET is not set: job refused')
-    return NextResponse.json({ error: 'CRON_SECRET no configurado' }, { status: 503 })
-  }
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
   try {
     const result = await runMarketingAgents()
     logger.info('Run', { agents: result.agents, ran: result.ran })

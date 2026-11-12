@@ -8,6 +8,7 @@ import { emitProposalReadBroadcast } from '@/lib/supabase-admin'
 import { sendChatMessage } from '@/lib/chat/ops'
 import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
 import { APP_ORIGIN, OpsError } from '@/lib/ops/origin'
+import { rateLimitResponse } from '@/lib/rate-limit-route'
 
 
 const logger = createLogger('chats-chatId-messages')
@@ -27,6 +28,9 @@ export async function POST(
     if (!actor) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
+
+    const limited = await rateLimitResponse([{ key: `chat-send:${actor.userId}`, windowMs: 60_000, max: 30 }], 'Estás enviando mensajes muy rápido. Espera un momento.')
+    if (limited) return limited
 
     const body = await request.json()
     const validation = await validateRequest(chatMessageSchema, { chatId, content: body.content })

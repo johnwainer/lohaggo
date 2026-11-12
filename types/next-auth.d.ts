@@ -29,6 +29,10 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    /** When role/isActive were last confirmed against the DB (ms) */
+    checkedAt?: number
+    /** The user no longer exists or was deactivated: no session */
+    invalid?: boolean
     role: string
     partnerId?: string
     image?: string | null

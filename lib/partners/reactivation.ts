@@ -6,6 +6,7 @@
  * the data of the report. Runs from the hourly automations cron, Monday to Saturday in the configured hours.
  */
 import { hasMarketingConsent } from '@/lib/privacy/consent'
+import type { Deadline } from '@/lib/system/deadline'
 import type { City } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
@@ -378,7 +379,7 @@ function todayCounts(history: Map<string, RxRow[]>, now: Date) {
   return { sends, enrolls }
 }
 
-export async function runPartnerReactivation(now = new Date()): Promise<RunTally> {
+export async function runPartnerReactivation(now = new Date(), deadline?: Deadline): Promise<RunTally> {
   const t: RunTally = {}
   const cfg = await getReactivationSettings()
   if (!cfg.enabled) return { skipped: 'disabled' }
@@ -395,7 +396,7 @@ export async function runPartnerReactivation(now = new Date()): Promise<RunTally
   let sendBudget = Math.min(cfg.perRunLimit, Math.max(0, cfg.dailyLimit - today.sends))
   let enrollBudget = Math.min(cfg.perRunLimit, Math.max(0, cfg.dailyLimit - today.enrolls))
   let stopped = false
-  const outOfTime = () => stopped || Date.now() - started > RUN_BUDGET_MS
+  const outOfTime = () => stopped || Date.now() - started > RUN_BUDGET_MS || Boolean(deadline?.expired())
 
   const act = async (s: PartnerSnapshot): Promise<void> => {
     for (let i = 0; i < 6; i++) {
@@ -663,7 +664,8 @@ export async function partnerReactivationReport(now = new Date()) {
  * A verification document pending longer than `reviewSlaHours` opens a HIGH incident and notifies the admins
  * in the app (once per incident); it resolves itself when no document is over the SLA.
  */
-export async function checkDocumentReviewSla(now = new Date()) {
+export async function checkDocumentReviewSla(now = new Date(), deadline?: Deadline) {
+  if (deadline?.expired()) return { deferred: 1 }
   const cfg = await getReactivationSettings()
   const limit = new Date(now.getTime() - cfg.reviewSlaHours * 3600_000)
   const [late, oldest, open] = await Promise.all([

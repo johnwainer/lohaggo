@@ -5,6 +5,7 @@ import { getMercadoPagoRuntimeConfig } from '@/lib/mercadopago'
 import { getImageSettings } from '@/lib/marketing/images'
 import { getGa4Settings } from '@/lib/analytics/ga4'
 import { CRON_JOBS, JOB_LABEL } from '@/lib/system/cron'
+import { errorTrackingStatus } from '@/lib/system/errors'
 import { cronHealth, type CronHealth } from '@/lib/system/core'
 import { getProviderStates, providerIsDown, reasonLabel } from '@/lib/ai/providers/state'
 import { PROVIDER_LABEL, type ProviderId } from '@/lib/ai/providers/types'
@@ -68,6 +69,7 @@ export async function integrations(now = new Date()): Promise<Integration[]> {
     prisma.webhookEvent.count({ where: { createdAt: { gte: since }, status: { not: 'OK' } } }).catch(() => 0),
     getMercadoPagoRuntimeConfig().catch(() => null),
   ])
+  const tracking = await errorTrackingStatus().catch(() => null)
   const ago = (d?: Date | null) => (d ? `${Math.max(1, Math.round((now.getTime() - d.getTime()) / 60_000))} min` : null)
   const agoLabel = (d?: Date | null) => {
     if (!d) return 'sin uso registrado'
@@ -105,6 +107,12 @@ export async function integrations(now = new Date()): Promise<Integration[]> {
     { key: 'push', name: 'Notificaciones push', level: process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? 'ok' : 'warning', detail: process.env.VAPID_PRIVATE_KEY ? 'configuradas' : 'faltan las claves VAPID' },
     { key: 'ga4', name: 'Google Analytics en el admin', level: ga4?.propertyId && ga4.account ? 'ok' : 'off', detail: ga4?.propertyId && ga4.account ? `propiedad ${ga4.propertyId}` : 'no conectado (Analítica → Tráfico web)' },
     { key: 'webhooks', name: 'Webhooks de Meta y Twilio (24 h)', level: webhookErrors > 20 ? 'error' : webhookErrors ? 'warning' : 'ok', detail: webhookErrors ? `${webhookErrors} eventos con error o ignorados` : 'sin errores' },
+    {
+      key: 'error-tracking', name: 'Registro de errores', level: tracking?.failures ? 'warning' : 'ok',
+      detail: tracking?.failures
+        ? `${tracking.failures} errores no se pudieron guardar desde el último arranque (${tracking.lastFailure ?? 'sin detalle'})`
+        : tracking?.lastGroupWriteAt ? `última escritura hace ${ago(new Date(tracking.lastGroupWriteAt))}` : 'sin errores registrados',
+    },
     { key: 'cron-secret', name: 'Tareas automáticas autorizadas', level: process.env.CRON_SECRET ? 'ok' : 'error', detail: process.env.CRON_SECRET ? 'CRON_SECRET configurado' : 'falta CRON_SECRET: ninguna tarea automática corre' },
   ]
   return out

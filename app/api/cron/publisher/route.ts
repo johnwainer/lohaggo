@@ -11,15 +11,6 @@ const logger = createLogger('cron-publisher')
 
 /** Scheduled posts that are due (and Instagram videos Meta finished processing), and failed conversions. */
 async function handle(request: NextRequest) {
-  // Fails closed: these jobs publish to the networks and rewrite account tokens
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    logger.error('CRON_SECRET is not set: job refused')
-    return NextResponse.json({ error: 'CRON_SECRET no configurado' }, { status: 503 })
-  }
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
   try {
     const result = await runDuePublications()
     // Server conversions (Meta CAPI / GA4) that failed: retried here, every minute is cheap when there are none

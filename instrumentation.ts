@@ -1,10 +1,11 @@
 /** Server start: send every logged error and every unhandled request error to Salud del sistema. */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
-  const [{ setErrorSink, sanitizeForLog }, { recordError }] = await Promise.all([import('./lib/logger'), import('./lib/system/errors')])
+  const [{ setErrorSink, sanitizeForLog }, { recordError }, { runAfterResponse }] = await Promise.all([import('./lib/logger'), import('./lib/system/errors'), import('./lib/ops/after')])
   setErrorSink(({ context, message, error, data }) => {
     const detail = error instanceof Error ? `${message}: ${error.message}` : message
-    void recordError({ source: 'server', context, message: detail, sample: { data: sanitizeForLog(data ?? (error && !(error instanceof Error) ? error : undefined)), stack: error instanceof Error ? error.stack?.split('\n').slice(0, 6).join('\n') : undefined } })
+    // after() inside a request keeps the function alive until the write finishes; elsewhere it runs right away
+    runAfterResponse(() => recordError({ source: 'server', context, message: detail, sample: { data: sanitizeForLog(data ?? (error && !(error instanceof Error) ? error : undefined)), stack: error instanceof Error ? error.stack?.split('\n').slice(0, 6).join('\n') : undefined } }))
   })
 }
 

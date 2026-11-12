@@ -1,13 +1,13 @@
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logger'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
+import { validTwilioSignature } from '@/lib/messaging/twilio-signature'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { normalizeContactAddress } from '@/lib/messaging/contact-address'
@@ -25,22 +25,6 @@ import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import type { Prisma } from '@prisma/client'
 
 const logger = createLogger('twilio-inbound')
-
-async function validateTwilioSignature(request: NextRequest, authToken: string): Promise<boolean> {
-  const signature = request.headers.get('x-twilio-signature')
-  if (!signature) return false
-
-  const url = request.url
-  const body = await request.clone().formData()
-  const params: Record<string, string> = {}
-  body.forEach((value, key) => { params[key] = String(value) })
-
-  const sortedKeys = Object.keys(params).sort()
-  const paramString = sortedKeys.map((k) => `${k}${params[k]}`).join('')
-  const expected = Buffer.from(createHmac('sha1', authToken).update(url + paramString).digest('base64'))
-  const given = Buffer.from(signature)
-  return expected.length === given.length && timingSafeEqual(expected, given)
-}
 
 // Only unambiguous words: «cancelar» or «para» are normal things a client writes about a booking
 const STOP_KEYWORDS = new Set(['stop', 'baja', 'unsubscribe', 'darme de baja'])
@@ -60,7 +44,7 @@ export async function POST(request: NextRequest) {
       logger.error('Twilio inbound webhook rejected: auth token not configured')
       return new NextResponse('Service Unavailable', { status: 503 })
     }
-    const valid = await validateTwilioSignature(request, authToken)
+    const valid = await validTwilioSignature(request, authToken)
     if (!valid) {
       logger.warn('Invalid Twilio signature on inbound webhook')
       return new NextResponse('Forbidden', { status: 403 })

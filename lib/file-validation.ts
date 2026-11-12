@@ -51,3 +51,19 @@ export async function validateUploadedFile(file: File): Promise<FileValidationRe
 
   return { ok: true, mimeType: detectedMime, isPdf, buffer }
 }
+
+const IMAGE_EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+
+export type ImageValidationResult = { ok: true; mimeType: string; file: File } | { ok: false; error: string }
+
+/**
+ * An image upload judged only by its bytes: the browser's type and the file name are ignored. The returned File
+ * carries the detected mime type and a neutral name with the matching extension (PDFs are not accepted here).
+ */
+export async function validateUploadedImage(file: File): Promise<ImageValidationResult> {
+  const check = await validateUploadedFile(file)
+  if (!check.ok) return check
+  if (check.isPdf) return { ok: false, error: 'Solo se permiten archivos de imagen (JPG, PNG, WebP)' }
+  const ext = IMAGE_EXTENSION[check.mimeType] ?? 'jpg'
+  return { ok: true, mimeType: check.mimeType, file: new File([new Uint8Array(check.buffer)], `photo.${ext}`, { type: check.mimeType }) }
+}
