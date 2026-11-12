@@ -52,7 +52,7 @@ export const DEFAULT_SEO_CONFIG: Readonly<SeoConfig> = {
   socialAdaptation: true,
   gsc: { enabled: true, siteUrl: 'sc-domain:lohaggo.com' },
   pageAudit: { enabled: true, maxPages: 40 },
-  thresholds: { minImpressions: 30, lowCtrPct: 2, strikeFrom: 8, strikeTo: 20, staleArticleDays: 180, thinArticleWords: 600, zeroResultMinSearches: 3 },
+  thresholds: { minImpressions: 10, lowCtrPct: 2, strikeFrom: 8, strikeTo: 20, staleArticleDays: 180, thinArticleWords: 600, zeroResultMinSearches: 3 },
   focus: { services: [], cities: [], keywords: [] },
   competitors: [],
 }
