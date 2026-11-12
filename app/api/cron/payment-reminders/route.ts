@@ -35,11 +35,6 @@ async function run() {
 }
 
 async function handle(request: NextRequest) {
-  const secret = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && secret !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
   try {
     const result = await run()
     logger.info('Payment reminders sent', result)

@@ -13,6 +13,7 @@ import { WA } from '@/lib/messaging/wa-specs'
 import { deliverWa, sendWaToAdmins, sendWaToUser, type WaOutcome } from '@/lib/messaging/wa-send'
 import { bogotaClock, cityLabel, isMarketingQuietHour } from '@/lib/messaging/wa-format'
 import { FOLLOWUP_TIMING } from '@/lib/bookings/followups-core'
+import { isExpired, type Deadline } from '@/lib/system/deadline'
 
 const logger = createLogger('wa-scheduled')
 const H = 3600_000
@@ -27,7 +28,11 @@ function count(t: Tally, key: string, r: WaOutcome | null | undefined | { admins
   if (n) t[key] = (t[key] ?? 0) + n
 }
 
-async function step(t: Tally, name: string, fn: () => Promise<void>) {
+async function step(t: Tally, name: string, fn: () => Promise<void>, deadline?: Deadline) {
+  if (isExpired(deadline)) {
+    t[`${name}_deferred`] = 1
+    return
+  }
   try {
     await fn()
   } catch (err) {
@@ -141,11 +146,12 @@ export async function runWaPaymentPending(now = new Date()): Promise<Tally> {
 }
 
 /** Hourly (automations): partner onboarding (C3, C8, C9), win-back (B23, C30), demand (C29), unfinished chat requests (B24). */
-export async function runWaDaily(now = new Date()): Promise<Tally> {
+export async function runWaDaily(now = new Date(), deadline?: Deadline): Promise<Tally> {
   const t: Tally = {}
 
   await step(t, 'C3', async () => {
     for (const day of [1, 3, 7] as const) {
+      if (isExpired(deadline)) return
       const partners = await prisma.partnerProfile.findMany({
         where: {
           verified: false, createdAt: { lte: new Date(now.getTime() - day * DAY), gt: new Date(now.getTime() - (day + 1) * DAY) },
@@ -153,9 +159,12 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
         },
         select: { userId: true, user: { select: { name: true } } }, take: 100,
       })
-      for (const p of partners) count(t, 'C3', await sendWaToUser(p.userId, WA.C3({ userId: p.userId, name: p.user.name, day }), now))
+      for (const p of partners) {
+        if (isExpired(deadline)) return
+        count(t, 'C3', await sendWaToUser(p.userId, WA.C3({ userId: p.userId, name: p.user.name, day }), now))
+      }
     }
-  })
+  }, deadline)
 
   await step(t, 'C8', async () => {
     const approved = await prisma.verificationDocument.findMany({
@@ -164,11 +173,12 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
     })
     const seen = new Set<string>()
     for (const d of approved) {
+      if (isExpired(deadline)) return
       if (seen.has(d.partner.id)) continue
       seen.add(d.partner.id)
       count(t, 'C8', await sendWaToUser(d.partner.userId, WA.C8({ partnerId: d.partner.id, name: d.partner.user.name }), now))
     }
-  })
+  }, deadline)
 
   await step(t, 'C9', async () => {
     const done = await prisma.booking.findMany({
@@ -177,11 +187,12 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
     })
     const seen = new Set<string>()
     for (const b of done) {
+      if (isExpired(deadline)) return
       if (!b.partner || seen.has(b.partner.id)) continue
       seen.add(b.partner.id)
       count(t, 'C9', await sendWaToUser(b.partner.userId, WA.C9({ partnerId: b.partner.id, name: b.partner.user.name, bookingId: b.id }), now))
     }
-  })
+  }, deadline)
 
   await step(t, 'B23', async () => {
     // A week after a completed and paid booking (FOLLOWUP_TIMING.rebookInviteMs): «¿lo pedimos de nuevo?».
@@ -195,6 +206,7 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
     })
     const quiet = isMarketingQuietHour(now)
     for (const b of last) {
+      if (isExpired(deadline)) return
       const since = { gt: b.updatedAt }
       const again = await prisma.serviceRequest.count({ where: { userId: b.userId, createdAt: since } }) + await prisma.booking.count({ where: { userId: b.userId, createdAt: since } })
       if (again) continue
@@ -212,7 +224,7 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
         channels: ['PUSH'],
       }).then(() => { t.B23_app = (t.B23_app ?? 0) + 1 }).catch(() => null)
     }
-  })
+  }, deadline)
 
   await step(t, 'C30', async () => {
     const idle = await prisma.partnerProfile.findMany({
@@ -220,17 +232,19 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
       select: { id: true, userId: true, city: true, user: { select: { name: true } }, services: { where: { active: true }, select: { serviceId: true, service: { select: { name: true } } } } }, take: 50,
     })
     for (const p of idle) {
+      if (isExpired(deadline)) return
       if (!p.services.length) continue
       const open = await prisma.serviceRequest.findFirst({ where: { status: 'ACTIVE', expiresAt: { gt: now }, city: p.city, serviceId: { in: p.services.map((s) => s.serviceId) } }, select: { service: { select: { name: true } } } })
       if (!open) continue
       count(t, 'C30', await sendWaToUser(p.userId, WA.C30({ partnerId: p.id, partnerName: p.user.name, service: open.service.name }), now))
     }
-  })
+  }, deadline)
 
   await step(t, 'C29', async () => {
     const unmet = await prisma.serviceRequest.groupBy({ by: ['serviceId', 'city'], where: { status: 'EXPIRED', updatedAt: { gte: new Date(now.getTime() - 7 * DAY) }, proposals: { none: {} } }, _count: { _all: true } })
     let sent = 0
     for (const g of unmet) {
+      if (isExpired(deadline)) return
       if (sent >= 100) break
       const service = await prisma.service.findUnique({ where: { id: g.serviceId }, select: { name: true } })
       if (!service) continue
@@ -239,12 +253,13 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
         select: { id: true, userId: true, user: { select: { name: true } } }, take: 30,
       })
       for (const p of partners) {
+        if (isExpired(deadline)) return
         const r = await sendWaToUser(p.userId, WA.C29({ partnerId: p.id, partnerName: p.user.name, service: service.name, city: cityLabel(g.city), now }), now)
         count(t, 'C29', r)
         if (r?.ok) sent++
       }
     }
-  })
+  }, deadline)
 
   await step(t, 'B24', async () => {
     const drafts = await prisma.aiAgentAction.findMany({
@@ -254,6 +269,7 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
     })
     const seen = new Set<string>()
     for (const d of drafts) {
+      if (isExpired(deadline)) return
       if (seen.has(d.conversationId)) continue
       seen.add(d.conversationId)
       const finished = await prisma.aiAgentAction.count({ where: { conversationId: d.conversationId, tool: 'crear_solicitud', status: 'executed', createdAt: { gte: d.createdAt } } })
@@ -266,7 +282,7 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
         : await deliverWa({ userId: null, phone: d.conversation.contactPhone, name: d.conversation.contactName }, spec, now)
       count(t, 'B24', r)
     }
-  })
+  }, deadline)
 
   return t
 }

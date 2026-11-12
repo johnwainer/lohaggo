@@ -16,10 +16,18 @@ export const dynamic = 'force-dynamic'
 
 const logger = createLogger('cron-notification-reminders')
 
-/** Whether this user already got this reminder type for this entity recently (the windows span several runs). */
-async function alreadyReminded(userId: string, type: 'BOOKING_REMINDER_24H' | 'BOOKING_STARTING_SOON' | 'REQUEST_EXPIRING_SOON', entityId: string, since: Date) {
-  const hit = await prisma.notification.findFirst({ where: { userId, type, createdAt: { gte: since }, data: { contains: entityId } }, select: { id: true } })
-  return Boolean(hit)
+type ReminderType = 'BOOKING_REMINDER_24H' | 'BOOKING_STARTING_SOON' | 'REQUEST_EXPIRING_SOON'
+
+/**
+ * One query for all the users of the run (userId + type + createdAt are the filters the existing indexes serve),
+ * then the entity id is matched in memory: no per-candidate `data contains` scan. The windows span several runs,
+ * so each side must be checked on its own.
+ */
+async function remindedChecker(userIds: string[], type: ReminderType, since: Date) {
+  const rows = userIds.length ? await prisma.notification.findMany({ where: { userId: { in: Array.from(new Set(userIds)) }, type, createdAt: { gte: since } }, select: { userId: true, data: true } }) : []
+  const byUser = new Map<string, string[]>()
+  for (const r of rows) byUser.set(r.userId, [...(byUser.get(r.userId) ?? []), r.data ?? ''])
+  return (userId: string, entityId: string) => (byUser.get(userId) ?? []).some((d) => d.includes(entityId))
 }
 
 async function remindBookings(now: Date, kind: 'day' | 'soon') {
@@ -32,14 +40,15 @@ async function remindBookings(now: Date, kind: 'day' | 'soon') {
   const since = new Date(now.getTime() - 26 * 3600_000)
   const due = bookings.filter((b) => inReminderWindow(b, now, REMINDER_WINDOWS[kind]))
   const marks = await marksFor(due.map((b) => b.id))
+  const reminded = await remindedChecker(due.flatMap((b) => [b.userId, ...(b.partner?.userId ? [b.partner.userId] : [])]), type, since)
 
   let sent = 0
   for (const b of due) {
     // One reminder per moment per person: the window spans several runs, so each side is checked on its own
     const when = bookingWhen(b).getTime()
     const plan = reminderPlan(kind, { now: now.getTime(), when, followupLive: when >= FOLLOWUP_SINCE.getTime(), marks: marks.get(b.id) ?? new Map() })
-    const client = plan.client && !(await alreadyReminded(b.userId, type, b.id, since)) ? plan.client : null
-    const partnerUserId = plan.partner && b.partner?.userId && !(await alreadyReminded(b.partner.userId, type, b.id, since)) ? b.partner.userId : null
+    const client = plan.client && !reminded(b.userId, b.id) ? plan.client : null
+    const partnerUserId = plan.partner && b.partner?.userId && !reminded(b.partner.userId, b.id) ? b.partner.userId : null
     if (!client && !partnerUserId) continue
     const time = formatBookingWhen(b).split(' ').pop()
     const service = b.service?.name ?? 'servicio'
@@ -89,9 +98,10 @@ async function runRequestExpiringSoon(now: Date) {
     take: 200,
   })
 
+  const reminded = await remindedChecker(requests.map((r) => r.userId), 'REQUEST_EXPIRING_SOON', new Date(now.getTime() - 3 * 3600_000))
   let sent = 0
   for (const r of requests) {
-    if (await alreadyReminded(r.userId, 'REQUEST_EXPIRING_SOON', r.id, new Date(now.getTime() - 3 * 3600_000))) continue
+    if (reminded(r.userId, r.id)) continue
     // Unanswered with its date still ahead: request-lifecycle extends it instead (B5 only when it really expires)
     if (await willAutoExtend({ ...r, proposals: r._count.proposals }, now).catch(() => false)) continue
     await waRequestExpiring(r.id, now)

@@ -6,6 +6,7 @@
  * the marketing quiet hours (9 p. m. – 8 a. m. Bogotá).
  */
 import { prisma } from '@/lib/prisma'
+import type { Deadline } from '@/lib/system/deadline'
 import { createLogger } from '@/lib/logger'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
@@ -63,7 +64,7 @@ function emailBody(firstName: string, copy: ReturnType<typeof welcomeCopy>, serv
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('<br>')
 }
 
-export async function runClientWelcome(now: Date = new Date(), limit = 100) {
+export async function runClientWelcome(now: Date = new Date(), limit = 100, deadline?: Deadline) {
   if (isMarketingQuietHour(now)) return { skipped: 'quiet_hours' as const, sent: 0, emails: 0 }
   const users = await prisma.user.findMany({
     where: {
@@ -91,7 +92,7 @@ export async function runClientWelcome(now: Date = new Date(), limit = 100) {
   let sent = 0
   let emails = 0
   for (const u of users) {
-    if (sent >= limit) break
+    if (sent >= limit || deadline?.expired()) break
     const step = welcomeStepDue({ createdAt: u.createdAt, now, sent: sentBy.get(u.id) ?? [], hasActivity: false, excludedFromMarketing: u.excludedFromMarketing, isActive: u.isActive, role: u.role })
     if (!step) continue
     services ??= await popularServices()

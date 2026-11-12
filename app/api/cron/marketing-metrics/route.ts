@@ -10,15 +10,6 @@ const logger = createLogger('cron-marketing-metrics')
 
 /** Insights snapshots of published social posts whose refresh is due. */
 async function handle(request: NextRequest) {
-  // Fails closed: these jobs publish to the networks and rewrite account tokens
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    logger.error('CRON_SECRET is not set: job refused')
-    return NextResponse.json({ error: 'CRON_SECRET no configurado' }, { status: 503 })
-  }
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
   try {
     const result = await collectMetrics()
     logger.info('Run', result)

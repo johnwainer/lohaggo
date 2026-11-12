@@ -10,12 +10,6 @@ import { reprocessFailedMetaWebhooks } from '@/lib/messaging/meta-reprocess'
 const logger = createLogger('cron-meta-pending')
 
 async function handle(request: NextRequest) {
-  const secret = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && secret !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
     const report = await pollPendingFolders()
     const purged = await purgeOldWebhookEvents(7).catch(() => 0)

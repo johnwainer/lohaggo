@@ -17,11 +17,6 @@ const logger = createLogger('cron-copilot')
  * Then the «sin respuesta» ladder: contacts waiting for a person get the team alerted, and incidents (lib/inbox/escalation.ts).
  */
 async function handle(request: NextRequest) {
-  const secret = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && secret !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
   try {
     const result = await runCopilotTakeovers()
     const afterHours = await answerAfterHours(5).catch(() => ({ answered: 0 }))
