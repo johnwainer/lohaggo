@@ -107,10 +107,17 @@ async function handlePOST(request: NextRequest) {
     let email = emailInput ?? ''
     let proofPhone: string | null = null
     if (!email) {
-      const { phoneE164, HAS_ACCOUNT_ERROR } = await import('@/lib/accounts/phone-login')
+      const { phoneE164, HAS_ACCOUNT_ERROR, phoneProofValid } = await import('@/lib/accounts/phone-login')
       const e164 = phone ? phoneE164(phone) : null
       if (role !== 'PARTNER' || !serverPassword || !e164) {
         return NextResponse.json({ error: 'El correo es obligatorio' }, { status: 400 })
+      }
+      // Without a valid proof nothing about the number is revealed (a taken number can never have one: /prove refuses it)
+      if (!phoneProofValid(phoneProof, e164)) {
+        return NextResponse.json(
+          { error: 'Confirma tu número con el código de WhatsApp para registrarte sin correo.', code: 'phone_proof_required' },
+          { status: 403 }
+        )
       }
       const taken = await prisma.user.count({ where: { phone: { in: storedPhoneVariants(e164) } } })
       if (taken > 0) {

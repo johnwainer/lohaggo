@@ -95,8 +95,11 @@ async function checkPhoneCode(phone: string, code: string, ip: string): Promise<
   if (!row || row.expiresAt < new Date()) return { ok: false, status: 400, code: 'expired', error: 'El código venció. Pide uno nuevo.' }
   if (row.attempts >= PHONE_CODE_MAX_ATTEMPTS) return { ok: false, status: 400, code: 'expired', error: 'Demasiados intentos con este código. Pide uno nuevo.' }
   if (!sameHash(row.codeHash, hashPhoneCode(code, row.id, secret()))) {
-    const next = await prisma.phoneLoginCode.update({ where: { id: row.id }, data: { attempts: { increment: 1 } }, select: { attempts: true } })
-    const remaining = Math.max(0, PHONE_CODE_MAX_ATTEMPTS - next.attempts)
+    // Counted atomically: parallel guesses can't all pass the attempts check before any increment lands
+    const counted = await prisma.phoneLoginCode.updateMany({ where: { id: row.id, attempts: { lt: PHONE_CODE_MAX_ATTEMPTS } }, data: { attempts: { increment: 1 } } })
+    if (counted.count !== 1) return { ok: false, status: 400, code: 'expired', error: 'Demasiados intentos con este código. Pide uno nuevo.' }
+    const next = await prisma.phoneLoginCode.findUnique({ where: { id: row.id }, select: { attempts: true } })
+    const remaining = Math.max(0, PHONE_CODE_MAX_ATTEMPTS - (next?.attempts ?? PHONE_CODE_MAX_ATTEMPTS))
     return { ok: false, status: 400, code: 'invalid', remaining, error: remaining ? `Código incorrecto. Te quedan ${remaining} intentos.` : 'Código incorrecto. Pide uno nuevo.' }
   }
   return { ok: true, row }
@@ -130,6 +133,12 @@ export async function provePhoneCode(p: { phone: string; code: string; ip: strin
 }
 
 /** Validates the proof for exactly this number and spends it (atomic: a second use finds the code used). */
+/** Signature and expiry only (nothing is spent): lets the register route refuse a missing proof before any account lookup. */
+export function phoneProofValid(token: string | null | undefined, rawPhone: string): boolean {
+  const phone = phoneE164(rawPhone)
+  return Boolean(phone) && checkPhoneProof(token, phone!, secret()).ok
+}
+
 export async function consumePhoneProof(token: string | null | undefined, rawPhone: string): Promise<boolean> {
   const phone = phoneE164(rawPhone)
   if (!phone) return false

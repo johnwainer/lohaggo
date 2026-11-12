@@ -5,6 +5,7 @@ import { sendMessageViaProvider, sendMetaWhatsAppTemplate, sendWhatsAppTemplate 
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { recordAutomatedOutbound } from '@/lib/inbox/automated'
 import type { Deadline } from '@/lib/system/deadline'
+import { isPlaceholderEmail } from '@/lib/accounts/phone-login-core'
 import {
   sendWelcomePartner,
   sendVerificationReminder,
@@ -152,6 +153,13 @@ export async function processDueAutomations(limit = 100, deadline?: Deadline) {
     // Ley 1581: promotional automations by WhatsApp/SMS need consent or the grandfathered basis
     if (MARKETING_TRIGGERS.has(rule.trigger as AutomationTrigger) && (execution.channel === 'WHATSAPP' || execution.channel === 'SMS') && !hasMarketingConsent(user)) {
       await prisma.automationExecution.update({ where: { id: execution.id }, data: { status: 'SKIPPED', executedAt: new Date(), error: 'Sin consentimiento de marketing' } })
+      skipped++
+      continue
+    }
+
+    // Accounts born from a phone have an internal address that never receives mail
+    if (execution.channel === 'EMAIL' && isPlaceholderEmail(user.email)) {
+      await prisma.automationExecution.update({ where: { id: execution.id }, data: { status: 'SKIPPED', executedAt: new Date(), error: 'Cuenta sin correo real' } })
       skipped++
       continue
     }
