@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { env } from './lib/env'
+import { resolveSecurityInternalToken } from './lib/security/internal-token'
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 const blockedIpCache = new Map<string, { blocked: boolean; expiresAt: number }>()
 const authSecret = env.NEXTAUTH_SECRET_CURRENT || env.NEXTAUTH_SECRET
-const securityInternalToken = env.SECURITY_INTERNAL_TOKEN || authSecret
+const securityInternalToken = resolveSecurityInternalToken(env)
 const blockedIpCacheTtlMs = 60 * 1000
+
+/** The session cookie's token; one that was marked invalid (user deactivated or deleted) counts as no session. */
+async function readToken(request: NextRequest) {
+  const token = await getToken({ req: request, secret: authSecret })
+  return token && !token.invalid ? token : null
+}
 
 const suspiciousPathPatterns = [
   '/wp-admin',
@@ -340,7 +347,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    const token = await getToken({ req: request, secret: authSecret })
+    const token = await readToken(request)
 
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url))
@@ -352,7 +359,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith('/partner')) {
-    const token = await getToken({ req: request, secret: authSecret })
+    const token = await readToken(request)
 
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url))
@@ -369,7 +376,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/notifications') ||
     pathname.startsWith('/my-ratings')
   ) {
-    const token = await getToken({ req: request, secret: authSecret })
+    const token = await readToken(request)
 
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url))

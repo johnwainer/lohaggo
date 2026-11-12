@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
+import { resolveSecurityInternalToken } from '@/lib/security/internal-token'
 import { createLogger } from '@/lib/logger'
 import type { AdminSeverity } from '@prisma/client'
 
@@ -13,7 +14,7 @@ const AUTO_BLOCK_THRESHOLD = 8
 const AUTO_BLOCK_HOURS = 24
 
 function getInternalToken() {
-  return env.SECURITY_INTERNAL_TOKEN
+  return resolveSecurityInternalToken(env)
 }
 
 function isAuthorized(request: NextRequest): boolean {
