@@ -43,3 +43,34 @@ export function modelCaps(model: string) {
   const legacy = /haiku|claude-3|-4-5\b|-4-5-|-4-1|-4-0|claude-(opus|sonnet)-4$/.test(id)
   return { adaptiveThinking: !legacy, effort: !legacy }
 }
+
+export const SONNET_MODEL = 'claude-sonnet-5'
+export const HAIKU_MODEL = FALLBACK_MODEL
+
+/**
+ * Cheaper tier for routine kinds. Everything not listed (agent replies, tools rounds, marketing strategy/plan/draft,
+ * haggo_chat, arbiter...) keeps the platform default model.
+ */
+export const KIND_MODEL: Partial<Record<string, string>> = {
+  summary: HAIKU_MODEL,
+  reengagement: HAIKU_MODEL,
+  copilot_suggestion: HAIKU_MODEL,
+  comment_suggestion: HAIKU_MODEL,
+  marketing_review_spelling: HAIKU_MODEL,
+  haggo_cycle: SONNET_MODEL,
+  haggo_report: SONNET_MODEL,
+}
+
+/**
+ * The model a call really asks for. A caller that passed something other than the platform default (an agent's own
+ * model, an AiSettings override in the call) is respected. Only a call on the default Claude model moves to the
+ * kind's cheaper model, and only when the default is not already the cheaper one (e.g. AiSettings set to Sonnet).
+ */
+export function modelForKind(kind: string, requested: string, defaultModel: string): string {
+  const cheaper = KIND_MODEL[kind]
+  if (!cheaper || requested !== defaultModel) return requested
+  if (!/^claude-/i.test(defaultModel)) return requested
+  if (cheaper === HAIKU_MODEL && /haiku/i.test(defaultModel)) return requested
+  if (cheaper === SONNET_MODEL && /haiku|sonnet/i.test(defaultModel)) return requested
+  return cheaper
+}

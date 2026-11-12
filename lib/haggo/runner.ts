@@ -9,6 +9,7 @@ import type { HaggoConfig } from '@/lib/haggo/config'
 import { detect, novelDetections, staleHaggoItems, type Detection, type Snapshot } from '@/lib/haggo/detect'
 import { dueJobs, type LastRuns } from '@/lib/haggo/schedule'
 import { takeSnapshot } from '@/lib/haggo/snapshot'
+import { canSkipUnchanged, detectionSignature, snapshotHash, type LastCycle } from '@/lib/haggo/snapshot-hash'
 import { configStatusBlock } from '@/lib/haggo/config-status'
 import { LOCK_MINUTES, getHaggoConfig, haggoSpend, withHaggoLock } from '@/lib/haggo/store'
 import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
@@ -70,7 +71,7 @@ type Proposing = { origin: 'cycle' | 'report'; runId: string; counter: { n: numb
 /** Most one cycle or report may spend (USD), whatever the daily budget left */
 const RUN_COST_CEILING_USD = 1.5
 
-async function think(p: { kind: AiCallKind; model: string; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort; rounds?: number; proposing?: Proposing }, meter: Meter) {
+async function think(p: { kind: AiCallKind; model: string; pinned?: boolean; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort; rounds?: number; proposing?: Proposing }, meter: Meter) {
   const maxRounds = p.rounds ?? MAX_ROUNDS
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: p.task }]
   const tools = [...READ_TOOL_DEFS, ...(p.proposing ? [PROPOSE_ACTION_TOOL] : []), ...(p.proposing?.verify?.length ? [EVALUATE_TOOL] : []), p.finalTool]
@@ -79,7 +80,7 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
   for (let round = 0; round < maxRounds; round++) {
     let r: CallResult
     try {
-      r = await callAI({ model: p.model, system: p.system, messages, tools, maxTokens: p.maxTokens, effort: p.effort, timeoutMs: CALL_TIMEOUT_MS }, { kind: p.kind })
+      r = await callAI({ model: p.model, system: p.system, messages, tools, maxTokens: p.maxTokens, effort: p.effort, timeoutMs: CALL_TIMEOUT_MS, cacheTail: true }, { kind: p.kind, pinModel: p.pinned })
     } catch (err) {
       throw new HaggoError(describeApiError(err))
     }
@@ -134,7 +135,7 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
     messages.push({ role: 'user', content: blocks })
     if (overBudget && round < maxRounds - 2) {
       // One last round to answer with what it has
-      const r2 = await callAI({ model: p.model, system: p.system, messages, tools: [p.finalTool], maxTokens: p.maxTokens, effort: p.effort, timeoutMs: CALL_TIMEOUT_MS }, { kind: p.kind }).catch((err) => { throw new HaggoError(describeApiError(err)) })
+      const r2 = await callAI({ model: p.model, system: p.system, messages, tools: [p.finalTool], maxTokens: p.maxTokens, effort: p.effort, timeoutMs: CALL_TIMEOUT_MS, cacheTail: true }, { kind: p.kind, pinModel: p.pinned }).catch((err) => { throw new HaggoError(describeApiError(err)) })
       meter.add(r2)
       const last = r2.message.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === p.finalTool.name)
       if (last) return last.input
@@ -225,6 +226,13 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
     for (const d of newCritical.filter((x) => !attention.includes(x))) await notify('critical', `critical:${d.key}:${bogotaKey(now)}`, { title: d.title, lines: [d.detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })
     if (attention.length === 1) await notify('critical', `critical:${attention[0].key}:${bogotaKey(now)}`, { title: attention[0].title, lines: [attention[0].detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })
     else if (attention.length > 1) await notify('critical', `critical:attention:${run.id}`, { title: `${attention.length} solicitudes con puntos de atención críticos`, lines: [attention.slice(0, 10).map((d) => `• ${d.title}`).join('\n') + (attention.length > 10 ? `\n… y ${attention.length - 10} más` : ''), 'Haggo las está investigando; míralas en Haggo → Ahora.'] })
+    const previous = await prisma.haggoSettings.findUnique({ where: { id: 'platform' }, select: { lastSnapshot: true } }).catch(() => null)
+    const recentCycles = await prisma.haggoRun.findMany({ where: { type: 'cycle', id: { not: run.id } }, orderBy: { startedAt: 'desc' }, take: 12, select: { status: true, startedAt: true, detections: true } }).catch(() => [])
+    const asCycle = (r: (typeof recentCycles)[number] | undefined): LastCycle | null => (r ? { status: r.status, startedAt: r.startedAt, signature: Array.isArray(r.detections) ? detectionSignature(r.detections as Array<{ key: string; severity: string }>) : null } : null)
+    const lastCycle = asCycle(recentCycles[0])
+    const lastOk = asCycle(recentCycles.find((r) => r.status === 'ok'))
+    const hash = snapshotHash(snapshot)
+    const previousHash = previous?.lastSnapshot ? snapshotHash(previous.lastSnapshot) : null
     await prisma.haggoSettings.update({ where: { id: 'platform' }, data: { lastSnapshot: json(snapshot), lastSnapshotAt: now } })
 
     let status = 'ok'
@@ -233,7 +241,10 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
     const spend = await haggoSpend(cfg, now)
     // Actions whose deadline passed are measured even when nothing else is new
     const toVerify = spend.blocked ? [] : await dueVerifications(now)
-    if (!novel.length && !force && !toVerify.length) {
+    if (canSkipUnchanged({ hash, previousHash, signature: detectionSignature(detections), lastCycle, lastOk, force, hasVerifications: toVerify.length > 0, now }) && !snapshot.unavailable?.length) {
+      status = 'skipped'
+      summary = 'Sin cambios desde el ciclo anterior: no se llamó a la IA.'
+    } else if (!novel.length && !force && !toVerify.length) {
       status = 'skipped'
       summary = detections.length ? `Sin novedades: ${detections.length} situaciones ya conocidas.` : 'Sin novedades: todo en orden.'
     } else if (spend.blocked) {
@@ -243,7 +254,7 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
       const openFindings = await prisma.haggoFinding.findMany({ where: { status: { in: ['new', 'seen'] }, fingerprint: { not: { startsWith: 'rule:' } } }, orderBy: { lastSeenAt: 'desc' }, take: 20, select: { title: true, severity: true } })
       const proposing: Proposing = { origin: 'cycle', runId: run.id, counter: { n: 0 }, ids: [], verify: toVerify.map((v) => v.id), verified: [] }
       const verifyTask = toVerify.length ? `\n\nAcciones ejecutadas cuyo plazo ya venció: mide con tus herramientas si se cumplió cada hipótesis y registra cada una con evaluar_resultado (antes y ahora, con cifras). Lo que empeoró y Haggo hizo solo se deshace; lo aprobado por una persona queda como recomendación.\n${toVerify.map((v) => `- ${v.id}: ${v.label} — ${v.what ?? ''}. Ejecutada ${v.executedAt.toISOString()}${v.autonomous ? ' (la hiciste solo)' : ''}. Hipótesis: ${JSON.stringify(v.hypothesis)}`).join('\n')}` : ''
-      const input = await think({ kind: 'haggo_cycle', model: await modelFor(cfg), system: await context(), task: cycleTask({ snapshot, detections, novel, openFindings, nowText: nowText(now, cfg.timezone) }) + verifyTask, finalTool: ANALYSIS_TOOL, maxTokens: 5000, effort: 'medium', proposing }, meter)
+      const input = await think({ kind: 'haggo_cycle', model: await modelFor(cfg), pinned: Boolean(cfg.model), system: await context(), task: cycleTask({ snapshot, detections, novel, openFindings, nowText: nowText(now, cfg.timezone) }) + verifyTask, finalTool: ANALYSIS_TOOL, maxTokens: 5000, effort: 'medium', proposing }, meter)
       if (proposing.ids.length) {
         logger.info('Cycle proposals', { runId: run.id, n: proposing.ids.length })
         await notifyApprovals(now)
@@ -299,7 +310,7 @@ export async function runReport(cfg: HaggoConfig, kind: 'daily' | 'weekly', now 
       return { status: 'ok', summary: 'Informe solo con reglas', costUsd: 0 }
     }
     const reportProposals: Proposing = { origin: 'report', runId: run.id, counter: { n: 0 }, ids: [] }
-    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 10000, effort: 'high', rounds: REPORT_ROUNDS, proposing: reportProposals }, meter)
+    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), pinned: Boolean(cfg.model), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 10000, effort: 'high', rounds: REPORT_ROUNDS, proposing: reportProposals }, meter)
     const report = parseReport(input)
     if (!report) throw new HaggoError('El informe no es válido')
     await prisma.haggoSettings.update({ where: { id: 'platform' }, data: { focus: report.focus || undefined } })

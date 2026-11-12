@@ -3,13 +3,38 @@ import { prisma } from '@/lib/prisma'
 export const DEFAULT_INSTALL_THRESHOLD = Number(process.env.PWA_INSTALL_RATE_THRESHOLD || 25)
 export const DEFAULT_PUSH_THRESHOLD = Number(process.env.PWA_PUSH_OPT_IN_THRESHOLD || 45)
 
+type OpenIncident = { id: string; type: string; lastSeenAt: Date }
+
+/**
+ * At most ONE open incident per condition type: the most recent one is kept (and refreshed) while the condition
+ * lasts, every duplicate is closed, and every open incident of a type whose condition cleared is closed.
+ */
+export function planPwaIncidents(activeTypes: string[], open: OpenIncident[], knownTypes: string[]) {
+  const keep: Record<string, string> = {}
+  const resolve: string[] = []
+  const sorted = [...open].sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime())
+  for (const inc of sorted) {
+    if (!knownTypes.includes(inc.type) || !activeTypes.includes(inc.type) || keep[inc.type]) resolve.push(inc.id)
+    else keep[inc.type] = inc.id
+  }
+  return { keep, resolve }
+}
+
+/** One-off cleanup: closes every open pwa-adoption-alerts incident (the detector reopens one per condition if it still holds). */
+export async function resolveAllPwaAlertIncidents(by: string) {
+  const r = await prisma.adminIncident.updateMany({
+    where: { source: 'pwa-adoption-alerts', status: { in: ['OPEN', 'ACKNOWLEDGED'] } },
+    data: { status: 'RESOLVED', resolvedBy: by, resolvedAt: new Date() },
+  })
+  return r.count
+}
+
 export async function runPwaAdoptionAlerts(options?: { installThreshold?: number; pushThreshold?: number }) {
   const installThreshold = options?.installThreshold ?? DEFAULT_INSTALL_THRESHOLD
   const pushThreshold = options?.pushThreshold ?? DEFAULT_PUSH_THRESHOLD
 
   const now = new Date()
   const from7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-  const dedupeFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
   const signups = await prisma.user.findMany({
     where: { createdAt: { gte: from7d }, role: { in: ['CLIENT', 'PARTNER'] } },
@@ -48,27 +73,28 @@ export async function runPwaAdoptionAlerts(options?: { installThreshold?: number
     alerts.push({ metric: 'push_opt_in_rate', rate: pushRate, threshold: pushThreshold })
   }
 
+  const ALL_TYPES = ['PWA_ADOPTION_INSTALL_RATE', 'PWA_ADOPTION_PUSH_OPT_IN_RATE']
+  const open = await prisma.adminIncident.findMany({
+    where: { source: 'pwa-adoption-alerts', status: { in: ['OPEN', 'ACKNOWLEDGED'] } },
+    select: { id: true, type: true, status: true, lastSeenAt: true },
+    orderBy: { lastSeenAt: 'desc' },
+  })
+  const plan = planPwaIncidents(alerts.map((a) => `PWA_ADOPTION_${a.metric.toUpperCase()}`), open, ALL_TYPES)
+  if (plan.resolve.length) {
+    await prisma.adminIncident.updateMany({
+      where: { id: { in: plan.resolve }, status: { in: ['OPEN', 'ACKNOWLEDGED'] } },
+      data: { status: 'RESOLVED', resolvedBy: 'Alertas de adopción (la condición ya no se cumple o estaba repetida)', resolvedAt: now },
+    })
+  }
+
   for (const alert of alerts) {
     const type = `PWA_ADOPTION_${alert.metric.toUpperCase()}`
-    const existing = await prisma.adminIncident.findFirst({
-      where: {
-        type,
-        status: { in: ['OPEN', 'ACKNOWLEDGED'] },
-        lastSeenAt: { gte: dedupeFrom },
-      },
-      orderBy: { lastSeenAt: 'desc' },
-    })
+    const keep = plan.keep[type]
+    const description = `Métrica ${alert.metric} en ${alert.rate}% (umbral ${alert.threshold}%) durante los últimos 7 días.`
+    const metadata = JSON.stringify({ totalSignups, installRate, pushRate, checkedAt: now.toISOString() })
 
-    if (existing) {
-      await prisma.adminIncident.update({
-        where: { id: existing.id },
-        data: {
-          occurrences: { increment: 1 },
-          lastSeenAt: now,
-          description: `Métrica ${alert.metric} en ${alert.rate}% (umbral ${alert.threshold}%) durante los últimos 7 días.`,
-          metadata: JSON.stringify({ totalSignups, installRate, pushRate, checkedAt: now.toISOString() }),
-        },
-      })
+    if (keep) {
+      await prisma.adminIncident.update({ where: { id: keep }, data: { occurrences: { increment: 1 }, lastSeenAt: now, description, metadata } })
       continue
     }
 
@@ -78,10 +104,10 @@ export async function runPwaAdoptionAlerts(options?: { installThreshold?: number
         severity: 'HIGH',
         status: 'OPEN',
         title: `Caída en adopción PWA (${alert.metric})`,
-        description: `Métrica ${alert.metric} en ${alert.rate}% (umbral ${alert.threshold}%) durante los últimos 7 días.`,
+        description,
         source: 'pwa-adoption-alerts',
         route: '/admin/analytics?tab=app',
-        metadata: JSON.stringify({ totalSignups, installRate, pushRate, checkedAt: now.toISOString() }),
+        metadata,
         occurrences: 1,
         firstSeenAt: now,
         lastSeenAt: now,

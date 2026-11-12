@@ -120,7 +120,7 @@ async function callReviewer(env: ReviewEnv, p: { model: string; kind: AiCallKind
     let r: CallResult
     try {
       r = await callClaude(
-        { model: p.model, system: [{ type: 'text', text: p.system }], messages: [{ role: 'user', content: p.task }], tools: [p.tool], maxTokens, effort: 'medium', timeoutMs: CALL_TIMEOUT_MS },
+        { model: p.model, system: [{ type: 'text', text: p.system, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content: p.task }], tools: [p.tool], maxTokens, effort: 'medium', timeoutMs: CALL_TIMEOUT_MS },
         { kind: p.kind, workspaceId: env.workspaceId },
       )
     } catch (err) {

@@ -43,6 +43,17 @@ export function anthropicSafeTools(tools: Anthropic.Tool[]): Anthropic.Tool[] {
   })
 }
 
+/** The last content block of the last message marked as an ephemeral cache breakpoint (a string message becomes one text block). */
+export function withCachedTail(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  if (!messages.length) return messages
+  const last = messages[messages.length - 1]
+  const blocks: Anthropic.ContentBlockParam[] = typeof last.content === 'string' ? [{ type: 'text', text: last.content }] : [...last.content]
+  const i = blocks.length - 1
+  if (i < 0 || !['text', 'tool_result', 'tool_use', 'image'].includes(blocks[i].type)) return messages
+  blocks[i] = { ...blocks[i], cache_control: { type: 'ephemeral' } } as Anthropic.ContentBlockParam
+  return [...messages.slice(0, -1), { ...last, content: blocks }]
+}
+
 /**
  * Builds the request for a given model. Claude 5 / 4.6+: adaptive thinking + effort, never
  * temperature/top_p/top_k (400). Legacy fallback models (Haiku 4.5) take neither thinking nor effort.
@@ -54,7 +65,7 @@ export function buildRequest(p: CallParams, model: string): Anthropic.MessageCre
   const req: Anthropic.MessageCreateParamsNonStreaming = {
     model,
     max_tokens: p.maxTokens + (thinking ? THINKING_HEADROOM : 0),
-    messages: p.messages,
+    messages: p.cacheTail ? withCachedTail(p.messages) : p.messages,
   }
   if (p.system?.length) req.system = p.system
   if (p.tools?.length) req.tools = anthropicSafeTools(p.tools)

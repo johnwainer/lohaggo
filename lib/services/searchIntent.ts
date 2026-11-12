@@ -111,6 +111,12 @@ export const INTENTS: Intent[] = [
     targets: ['comput', 'soporte tecnico'],
   },
   {
+    phrases: ['plancha aligerada', 'placa aligerada', 'losa aligerada', 'maestro obra'],
+    words: ['albanil', 'albanileria', 'construccion', 'obra', 'losa', 'placa', 'aligerada', 'ladrillo', 'cemento', 'muro', 'remodelacion', 'ampliacion', 'mamposteria'],
+    targets: ['albanil', 'construcc', 'obra', 'remodel'],
+  },
+  { words: ['piscina', 'piscinas', 'alberca', 'jacuzzi', 'sauna'], targets: ['piscina'] },
+  {
     words: ['diligencia', 'diligencias', 'encargo', 'mandado', 'domicilio'],
     targets: ['lohaggo ya', 'favor'],
   },

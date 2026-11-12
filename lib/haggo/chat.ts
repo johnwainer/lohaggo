@@ -206,7 +206,7 @@ export async function converse(userId: string, raw: unknown) {
     for (let round = 0; round < MAX_ROUNDS; round++) {
       let r: CallResult
       try {
-        r = await callAI({ model: modelId, system, messages, tools: CHAT_TOOLS, maxTokens: 3000, effort: 'medium', timeoutMs: 150_000 }, { kind: 'haggo_chat' })
+        r = await callAI({ model: modelId, system, messages, tools: CHAT_TOOLS, maxTokens: 3000, effort: 'medium', timeoutMs: 150_000, cacheTail: true }, { kind: 'haggo_chat' })
       } catch (err) {
         throw new ChatError(describeApiError(err), 502)
       }

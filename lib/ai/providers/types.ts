@@ -16,6 +16,8 @@ export type CallParams = {
   effort: Effort
   /** Longer than the client's 60 s default, for long jobs (marketing agent) outside a live chat */
   timeoutMs?: number
+  /** Multi-round tool loops: mark the last message as a cache breakpoint so each round only pays for what is new */
+  cacheTail?: boolean
 }
 
 /** Extra room for reasoning so a small visible budget (512) is not eaten by thinking. */

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { logAiCall, type AiCallKind } from '@/lib/ai/calls'
 import { AiNotConfiguredError, anthropicClient, getAiSettings, openaiClient, requireAnthropic, type AiRuntimeSettings } from '@/lib/ai/settings'
+import { modelForKind } from '@/lib/ai/models'
 import { buildRequest, callAnthropic, listAnthropicModels } from '@/lib/ai/providers/anthropic'
 import { callOpenAI } from '@/lib/ai/providers/openai'
 import { AllProvidersFailedError, runProviders, type ProviderPlan } from '@/lib/ai/providers/failover'
@@ -23,6 +24,8 @@ export type CallContext = {
   allowFallback?: boolean
   /** false to stay on the first provider even when failover is on */
   allowFailover?: boolean
+  /** true when the model was chosen on purpose (e.g. Haggo's own setting): never replaced by the kind's cheaper model */
+  pinModel?: boolean
 }
 
 export type CallResult = {
@@ -81,6 +84,8 @@ function plansFor(p: CallParams, ctx: CallContext, s: AiRuntimeSettings): Provid
  */
 export async function callAI(p: CallParams, ctx: CallContext): Promise<CallResult> {
   const settings = await getAiSettings()
+  const effective = { ...p, model: ctx.pinModel ? p.model : modelForKind(ctx.kind, p.model, settings.defaultModel) }
+  p = effective
   const plans = plansFor(p, ctx, settings)
   if (!plans.length) throw new AiNotConfiguredError()
   const states = await getProviderStates()
