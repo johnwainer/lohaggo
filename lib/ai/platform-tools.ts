@@ -601,10 +601,11 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     const summary = `Aceptar la propuesta de ${partnerName} por ${cop(p.price)}${when ? ` para el ${fecha} a las ${when.scheduledTime}` : ' con la fecha y hora de la solicitud'}`
     return {
       summary,
-      wouldRecord: 'la propuesta aceptada, las demás rechazadas y una reserva (Booking) pendiente de confirmar por el socio',
+      wouldRecord: 'la propuesta aceptada, las demás rechazadas y una reserva (Booking): ya confirmada si la propuesta traía día y hora y no se cambió, o pendiente de confirmar por el socio',
       run: async () => {
         const booking = await acceptProposal(actor, p.id, originFor(ctx), when ?? undefined)
-        return { text: `Propuesta aceptada. Reserva creada (ref ${shortId(booking.id)}): ${bookingSummaryForChat(booking)}. El socio debe confirmarla; avisaremos por la app y por aquí.`, entityType: 'Booking', entityId: booking.id }
+        const next = booking.status === 'CONFIRMED' ? 'Queda confirmada: el socio ya había propuesto ese día y hora.' : 'El socio debe confirmarla; avisaremos por la app y por aquí.'
+        return { text: `Propuesta aceptada. Reserva creada (ref ${shortId(booking.id)}): ${bookingSummaryForChat(booking)}. ${next}`, entityType: 'Booking', entityId: booking.id }
       },
     }
   },

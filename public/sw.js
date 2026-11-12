@@ -1,7 +1,8 @@
+// v7: refreshes the precached offline page (it now shows the next booking saved on the device). Still no API or RSC caching.
 // v6: stops caching API responses and Next.js RSC payloads (a stale payload left pages unclickable after navigating back)
-const CACHE_NAME = 'lohaggo-v6';
-const RUNTIME_CACHE = 'lohaggo-runtime-v6';
-const IMAGE_CACHE = 'lohaggo-images-v6';
+const CACHE_NAME = 'lohaggo-v7';
+const RUNTIME_CACHE = 'lohaggo-runtime-v7';
+const IMAGE_CACHE = 'lohaggo-images-v7';
 
 const PRECACHE_URLS = [
   '/manifest.json',

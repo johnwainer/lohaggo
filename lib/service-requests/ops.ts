@@ -153,8 +153,10 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
     include: createdRequestInclude,
   })
 
+  // How many partners were really told: the client's waiting screen shows it
+  let partnersNotified = 0
   try {
-    await notifyNewServiceRequest(serviceRequest.id, { origin })
+    partnersNotified = (await notifyNewServiceRequest(serviceRequest.id, { origin })) || 0
   } catch (err) {
     logger.warn('notifyNewServiceRequest failed (non-fatal)', { serviceRequestId: serviceRequest.id, err })
   }
@@ -173,7 +175,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
     isUrgent: serviceRequest.isUrgent,
   }).catch(() => undefined)
 
-  return serviceRequest
+  return Object.assign(serviceRequest, { partnersNotified })
 }
 
 export async function cancelServiceRequest(actor: Actor, requestId: string, origin: Origin) {

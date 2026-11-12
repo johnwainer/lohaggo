@@ -47,6 +47,8 @@ interface UnifiedBookingCardProps {
   priceLabel?: string
   /** A line under the price, e.g. «Recibes $90.000 · comisión 10 %» */
   priceDetail?: string
+  /** Extra tools under the address (partner: how to get there, call, calendar) */
+  tools?: ReactNode
 }
 
 function getActionClass(variant: Action['variant'] = 'secondary') {
@@ -78,6 +80,7 @@ export default function UnifiedBookingCard({
   nextStep,
   priceLabel,
   priceDetail,
+  tools,
 }: UnifiedBookingCardProps) {
   const color = BOOKING_STATUS_COLORS[visualState]
   const timeline = getBookingTimeline(role)
@@ -170,10 +173,12 @@ export default function UnifiedBookingCard({
             <div className="grid grid-cols-1 gap-1 text-xs text-gray-700 md:grid-cols-3 md:text-sm">
               <p className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" aria-hidden="true" />{formatCalendarDay(scheduledDate)}</p>
               <p className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{scheduledTime}</p>
-              <p className="flex min-w-0 items-center gap-1.5"><MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="truncate" title={address}>{address}</span></p>
+              <p className="flex min-w-0 items-start gap-1.5"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="break-words">{address}</span></p>
             </div>
           )}
         </div>
+
+        {tools && <div className="mb-3">{tools}</div>}
 
         {notes && (
           <details className="mb-3 rounded-xl border border-gray-200 bg-white px-3 py-2">

@@ -22,9 +22,9 @@ export async function cityLaunchStatus(slug: string) {
         })
       : Promise.resolve([] as Array<{ slug: string; name: string; partners: Array<{ id: string }> }>),
     city ? prisma.partnerProfile.count({ where: { city, verified: true, isActive: true } }) : Promise.resolve(0),
-    prisma.cityWaitlist.groupBy({ by: ['role'], where: { citySlug: slug, notifiedAt: null }, _count: { _all: true } }).catch(() => []),
+    prisma.cityWaitlist.groupBy({ by: ['role'], where: { citySlug: slug, notifiedAt: null, NOT: { source: { startsWith: 'service:' } } }, _count: { _all: true } }).catch(() => []),
   ])
-  const withWhatsapp = await prisma.cityWaitlist.count({ where: { citySlug: slug, notifiedAt: null, phone: { not: null } } }).catch(() => 0)
+  const withWhatsapp = await prisma.cityWaitlist.count({ where: { citySlug: slug, notifiedAt: null, phone: { not: null }, NOT: { source: { startsWith: 'service:' } } } }).catch(() => 0)
   const evaluation = evaluateLaunch({
     city: config.name,
     partnersByService: services.map((s) => ({ slug: s.slug, name: s.name, verified: s.partners.length })),

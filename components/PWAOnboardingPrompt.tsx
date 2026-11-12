@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Bell, Smartphone, X } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { usePromptSlot } from '@/hooks/usePromptSlot'
+import { clearInstallEvent, useInstallEvent } from '@/lib/pwa/install-event'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 
@@ -38,7 +40,7 @@ export default function PWAOnboardingPrompt() {
   const router = useRouter()
 
   const [visible, setVisible] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const deferredPrompt = useInstallEvent()
   const [payload, setPayload] = useState<PromptPayload | null>(null)
 
   const { isSupported, isSubscribed, permission, subscribeToPush, isLoading: pushLoading } = usePushNotifications()
@@ -50,16 +52,6 @@ export default function PWAOnboardingPrompt() {
     () => ['/login', '/register', '/admin', '/download/android', '/download/ios', '/unete'].some((path) => pathname.startsWith(path)),
     [pathname]
   )
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault()
-      setDeferredPrompt(event)
-    }
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -151,9 +143,9 @@ export default function PWAOnboardingPrompt() {
     })
 
     if (deferredPrompt) {
-      deferredPrompt.prompt()
+      await deferredPrompt.prompt()
       await deferredPrompt.userChoice
-      setDeferredPrompt(null)
+      clearInstallEvent()
       setVisible(false)
       return
     }
@@ -179,7 +171,8 @@ export default function PWAOnboardingPrompt() {
     if (ok) setVisible(false)
   }
 
-  if (!visible || !payload?.stage || isAdmin || shouldSkipPath) return null
+  const mayShow = usePromptSlot('adoption', visible && Boolean(payload?.stage) && !isAdmin && !shouldSkipPath)
+  if (!mayShow || !payload?.stage) return null
 
   const icon = payload.stage === 'INSTALL' ? <Smartphone size={16} /> : <Bell size={16} />
   const action = payload.stage === 'INSTALL' ? handleInstall : handlePush
@@ -197,8 +190,8 @@ export default function PWAOnboardingPrompt() {
               <p className="text-xs text-gray-600 mt-1">{payload.description}</p>
             </div>
           </div>
-          <button onClick={dismissPrompt} className="text-gray-400 hover:text-gray-600" aria-label="Cerrar">
-            <X size={16} />
+          <button type="button" onClick={dismissPrompt} className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-400 hover:text-gray-600" aria-label="Cerrar">
+            <X size={18} />
           </button>
         </div>
 
@@ -206,11 +199,11 @@ export default function PWAOnboardingPrompt() {
           <button
             onClick={action}
             disabled={payload.stage === 'PUSH' && (!isSupported || isSubscribed || permission === 'granted' || pushLoading)}
-            className="rounded-lg bg-primary-600 text-white px-3 py-2 text-xs font-semibold disabled:bg-gray-200 disabled:text-gray-500"
+            className="min-h-[44px] rounded-lg bg-primary-600 text-white px-4 text-xs font-semibold disabled:bg-gray-200 disabled:text-gray-500"
           >
             {payload.stage === 'PUSH' && pushLoading ? 'Activando...' : cta}
           </button>
-          <button onClick={dismissPrompt} className="rounded-lg border px-3 py-2 text-xs text-gray-600">Luego</button>
+          <button type="button" onClick={dismissPrompt} className="min-h-[44px] rounded-lg border px-4 text-xs text-gray-600">Luego</button>
         </div>
       </div>
     </div>

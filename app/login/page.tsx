@@ -20,7 +20,8 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
   const { data: session, status, update: updateSession } = useSession()
-  const [phoneOpen, setPhoneOpen] = useState(false)
+  // WhatsApp code is the main way in; email + password stays one tap away (and opens by itself when it was the intent)
+  const [emailOpen, setEmailOpen] = useState(() => searchParams.get('method') === 'email')
 
   const [formData, setFormData] = useState({
     email: '',
@@ -242,7 +243,7 @@ function LoginForm() {
                   <Lock className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900">Iniciar sesión</h2>
-                <p className="mt-2 text-gray-600">Ingresa tus credenciales para continuar</p>
+                <p className="mt-2 text-gray-600">Entra con un código por WhatsApp, sin contraseña</p>
               </div>
 
               {error && (
@@ -251,9 +252,33 @@ function LoginForm() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              <PhoneVerify
+                mode="login"
+                inline
+                onClose={() => undefined}
+                onVerified={async () => {
+                  await updateSession()
+                }}
+              />
+
+              <div className="my-5 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-gray-400" aria-hidden="true">
+                <span className="h-px flex-1 bg-gray-200" />o<span className="h-px flex-1 bg-gray-200" />
+              </div>
+
+              <button
+                type="button"
+                aria-expanded={emailOpen}
+                aria-controls="login-email-form"
+                onClick={() => setEmailOpen(!emailOpen)}
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border-2 border-gray-200 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                <Mail size={18} aria-hidden="true" /> {emailOpen ? 'Ocultar correo y contraseña' : 'Entrar con correo y contraseña'}
+              </button>
+
+              {emailOpen && (
+              <form id="login-email-form" onSubmit={handleSubmit} className="mt-4 space-y-4 sm:space-y-5">
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label htmlFor="login-email" className="block text-sm font-semibold text-gray-700">
                     Email <span className="text-red-500">*</span>
                   </label>
                   <div className="relative group">
@@ -261,7 +286,9 @@ function LoginForm() {
                       fieldErrors.email && touched.email ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
                     }`} size={20} />
                     <input
+                      id="login-email"
                       type="email"
+                      autoComplete="email"
                       value={formData.email}
                       onChange={handleEmailChange}
                       onBlur={handleEmailBlur}
@@ -282,7 +309,7 @@ function LoginForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label htmlFor="login-password" className="block text-sm font-semibold text-gray-700">
                     Contraseña <span className="text-red-500">*</span>
                   </label>
                   <div className="relative group">
@@ -290,7 +317,9 @@ function LoginForm() {
                       fieldErrors.password && touched.password ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
                     }`} size={20} />
                     <input
+                      id="login-password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       value={formData.password}
                       onChange={handlePasswordChange}
                       onBlur={handlePasswordBlur}
@@ -304,7 +333,8 @@ function LoginForm() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 transform items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
@@ -363,23 +393,6 @@ function LoginForm() {
                   )}
                 </button>
               </form>
-
-              <button
-                type="button"
-                onClick={() => setPhoneOpen(true)}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border-2 border-emerald-500 py-3 font-semibold text-emerald-700 hover:bg-emerald-50"
-              >
-                Entrar con código por WhatsApp
-              </button>
-              {phoneOpen && (
-                <PhoneVerify
-                  mode="login"
-                  onClose={() => setPhoneOpen(false)}
-                  onVerified={async () => {
-                    setPhoneOpen(false)
-                    await updateSession()
-                  }}
-                />
               )}
 
               <div className="mt-8 text-center">

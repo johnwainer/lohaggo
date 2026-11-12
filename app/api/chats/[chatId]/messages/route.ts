@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { chatMessageSchema, validateRequest } from '@/lib/validation'
 import { emitProposalReadBroadcast } from '@/lib/supabase-admin'
 import { sendChatMessage } from '@/lib/chat/ops'
+import { messageTextFor } from '@/lib/chat/quick-replies'
 import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
 import { APP_ORIGIN, OpsError } from '@/lib/ops/origin'
 import { rateLimitResponse } from '@/lib/rate-limit-route'
@@ -33,11 +34,12 @@ export async function POST(
     if (limited) return limited
 
     const body = await request.json()
-    const validation = await validateRequest(chatMessageSchema, { chatId, content: body.content })
+    // A photo (already uploaded to our storage) may go alone or with text; sendChatMessage checks where it lives
+    const imageUrl = typeof body.imageUrl === 'string' && body.imageUrl.trim() ? body.imageUrl.trim() : null
+    const validation = await validateRequest(chatMessageSchema, { chatId, content: messageTextFor(typeof body.content === 'string' ? body.content : '', Boolean(imageUrl)) })
     if (!validation.success) return validation.error
 
-    // Photos reach the chat only from WhatsApp (stored by us); the app sends text
-    const result = await sendChatMessage(actor, chatId, { content: validation.data.content }, APP_ORIGIN)
+    const result = await sendChatMessage(actor, chatId, { content: validation.data.content, imageUrl }, APP_ORIGIN)
     if (result.blocked) {
       return NextResponse.json({
         error: 'mensaje_bloqueado',

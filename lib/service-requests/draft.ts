@@ -96,11 +96,19 @@ export const WHEN_LABEL: Record<WhenMode, string> = {
  * What the API receives for each "Cuándo" option. «Sin fecha fija» (flexible) sends no date and is not
  * urgent: the partners propose day and time and the panels read «Sin fecha fija».
  */
-export function timingPayload(when: WhenMode, preferredDate: string, preferredTime: string, _now = new Date()) {
+export function timingPayload(when: WhenMode, preferredDate: string, preferredTime: string, _now = new Date(), timeRange?: 'any' | 'morning' | 'afternoon' | 'evening' | 'exact' | null) {
   if (when === 'asap') return { isUrgent: true, preferredDate: null, preferredTime: null, note: null as string | null }
   if (when === 'flexible') return { isUrgent: false, preferredDate: null, preferredTime: null, note: null as string | null }
-  return { isUrgent: false, preferredDate: preferredDate || null, preferredTime: preferredTime || null, note: null as string | null }
+  // The range's start travels as preferredTime; the window itself as a line in the notes
+  const note = timeRange && timeRange !== 'any' && timeRange !== 'exact' ? TIME_RANGE_NOTES[timeRange] : null
+  return { isUrgent: false, preferredDate: preferredDate || null, preferredTime: preferredTime || null, note }
 }
+
+const TIME_RANGE_NOTES = {
+  morning: 'Franja preferida: mañana (8 a. m. – 12 m.).',
+  afternoon: 'Franja preferida: tarde (2 – 6 p. m.).',
+  evening: 'Franja preferida: noche (6 – 9 p. m.).',
+} as const
 
 /** How a request's «cuándo» reads in the panels: urgent, «Sin fecha fija», or null when it has a date. */
 export function noDateLabel(r: { isUrgent?: boolean | null; preferredDate?: unknown }): string | null {

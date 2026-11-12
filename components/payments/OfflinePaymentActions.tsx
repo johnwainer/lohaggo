@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Banknote, ArrowRightLeft, CheckCircle, XCircle, Clock, AlertTriangle, Loader2, Receipt, RotateCcw, X } from 'lucide-react'
 import { useDialog } from '@/components/ui/use-dialog'
 
@@ -37,6 +37,8 @@ interface Props {
     holderDocumentNumber: string
   } | null
   onChange?: () => void
+  /** Raise it (1, 2, 3…) to open the primary client action from outside: the card's «Ya pagué» */
+  openSignal?: number
 }
 
 interface PublicPaymentConfig {
@@ -48,7 +50,7 @@ interface PublicPaymentConfig {
 const methodLabel = (m?: string | null) =>
   m === 'CASH' ? 'Efectivo' : m === 'DIRECT_TRANSFER' ? 'Transferencia' : m === 'MERCADOPAGO' ? 'Mercado Pago' : '—'
 
-export default function OfflinePaymentActions({ bookingId, role, bookingStatus, payment, partnerBankAccount, onChange }: Props) {
+export default function OfflinePaymentActions({ bookingId, role, bookingStatus, payment, partnerBankAccount, onChange, openSignal = 0 }: Props) {
   const [config, setConfig] = useState<PublicPaymentConfig | null>(null)
   const [modal, setModal] = useState<null | 'report' | 'confirm' | 'reject'>(null)
   const [method, setMethod] = useState<OfflineMethod>('CASH')
@@ -64,6 +66,19 @@ export default function OfflinePaymentActions({ bookingId, role, bookingStatus, 
       .then(setConfig)
       .catch(() => setConfig({ cashEnabled: true, transferEnabled: true, mercadoPagoEnabled: false }))
   }, [])
+
+  const handledSignal = useRef(0)
+  useEffect(() => {
+    if (!openSignal || openSignal === handledSignal.current || !config || role !== 'CLIENT') return
+    const methods: OfflineMethod[] = []
+    if (config.cashEnabled) methods.push('CASH')
+    if (config.transferEnabled) methods.push('DIRECT_TRANSFER')
+    const st = payment?.confirmationStatus ?? 'NONE'
+    if (methods.length === 0 || !['NONE', 'PARTNER_REPORTED', 'REJECTED_BY_PARTNER'].includes(st)) { handledSignal.current = openSignal; return }
+    handledSignal.current = openSignal
+    setMethod(st === 'PARTNER_REPORTED' ? ((payment?.partnerConfirmedMethod as OfflineMethod) || methods[0]) : methods[0])
+    setModal('report')
+  }, [openSignal, config, role, payment?.confirmationStatus, payment?.partnerConfirmedMethod])
 
   if (bookingStatus !== 'COMPLETED') return null
   if (!config) return null

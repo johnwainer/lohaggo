@@ -25,11 +25,13 @@ type Props = {
   onSelectSaved: (id: string) => void
   onUseNew: () => void
   onNewAddressChange: (next: NewAddressDraft) => void
+  /** Inline validation error: the page focuses the field with that id (req-street, req-neighborhood, req-address-saved) */
+  error?: { field: 'street' | 'neighborhood' | 'saved'; message: string } | null
 }
 
 const inputCls = 'w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-secondary-500 focus:ring-2 focus:ring-secondary-500/20'
 
-export default function AddressStep({ addresses, mode, selectedAddressId, newAddress, formatAddress, onSelectSaved, onUseNew, onNewAddressChange }: Props) {
+export default function AddressStep({ addresses, mode, selectedAddressId, newAddress, formatAddress, onSelectSaved, onUseNew, onNewAddressChange, error }: Props) {
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoMsg, setGeoMsg] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null)
   const showForm = mode === 'new' || addresses.length === 0
@@ -88,7 +90,8 @@ export default function AddressStep({ addresses, mode, selectedAddressId, newAdd
       </div>
 
       {addresses.length > 0 && (
-        <div className="space-y-2" role="radiogroup" aria-label="Tus direcciones">
+        <div id="req-address-saved" tabIndex={-1} className="space-y-2 outline-none" role="radiogroup" aria-label="Tus direcciones" aria-invalid={error?.field === 'saved'}>
+          {error?.field === 'saved' && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error.message}</p>}
           {addresses.map((addr) => {
             const active = mode === 'saved' && selectedAddressId === addr.id
             return (
@@ -157,9 +160,12 @@ export default function AddressStep({ addresses, mode, selectedAddressId, newAdd
                 value={newAddress.street}
                 maxLength={200}
                 onChange={(e) => set({ street: e.target.value })}
-                className={`${inputCls} pl-10`}
+                aria-invalid={error?.field === 'street'}
+                aria-describedby={error?.field === 'street' ? 'req-street-err' : undefined}
+                className={`${inputCls} pl-10 ${error?.field === 'street' ? 'border-red-400' : ''}`}
               />
             </div>
+            {error?.field === 'street' && <p id="req-street-err" role="alert" className="mt-1 text-sm text-red-600">{error.message}</p>}
           </div>
           <div>
             <label htmlFor="req-neighborhood" className="mb-1 block text-sm font-semibold text-gray-700">Barrio</label>
@@ -170,8 +176,11 @@ export default function AddressStep({ addresses, mode, selectedAddressId, newAdd
               value={newAddress.neighborhood}
               maxLength={100}
               onChange={(e) => set({ neighborhood: e.target.value })}
-              className={inputCls}
+              aria-invalid={error?.field === 'neighborhood'}
+              aria-describedby={error?.field === 'neighborhood' ? 'req-neighborhood-err' : undefined}
+              className={`${inputCls} ${error?.field === 'neighborhood' ? 'border-red-400' : ''}`}
             />
+            {error?.field === 'neighborhood' && <p id="req-neighborhood-err" role="alert" className="mt-1 text-sm text-red-600">{error.message}</p>}
           </div>
           <div>
             <label htmlFor="req-instructions" className="mb-1 block text-sm font-semibold text-gray-700">

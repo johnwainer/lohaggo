@@ -5,6 +5,10 @@ import WhatsAppIcon, { whatsappHref } from './WhatsAppIcon'
 
 type Props = {
   label: string
+  /** «Desde $70.000» on its own line above the button */
+  price?: string | null
+  /** «Sin tarifa de servicio» / «+ tarifa de servicio 5 %» next to the price */
+  feeNote?: string | null
   loading?: boolean
   onRequest: () => void
   whatsappPhone: string | null
@@ -18,7 +22,7 @@ type Props = {
  * Mobile-only fixed CTA above the bottom nav. It leaves the right edge free (w/ `right-[76px]`) when the
  * global WhatsApp float is shown, so it never covers it. Sets `data-sticky-cta` on <body> while mounted.
  */
-export default function StickyRequestBar({ label, loading, onRequest, whatsappPhone, whatsappText, onWhatsAppClick, aboveRaisedNav }: Props) {
+export default function StickyRequestBar({ label, price, feeNote, loading, onRequest, whatsappPhone, whatsappText, onWhatsAppClick, aboveRaisedNav }: Props) {
   useEffect(() => {
     document.body.dataset.stickyCta = '1'
     return () => { delete document.body.dataset.stickyCta }
@@ -29,6 +33,12 @@ export default function StickyRequestBar({ label, loading, onRequest, whatsappPh
       className={`fixed left-3 z-40 md:hidden ${whatsappPhone ? 'right-[76px]' : 'right-3'} ${aboveRaisedNav ? 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(4.75rem+env(safe-area-inset-bottom))]'}`}
     >
       <div className="rounded-3xl border border-gray-200 bg-white/95 p-2 shadow-[0_8px_30px_-8px_rgba(0,0,0,0.25)] backdrop-blur">
+        {price && (
+          <p className="px-2 pb-1.5 pt-0.5 text-center text-xs text-gray-600">
+            <span className="font-bold text-gray-900">{price}</span>
+            {feeNote ? <span> · {feeNote}</span> : null}
+          </p>
+        )}
         <button
           type="button"
           onClick={onRequest}

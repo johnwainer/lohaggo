@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { clearInstallEvent, useInstallEvent } from '@/lib/pwa/install-event'
 import Link from 'next/link'
 import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Share2, Plus, ArrowLeft, Sparkles, Rocket, Shield, Apple } from 'lucide-react'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
@@ -8,9 +9,9 @@ import { PWA_EVENTS } from '@/lib/pwa/events'
 
 export default function IOSDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const deferredPrompt = useInstallEvent()
   const [isInstalled, setIsInstalled] = useState(false)
-  const [canInstall, setCanInstall] = useState(false)
+  const canInstall = Boolean(deferredPrompt)
 
   useEffect(() => {
     const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
@@ -18,18 +19,6 @@ export default function IOSDownloadPage() {
       document.referrer.includes('android-app://')
 
     setIsInstalled(isStandaloneMode)
-
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      setCanInstall(true)
-    }
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    }
   }, [])
 
   const handleInstall = async () => {
@@ -43,9 +32,8 @@ export default function IOSDownloadPage() {
     const { outcome } = await deferredPrompt.userChoice
 
     if (outcome === 'accepted') {
-      setDeferredPrompt(null)
+      clearInstallEvent()
       setIsInstalled(true)
-      setCanInstall(false)
     }
   }
 

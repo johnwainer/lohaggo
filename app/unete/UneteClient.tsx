@@ -548,29 +548,38 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
 
                             {/* Name */}
                             <div className="space-y-1">
-                                <label className="text-sm font-bold text-gray-700">Tu nombre completo</label>
+                                <label htmlFor="unete-name" className="text-sm font-bold text-gray-700">Tu nombre completo</label>
                                 <div className="relative">
                                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                     <input
+                                        id="unete-name"
                                         type="text"
+                                        autoComplete="name"
                                         className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
                                         placeholder="Ej. Carlos Rodríguez"
                                         value={formData.name}
                                         onChange={(e) => handleFieldChange('name', e.target.value)}
                                         onBlur={() => handleFieldBlur('name')}
                                         onFocus={fireLeadEvent}
+                                        aria-invalid={Boolean(fieldErrors.name && touched.name)}
+                                        aria-describedby={fieldErrors.name && touched.name ? 'unete-name-err' : undefined}
                                     />
                                 </div>
-                                {fieldErrors.name && touched.name && <p className="text-xs text-red-600 font-semibold">{fieldErrors.name}</p>}
+                                {fieldErrors.name && touched.name && <p id="unete-name-err" role="alert" className="text-xs text-red-600 font-semibold">{fieldErrors.name}</p>}
                             </div>
 
                             {/* Phone */}
                             <div className="space-y-1">
-                                <label className="text-sm font-bold text-gray-700">Teléfono (WhatsApp)</label>
+                                <label htmlFor="unete-phone" className="text-sm font-bold text-gray-700">Tu WhatsApp</label>
                                 <div className="relative">
                                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                     <input
+                                        id="unete-phone"
                                         type="tel"
+                                        inputMode="tel"
+                                        autoComplete="tel-national"
+                                        aria-invalid={Boolean(fieldErrors.phone && touched.phone)}
+                                        aria-describedby={fieldErrors.phone && touched.phone ? 'unete-phone-err' : 'unete-phone-hint'}
                                         className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
                                         placeholder="300 000 0000"
                                         value={formData.phone}
@@ -578,19 +587,20 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
                                         onBlur={() => handleFieldBlur('phone')}
                                     />
                                 </div>
-                                {fieldErrors.phone && touched.phone && <p className="text-xs text-red-600 font-semibold">{fieldErrors.phone}</p>}
+                                <p id="unete-phone-hint" className="text-xs text-gray-500">Por aquí te avisamos de cada cliente nuevo.</p>
+                                {fieldErrors.phone && touched.phone && <p id="unete-phone-err" role="alert" className="text-xs text-red-600 font-semibold">{fieldErrors.phone}</p>}
                             </div>
 
                             {/* Oficio — multi-select */}
                             <div className="space-y-1">
-                                <label className="text-sm font-bold text-gray-700">
+                                <p id="unete-services-label" className="text-sm font-bold text-gray-700">
                                     ¿Qué servicios ofreces?{' '}
                                     <span className="text-gray-400 font-normal">(opcional, máx. 5)</span>
                                     {formData.oficio.length > 0 && (
                                         <span className="ml-2 text-primary-600 font-semibold">{formData.oficio.length} seleccionado{formData.oficio.length > 1 ? 's' : ''}</span>
                                     )}
-                                </label>
-                                <div className="flex flex-wrap gap-2">
+                                </p>
+                                <div className="flex flex-wrap gap-2" role="group" aria-labelledby="unete-services-label">
                                     {servicesPage > 0 && (
                                         <button
                                             type="button"
@@ -640,11 +650,15 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
 
                             {/* Email */}
                             <div className="space-y-1">
-                                <label className="text-sm font-bold text-gray-700">Tu correo electrónico</label>
+                                <label htmlFor="unete-email" className="text-sm font-bold text-gray-700">Tu correo electrónico</label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                     <input
+                                        id="unete-email"
                                         type="email"
+                                        autoComplete="email"
+                                        aria-invalid={Boolean(fieldErrors.email && touched.email)}
+                                        aria-describedby={fieldErrors.email && touched.email ? 'unete-email-err' : 'unete-email-hint'}
                                         className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
                                         placeholder="tu@email.com"
                                         value={formData.email}
@@ -652,7 +666,8 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
                                         onBlur={() => handleFieldBlur('email')}
                                     />
                                 </div>
-                                {fieldErrors.email && touched.email && <p className="text-xs text-red-600 font-semibold">{fieldErrors.email}</p>}
+                                <p id="unete-email-hint" className="text-xs text-gray-500">Es tu usuario y donde llega el enlace para entrar a tu cuenta.</p>
+                                {fieldErrors.email && touched.email && <p id="unete-email-err" role="alert" className="text-xs text-red-600 font-semibold">{fieldErrors.email}</p>}
                             </div>
 
                             {/* Honeypot */}
@@ -707,8 +722,9 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
                     : null
                 const shareUrl = 'https://www.lohaggo.com/unete'
                 const shareMsg = `¡Me acabo de registrar en LoHaggo para recibir clientes! Si eres técnico, plomero, electricista u ofreces servicios del hogar, regístrate gratis aquí: ${shareUrl}`
+                // The same text goes by WhatsApp, the share sheet and the clipboard
                 const handleCopy = () => {
-                    navigator.clipboard.writeText(shareUrl)
+                    navigator.clipboard.writeText(shareMsg)
                     setLinkCopied(true)
                     setTimeout(() => setLinkCopied(false), 2000)
                 }
@@ -791,7 +807,7 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
                                             className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition-all"
                                         >
                                             <Copy size={14} />
-                                            {linkCopied ? '¡Copiado!' : 'Copiar link'}
+                                            {linkCopied ? '¡Copiado!' : 'Copiar mensaje'}
                                         </button>
                                     </div>
                                 </div>

@@ -46,6 +46,13 @@ import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
 import { ReportClientButton, ReportClientSheet, type ReportTarget } from '@/components/partner/ReportClientSheet'
 import { cityMismatches, cityName } from '@/lib/proposals/city-match'
 import { noDateLabel } from '@/lib/service-requests/draft'
+import { addNoteTemplate, applyNoteTemplate, loadNoteTemplates, removeNoteTemplate, suggestedProposalPrice } from '@/lib/partners/note-templates'
+import { saveNextBooking } from '@/lib/pwa/next-booking'
+import { netEarnings, responseLabel } from '@/lib/partners/performance'
+import BookingTools from '@/components/bookings/BookingTools'
+import { usePromptSlot } from '@/hooks/usePromptSlot'
+import { clearInstallEvent, useInstallEvent } from '@/lib/pwa/install-event'
+import { askForPush } from '@/lib/pwa/push-ask'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -107,6 +114,8 @@ interface ServiceRequest {
   preferredTime?: string
   partnerId?: string | null
   budget?: number
+  /** The partner's catalogue price for this service (pre-fills the proposal) */
+  ownPrice?: number | null
   origin?: string | null
   originChannel?: string | null
   service: {
@@ -148,20 +157,6 @@ const VERIFICATION_LATER_MS = 7 * 24 * 60 * 60 * 1000
 /** What the partner receives after LoHaggo's commission, rounded to whole pesos. */
 function netForPartner(amount: number, ratePct: number) {
   return Math.round(amount * (1 - ratePct / 100))
-}
-
-/** The push prompt (NotificationPermissionPrompt) would show now: the install banner waits so both never stack. */
-function notificationPromptPending() {
-  try {
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return false
-    if (Notification.permission !== 'default') return false
-    const dismissed = localStorage.getItem('notification-prompt-dismissed')
-    const lastShown = Number(localStorage.getItem('notification-prompt-last-shown') || 0)
-    if (dismissed === 'true' && Date.now() - lastShown < 3 * 24 * 60 * 60 * 1000) return false
-    return true
-  } catch {
-    return false
-  }
 }
 
 /** An instant (not a service day) in Bogotá, e.g. «mié 8 oct 14:30». */
@@ -227,7 +222,8 @@ function PartnerDashboardContent() {
   const [isAvailable, setIsAvailable] = useState(true)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [showPwaBanner, setShowPwaBanner] = useState(false)
-  const [pwaDeferredPrompt, setPwaDeferredPrompt] = useState<any>(null)
+  const pwaDeferredPrompt = useInstallEvent()
+  const [pwaBannerAllowed, setPwaBannerAllowed] = useState(false)
   const [showProposalModal, setShowProposalModal] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
   const [proposalPrice, setProposalPrice] = useState('')
@@ -236,7 +232,9 @@ function PartnerDashboardContent() {
   const [proposalTime, setProposalTime] = useState('')
   const [submittingProposal, setSubmittingProposal] = useState(false)
   const [partnerRate, setPartnerRate] = useState<number | null>(null)
-  const [notifPromptPending, setNotifPromptPending] = useState(true)
+  const [noteTemplates, setNoteTemplates] = useState<string[]>([])
+  const [performance, setPerformance] = useState<{ proposals: number; winRate: number | null; won: number; decided: number; responseMinutes: number | null } | null>(null)
+  const [teaser, setTeaser] = useState<{ openNearYou: number; hasServices: boolean } | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [rescheduleFor, setRescheduleFor] = useState<Booking | null>(null)
   const [cancelFor, setCancelFor] = useState<Booking | null>(null)
@@ -327,25 +325,15 @@ function PartnerDashboardContent() {
     let dismissed: string | null = null
     try { dismissed = localStorage.getItem('partner-pwa-banner-dismissed') } catch {}
     if (isStandalone || dismissed) return
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setPwaDeferredPrompt(e)
-      setShowPwaBanner(true)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    setPwaBannerAllowed(true)
   }, [])
 
-  // The install banner waits while the push prompt is due; re-check because that prompt can be closed at any time
-  useEffect(() => {
-    if (!showPwaBanner) return
-    const check = () => setNotifPromptPending(notificationPromptPending())
-    check()
-    const id = setInterval(check, 5000)
-    return () => clearInterval(id)
-  }, [showPwaBanner])
+  // The install event comes from the shared listener; the banner takes the single prompt slot so it never stacks with the push ask
+  useEffect(() => { setShowPwaBanner(pwaBannerAllowed && Boolean(pwaDeferredPrompt)) }, [pwaBannerAllowed, pwaDeferredPrompt])
+  const pwaBannerSlot = usePromptSlot('install', showPwaBanner)
 
   const dismissPwaBanner = () => {
+    setPwaBannerAllowed(false)
     setShowPwaBanner(false)
     try { localStorage.setItem('partner-pwa-banner-dismissed', '1') } catch {}
   }
@@ -429,9 +417,11 @@ function PartnerDashboardContent() {
     try {
       const res = await fetch('/api/partner/service-requests')
       if (res.ok) {
-        const { requests, requiresVerification } = opportunitiesFromResponse<ServiceRequest>(await res.json())
+        const json = await res.json()
+        const { requests, requiresVerification } = opportunitiesFromResponse<ServiceRequest>(json)
         setServiceRequests(requests)
         setRequestsNeedVerification(requiresVerification)
+        setTeaser(requiresVerification && json?.teaser ? json.teaser : null)
       }
     } catch (error) {
       console.error('Error fetching service requests:', error)
@@ -478,6 +468,20 @@ function PartnerDashboardContent() {
       }
     }
   }, [status, session?.user?.role, activeTab])
+
+  useEffect(() => {
+    if (status !== 'authenticated' || session?.user?.role !== 'PARTNER') return
+    fetch('/api/partner/performance').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setPerformance(d) }).catch(() => undefined)
+  }, [status, session?.user?.role])
+
+  // The offline page shows the next booking (service and hour only, kept on this device)
+  useEffect(() => {
+    if (!loading) saveNextBooking(window.localStorage, bookings, 'PARTNER')
+  }, [bookings, loading])
+
+  useEffect(() => {
+    try { setNoteTemplates(loadNoteTemplates(window.localStorage)) } catch { setNoteTemplates(loadNoteTemplates(null)) }
+  }, [])
 
   const refreshAfterAction = () => {
     fetchBookings()
@@ -647,7 +651,8 @@ function PartnerDashboardContent() {
 
   const openProposalModal = (request: ServiceRequest) => {
     setSelectedRequest(request)
-    setProposalPrice('')
+    const suggested = suggestedProposalPrice(request.ownPrice, request.service.basePrice)
+    setProposalPrice(suggested !== null ? String(suggested) : '')
     setProposalNotes('')
     setProposalDate('')
     setProposalTime('')
@@ -703,6 +708,8 @@ function PartnerDashboardContent() {
         setShowProposalModal(false)
         fetchServiceRequests()
         refreshPartnerNavCounts()
+        // The right moment to ask for push: the partner now waits for the client's answer
+        askForPush('proposal_sent')
       } else {
         const error = await res.json()
         setModal({
@@ -765,6 +772,7 @@ function PartnerDashboardContent() {
     ? completedBookings.reduce((sum, b) => sum + netForPartner(b.totalPrice, rateFor(b) as number), 0)
     : null
 
+  const periodNet = netEarnings(bookings, partnerRate)
   const pendingCount = bookings.filter(b => b.status === 'PENDING').length
   const completedCount = completedBookings.length
   const inProgressCount = bookings.filter(b => b.status === 'IN_PROGRESS').length
@@ -1102,6 +1110,27 @@ function PartnerDashboardContent() {
                     ? `Suma de servicios completados · recibes ${formatCurrency(partnerNet)} tras la comisión de LoHaggo`
                     : 'Suma de servicios completados'}
                 </p>
+                <dl className="mb-3 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-white/15 p-3">
+                    <dt className="text-xs text-white/80">Esta semana (neto)</dt>
+                    <dd className="text-lg font-bold">{periodNet.week === null ? '—' : formatCurrency(periodNet.week)}</dd>
+                  </div>
+                  <div className="rounded-xl bg-white/15 p-3">
+                    <dt className="text-xs text-white/80">Este mes (neto)</dt>
+                    <dd className="text-lg font-bold">{periodNet.month === null ? '—' : formatCurrency(periodNet.month)}</dd>
+                  </div>
+                  <div className="rounded-xl bg-white/15 p-3">
+                    <dt className="text-xs text-white/80">Propuestas elegidas</dt>
+                    <dd className="text-lg font-bold">
+                      {performance?.winRate != null ? `${performance.winRate} %` : '—'}
+                      {performance?.winRate != null && <span className="ml-1 text-xs font-medium text-white/80">({performance.won} de {performance.decided})</span>}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-white/15 p-3">
+                    <dt className="text-xs text-white/80">Respondes en</dt>
+                    <dd className="text-lg font-bold">{performance?.responseMinutes != null ? `~${responseLabel(performance.responseMinutes)}` : '—'}</dd>
+                  </div>
+                </dl>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white/10 rounded-xl p-3 text-center">
                     <p className="text-lg font-bold">{pendingCount + confirmedCount}</p>
@@ -1318,7 +1347,7 @@ function PartnerDashboardContent() {
               })()}
 
               {/* PWA install banner: waits while the push-notifications prompt is due, so they never stack */}
-              {showPwaBanner && !notifPromptPending && (
+              {pwaBannerSlot && (
                 <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-4 flex items-center gap-3">
                   <img src="/icon-512.png" alt="" className="w-10 h-10 rounded-xl flex-shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -1328,8 +1357,9 @@ function PartnerDashboardContent() {
                   <button
                     onClick={async () => {
                       if (pwaDeferredPrompt) {
-                        pwaDeferredPrompt.prompt()
+                        await pwaDeferredPrompt.prompt()
                         await pwaDeferredPrompt.userChoice
+                        clearInstallEvent()
                       }
                       dismissPwaBanner()
                     }}
@@ -1643,6 +1673,22 @@ function PartnerDashboardContent() {
                           metadataInline={`${when} · ${booking.address}`}
                           origin={booking.origin}
                           originChannel={booking.originChannel}
+                          tools={(
+                            <BookingTools
+                              booking={{
+                                id: booking.id,
+                                scheduledDate: booking.scheduledDate,
+                                scheduledTime: booking.scheduledTime,
+                                address: booking.address,
+                                city: booking.city ? cityName(booking.city) : null,
+                                notes: booking.notes,
+                                status: booking.status,
+                                serviceName: booking.service.name,
+                                clientName: booking.user.name,
+                                clientPhone: booking.user.phone,
+                              }}
+                            />
+                          )}
                         />
                         {bookingMismatchCity.has(booking.id) && (
                           <p role="note" className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -1703,7 +1749,14 @@ function PartnerDashboardContent() {
                     <Shield className="text-primary-600" size={40} aria-hidden="true" />
                   </div>
                   <p className="text-gray-900 text-lg sm:text-xl font-bold mb-2">Verifica tu identidad para ver oportunidades</p>
-                  <p className="text-gray-600 text-sm sm:text-base mb-6">Sube tu documento de identidad; cuando lo aprobemos verás las solicitudes de tu zona.</p>
+                  {teaser && teaser.openNearYou > 0 && (
+                    <p className="mx-auto mb-3 inline-flex max-w-full items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800">
+                      <Zap className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      Hay {teaser.openNearYou} {teaser.openNearYou === 1 ? 'solicitud abierta' : 'solicitudes abiertas'} {teaser.hasServices ? 'de tus servicios ' : ''}en tu ciudad
+                    </p>
+                  )}
+                  <p className="text-gray-600 text-sm sm:text-base mb-2">Sube tu documento de identidad; cuando lo aprobemos verás las solicitudes de tu zona.</p>
+                  <p className="text-gray-600 text-sm sm:text-base mb-6">Revisamos en menos de 24 h.</p>
                   <button
                     onClick={() => router.push('/partner/verification')}
                     className="inline-flex min-h-[44px] items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold px-6 py-3 rounded-full transition w-full sm:w-auto"
@@ -1717,7 +1770,20 @@ function PartnerDashboardContent() {
                     <AlertCircle className="text-gray-400" size={48} aria-hidden="true" />
                   </div>
                   <p className="text-gray-900 text-xl font-bold mb-2">No hay solicitudes para ti</p>
-                  <p className="text-gray-600 text-base">Las solicitudes que coincidan con tus servicios aparecerán aquí</p>
+                  <p className="text-gray-600 text-base mb-5">Las solicitudes que coincidan con tus servicios aparecerán aquí. Para recibir más:</p>
+                  <ul className="mx-auto grid max-w-sm gap-2 text-left">
+                    {[
+                      { label: 'Agrega más servicios', href: '/partner/services' },
+                      { label: 'Amplía tus zonas y horarios', href: '/partner/services' },
+                      { label: 'Comparte tu perfil', href: '/profile#perfil-publico' },
+                    ].map((step) => (
+                      <li key={step.href}>
+                        <a href={step.href} className="flex min-h-[44px] items-center justify-between gap-2 rounded-2xl border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-800 hover:bg-primary-50">
+                          {step.label} <ArrowRight size={16} aria-hidden="true" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -2026,6 +2092,23 @@ function PartnerDashboardContent() {
                   <p className="text-xs text-primary-800 mt-1">
                     Tu propuesta debe ser igual o mayor a este valor
                   </p>
+                  {req.budget ? (
+                    <p className="mt-2 text-sm text-primary-900"><span className="font-semibold">Presupuesto del cliente:</span> {formatCurrency(req.budget)}</p>
+                  ) : null}
+                  {(suggestedProposalPrice(req.ownPrice, req.service.basePrice) !== null || (req.budget && req.budget >= req.service.basePrice)) && (
+                    <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Valores sugeridos">
+                      {suggestedProposalPrice(req.ownPrice, req.service.basePrice) !== null && (
+                        <button type="button" onClick={() => setProposalPrice(String(suggestedProposalPrice(req.ownPrice, req.service.basePrice)))} className="min-h-[44px] rounded-full border border-primary-300 bg-white px-4 text-sm font-semibold text-primary-800 hover:bg-primary-100">
+                          Mi precio: {formatCurrency(suggestedProposalPrice(req.ownPrice, req.service.basePrice) as number)}
+                        </button>
+                      )}
+                      {req.budget && req.budget >= req.service.basePrice ? (
+                        <button type="button" onClick={() => setProposalPrice(String(req.budget))} className="min-h-[44px] rounded-full border border-primary-300 bg-white px-4 text-sm font-semibold text-primary-800 hover:bg-primary-100">
+                          Igualar presupuesto: {formatCurrency(req.budget)}
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} aria-hidden="true" />
@@ -2095,6 +2178,21 @@ function PartnerDashboardContent() {
                 <label htmlFor="proposal-notes" className={`${DESIGN_SYSTEM.typography.label} mb-2 block`}>
                   Notas Adicionales (Opcional)
                 </label>
+                <div className="mb-2 flex flex-wrap gap-2" role="group" aria-label="Plantillas de nota">
+                  {noteTemplates.map((t) => (
+                    <span key={t} className="inline-flex items-center rounded-full border border-gray-300 bg-white">
+                      <button type="button" onClick={() => setProposalNotes(applyNoteTemplate(proposalNotes, t))} className="min-h-[44px] rounded-l-full pl-4 pr-2 text-sm font-medium text-gray-800 hover:bg-gray-50">{t}</button>
+                      <button type="button" aria-label={`Quitar la plantilla ${t}`} onClick={() => setNoteTemplates(removeNoteTemplate(window.localStorage, t))} className="flex h-11 w-9 items-center justify-center rounded-r-full text-gray-500 hover:bg-gray-50">
+                        <X size={14} aria-hidden="true" />
+                      </button>
+                    </span>
+                  ))}
+                  {proposalNotes.trim().length >= 5 && proposalNotes.trim().length <= 140 && !noteTemplates.some((t) => t.toLowerCase() === proposalNotes.trim().toLowerCase()) && (
+                    <button type="button" onClick={() => setNoteTemplates(addNoteTemplate(window.localStorage, proposalNotes))} className="min-h-[44px] rounded-full border border-dashed border-primary-400 px-4 text-sm font-semibold text-primary-700 hover:bg-primary-50">
+                      + Guardar esta nota como plantilla
+                    </button>
+                  )}
+                </div>
                 <textarea
                   id="proposal-notes"
                   value={proposalNotes}
