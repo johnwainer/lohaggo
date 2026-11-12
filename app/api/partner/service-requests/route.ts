@@ -30,7 +30,7 @@ export async function GET() {
 
     const partner = await prisma.partnerProfile.findUnique({
       where: { userId: session.user.id },
-      select: { id: true, verified: true, isActive: true, user: { select: { isActive: true } } },
+      select: { id: true, verified: true, isActive: true, city: true, user: { select: { isActive: true } } },
     })
 
     if (!partner) {
@@ -38,7 +38,15 @@ export async function GET() {
     }
 
     if (!partner.verified || !partner.isActive || !partner.user.isActive) {
-      return NextResponse.json({ requests: [], requiresVerification: true })
+      // A teaser for partners still under review: how many requests are open in their city and services. Counts only, no client data.
+      const offered = await prisma.partnerService.findMany({ where: { partnerId: partner.id }, select: { serviceId: true } }).catch(() => [])
+      const openNearYou = await prisma.serviceRequest.count({
+        where: {
+          status: 'ACTIVE', expiresAt: { gt: new Date() }, partnerId: null, city: partner.city,
+          ...(offered.length ? { serviceId: { in: offered.map((o) => o.serviceId) } } : {}),
+        },
+      }).catch(() => 0)
+      return NextResponse.json({ requests: [], requiresVerification: true, teaser: { openNearYou, hasServices: offered.length > 0 } })
     }
 
     const [open, alreadyProposed, myServices] = await Promise.all([
@@ -58,9 +66,10 @@ export async function GET() {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.partnerService.findMany({ where: { partnerId: partner.id }, select: { serviceId: true, city: true } }),
+      prisma.partnerService.findMany({ where: { partnerId: partner.id }, select: { serviceId: true, city: true, price: true } }),
     ])
     const cityOf = new Map(myServices.map((s) => [s.serviceId, s.city as string]))
+    const priceOf = new Map(myServices.map((s) => [s.serviceId, s.price]))
 
     const seen = new Set<string>()
     const requests = [...open, ...alreadyProposed]
@@ -69,7 +78,8 @@ export async function GET() {
       .map((r) => {
         // Where the partner has this service registered: a different city blocks the proposal (lib/proposals/ops.ts)
         const serviceCity = cityOf.get(r.serviceId) ?? null
-        return { ...toPartnerOpportunity(r, partner.id), serviceCity, cityMismatch: serviceCityMismatch(serviceCity, r.city) }
+        // The partner's catalogue price for this service pre-fills the proposal
+        return { ...toPartnerOpportunity(r, partner.id), serviceCity, ownPrice: priceOf.get(r.serviceId) ?? null, cityMismatch: serviceCityMismatch(serviceCity, r.city) }
       })
 
     const hasRecentLead = open.some((item) => item.createdAt.getTime() >= Date.now() - 2 * 60 * 60 * 1000)
