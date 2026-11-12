@@ -130,6 +130,12 @@
     <h1>Sin conexión a Internet</h1>
     <p>Parece que no tienes conexión a internet en este momento. Algunas funciones pueden no estar disponibles.</p>
 
+    <div id="next-booking" hidden style="margin:0 0 24px;padding:16px;border-radius:16px;background:#eff6ff;text-align:left">
+      <div style="font-size:12px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:.04em">Tu próxima reserva</div>
+      <div id="next-booking-service" style="margin-top:4px;font-size:18px;font-weight:700;color:#1a1a1a"></div>
+      <div id="next-booking-when" style="font-size:15px;color:#444"></div>
+    </div>
+
     <a href="/" class="button" onclick="window.location.reload(); return false;">
       Reintentar
     </a>
@@ -151,6 +157,16 @@
   </div>
 
   <script>
+    // The panels leave the next booking in localStorage (service and hour only): it is the one thing worth showing offline
+    try {
+      var saved = JSON.parse(localStorage.getItem('lohaggo:next-booking') || 'null');
+      if (saved && saved.v === 1 && saved.service && saved.when && saved.at > Date.now() - 3 * 3600 * 1000) {
+        document.getElementById('next-booking-service').textContent = saved.service;
+        document.getElementById('next-booking-when').textContent = saved.when;
+        document.getElementById('next-booking').hidden = false;
+      }
+    } catch (e) {}
+
     window.addEventListener('online', () => {
       window.location.reload();
     });

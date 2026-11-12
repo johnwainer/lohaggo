@@ -44,21 +44,10 @@ export default function PWARegister() {
         window.location.reload()
       })
 
-      // Handle app install prompt
-      let deferredPrompt: any = null
-
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault()
-        deferredPrompt = e
-
-        // Store the event for later use
-        localStorage.setItem('pwa-prompt-available', 'true')
-      })
-
+      // The install event is captured once, in lib/pwa/install-event.ts
       window.addEventListener('appinstalled', () => {
         localStorage.removeItem('pwa-prompt-available')
         trackPwaEvent({ eventName: PWA_EVENTS.PWA_INSTALLED, source: 'browser_appinstalled' })
-        deferredPrompt = null
       })
     }
   }, [])

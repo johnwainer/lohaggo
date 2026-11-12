@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type KeyboardEvent } from 'react'
-import { Calendar, Star, X } from 'lucide-react'
+import { Calendar, Check, Heart, RefreshCw, Share2, Star, X } from 'lucide-react'
 import { useDialog } from '@/components/ui/use-dialog'
 
 interface RatingModalProps {
@@ -13,6 +13,17 @@ interface RatingModalProps {
   reviewType: 'client' | 'partner'
   targetName: string
   onSuccess: () => void
+  /**
+   * What comes after the client's rating (client → partner only): save the partner as a favourite, ask for the
+   * same service again, and — with 4 or 5 stars — share. Without it the modal closes as before.
+   */
+  thanks?: {
+    partnerId?: string | null
+    partnerName: string
+    onRepeat?: () => void
+    /** Public profile link to share; the home page when the partner has none */
+    shareUrl?: string
+  }
 }
 
 const RATING_LABELS = ['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente']
@@ -26,13 +37,16 @@ export default function RatingModal({
   scheduledAt,
   reviewType,
   targetName,
-  onSuccess
+  onSuccess,
+  thanks,
 }: RatingModalProps) {
   const [rating, setRating] = useState(0)
   const [hoveredRating, setHoveredRating] = useState(0)
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+  const [favorite, setFavorite] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const { dialogProps, titleId } = useDialog(isOpen, onClose, { dismissible: !isSubmitting })
 
   if (!isOpen) return null
@@ -58,6 +72,30 @@ export default function RatingModal({
     group?.querySelector<HTMLButtonElement>(`[data-star="${next}"]`)?.focus()
   }
 
+  const saveFavorite = async () => {
+    if (!thanks?.partnerId || favorite === 'saving' || favorite === 'saved') return
+    setFavorite('saving')
+    try {
+      const r = await fetch('/api/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ partnerId: thanks.partnerId }) })
+      // The API answers 400 «ya está en tus favoritos» when it was one already: that is fine too
+      const already = !r.ok && /ya está/i.test((await r.json().catch(() => ({})) as { error?: string }).error ?? '')
+      setFavorite(r.ok || already ? 'saved' : 'error')
+    } catch {
+      setFavorite('error')
+    }
+  }
+
+  const share = async () => {
+    const url = thanks?.shareUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://lohaggo.com')
+    const text = `Pedí ${serviceName} por LoHaggo con ${thanks?.partnerName} y quedé feliz. Te lo recomiendo.`
+    try {
+      if (navigator.share) { await navigator.share({ title: 'LoHaggo', text, url }); return }
+    } catch { return }
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const closeAll = () => { setDone(false); setFavorite('idle'); setRating(0); setComment(''); onClose() }
+
   const handleSubmit = async () => {
     if (rating === 0) {
       setError('Selecciona una calificación de 1 a 5 estrellas.')
@@ -81,7 +119,8 @@ export default function RatingModal({
 
       if (res.ok) {
         onSuccess()
-        onClose()
+        if (thanks && reviewType === 'client') setDone(true)
+        else onClose()
       } else {
         const data = await res.json().catch(() => ({}))
         setError(data.error || 'No pudimos enviar tu calificación. Inténtalo de nuevo.')
@@ -92,6 +131,46 @@ export default function RatingModal({
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (done && thanks) {
+    const btn = `flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-base font-semibold ${focusRing}`
+    return (
+      <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+        <div className="absolute inset-0 bg-black/50" aria-hidden="true" onClick={closeAll} />
+        <div {...dialogProps} className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-xl focus:outline-none sm:rounded-3xl">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h3 id={titleId} className="text-xl font-bold text-gray-900">¡Gracias por calificar!</h3>
+              <p className="mt-1 text-sm text-gray-600">Tu opinión ayuda a otros clientes y a {thanks.partnerName}.</p>
+            </div>
+            <button type="button" onClick={closeAll} aria-label="Cerrar" className={`-mr-2 -mt-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 ${focusRing}`}>
+              <X className="h-6 w-6" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="space-y-3">
+            {thanks.partnerId && (
+              <button type="button" onClick={saveFavorite} disabled={favorite === 'saving' || favorite === 'saved'} className={`${btn} ${favorite === 'saved' ? 'bg-emerald-50 text-emerald-800' : 'border-2 border-primary-300 bg-primary-50 text-primary-800 hover:bg-primary-100'}`}>
+                {favorite === 'saved' ? <Check className="h-5 w-5" aria-hidden="true" /> : <Heart className="h-5 w-5" aria-hidden="true" />}
+                {favorite === 'saved' ? `${thanks.partnerName} está en tus favoritos` : `Guardar a ${thanks.partnerName} en favoritos`}
+              </button>
+            )}
+            {favorite === 'error' && <p role="alert" className="text-xs text-red-700">No pudimos guardarlo. Inténtalo de nuevo.</p>}
+            {thanks.onRepeat && (
+              <button type="button" onClick={() => { closeAll(); thanks.onRepeat?.() }} className={`${btn} bg-primary-600 text-white hover:bg-primary-700`}>
+                <RefreshCw className="h-5 w-5" aria-hidden="true" /> Pedir de nuevo
+              </button>
+            )}
+            {rating >= 4 && (
+              <button type="button" onClick={share} className={`${btn} border-2 border-[#25D366] text-[#128C7E] hover:bg-[#25D366]/10`}>
+                <Share2 className="h-5 w-5" aria-hidden="true" /> Recomiéndalo a un amigo
+              </button>
+            )}
+            <button type="button" onClick={closeAll} className={`${btn} text-gray-600 hover:text-gray-800`}>Listo</button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

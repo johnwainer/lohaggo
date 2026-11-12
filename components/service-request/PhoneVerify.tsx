@@ -12,13 +12,15 @@ type Props = {
   loginHref?: string
   onVerified: () => void
   onClose: () => void
+  /** Rendered in the page instead of a sheet (the login screen): no overlay and no close button */
+  inline?: boolean
 }
 
 /**
  * Request without an account: name and phone, a 6-digit code by WhatsApp, and the person is signed in (a
  * client account is created when the number has none). The draft stays in the form while this is open.
  */
-export default function PhoneVerify({ mode = 'request', loginHref, onVerified, onClose }: Props) {
+export default function PhoneVerify({ mode = 'request', loginHref, onVerified, onClose, inline = false }: Props) {
   const login = mode === 'login'
   const [needName, setNeedName] = useState(!login)
   const [step, setStep] = useState<'phone' | 'code'>('phone')
@@ -75,10 +77,8 @@ export default function PhoneVerify({ mode = 'request', loginHref, onVerified, o
   const canSend = (!needName || name.trim().length >= 2) && phoneDigits.length >= 10
   const field = 'w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30'
 
-  if (!mounted) return null
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="phone-verify-title">
-      <div className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl">
+  const panel = (
+      <div className={inline ? '' : 'max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl'}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 id="phone-verify-title" className="text-lg font-bold text-gray-900">{step === 'code' ? 'Escribe el código' : login ? 'Entrar con WhatsApp' : 'Último paso: tu celular'}</h2>
@@ -86,7 +86,7 @@ export default function PhoneVerify({ mode = 'request', loginHref, onVerified, o
               {step === 'phone' ? 'Te enviamos un código por WhatsApp para confirmar tu número. No necesitas contraseña.' : `Lo enviamos por WhatsApp a ${sentTo}. Vence en 10 minutos.`}
             </p>
           </div>
-          <button onClick={onClose} className="-mr-1 rounded-full p-1.5 text-gray-500 hover:bg-gray-100" aria-label="Cerrar"><X size={20} /></button>
+          {!inline && <button type="button" onClick={onClose} className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" aria-label="Cerrar"><X size={20} /></button>}
         </div>
 
         {info ? (
@@ -151,6 +151,13 @@ export default function PhoneVerify({ mode = 'request', loginHref, onVerified, o
           </div>
         )}
       </div>
+  )
+
+  if (inline) return panel
+  if (!mounted) return null
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="phone-verify-title">
+      {panel}
     </div>,
     document.body,
   )

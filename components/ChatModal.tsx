@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { Send, X, MessageCircle, Loader2, Lock } from 'lucide-react'
+import { Send, X, MessageCircle, Loader2, Lock, Camera } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import PlatformTrustBanner from './PlatformTrustBanner'
@@ -10,6 +10,8 @@ import { useProposalRealtime } from '@/hooks/useChatRealtime'
 import { channelLabel } from '@/lib/ops/origin'
 import { PHOTO_ONLY_TEXT } from '@/lib/chat/constants'
 import { useDialog } from '@/components/ui/use-dialog'
+import { photoProblem, quickRepliesFor } from '@/lib/chat/quick-replies'
+import { compressImage } from '@/lib/client/compress-image'
 
 interface ChatMessage {
   id: string
@@ -54,6 +56,9 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [viewerUrl, setViewerUrl] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [photo, setPhoto] = useState<{ url: string; preview: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const { dialogProps, titleId } = useDialog(true, onClose)
   const inputId = `${titleId}-input`
@@ -163,26 +168,56 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
     }
   }
 
+  const onPickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const problem = photoProblem(file)
+    if (problem) { setSendError(problem); return }
+    setUploading(true)
+    setSendError(null)
+    try {
+      const small = await compressImage(file)
+      const form = new FormData()
+      form.append('photos', small)
+      const res = await fetch('/api/upload-photos', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.urls?.[0]) throw new Error(data.error || 'upload')
+      setPhoto({ url: data.urls[0], preview: URL.createObjectURL(small) })
+    } catch {
+      setSendError('No pudimos subir la foto. Intenta de nuevo.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const clearPhoto = () => {
+    if (photo) URL.revokeObjectURL(photo.preview)
+    setPhoto(null)
+  }
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!newMessage.trim() || !chat || sending) return
+    if ((!newMessage.trim() && !photo) || !chat || sending || uploading) return
 
     setSending(true)
     setSendError(null)
     const messageContent = newMessage.trim()
+    const sentPhoto = photo
     setNewMessage('')
 
     try {
       const response = await fetch(`/api/chats/${chat.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: messageContent })
+        body: JSON.stringify({ content: messageContent, imageUrl: sentPhoto?.url ?? undefined })
       })
 
       if (response.ok) {
         const { helpReply, ...message } = await response.json()
         setMessages(prev => helpReply ? [...prev, message, helpReply] : [...prev, message])
+        if (sentPhoto) clearPhoto()
       } else {
         const errorData = await response.json()
 
@@ -379,7 +414,39 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
             {sendError && (
               <p id={`${inputId}-error`} role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200">{sendError}</p>
             )}
+            {photo && (
+              <div className="mb-2 flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo.preview} alt="Foto lista para enviar" className="h-16 w-16 rounded-xl object-cover ring-1 ring-gray-200" />
+                <button type="button" onClick={clearPhoto} className="min-h-[44px] rounded-full px-3 text-sm font-semibold text-gray-600 hover:bg-gray-100">Quitar foto</button>
+              </div>
+            )}
+            {!newMessage && !photo && (
+              <div className="-mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Respuestas rápidas">
+                {quickRepliesFor(session?.user?.role).map((text) => (
+                  <button
+                    key={text}
+                    type="button"
+                    disabled={loading || sending}
+                    onClick={() => { setNewMessage(text); inputRef.current?.focus() }}
+                    className="min-h-[44px] shrink-0 rounded-full border border-primary-200 bg-primary-50 px-4 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50"
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2 md:gap-3">
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickPhoto} />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={loading || sending || uploading}
+                aria-label="Adjuntar una foto"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-2 border-gray-200 text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-50"
+              >
+                {uploading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Camera className="h-5 w-5" aria-hidden="true" />}
+              </button>
               <label htmlFor={inputId} className="sr-only">Escribe un mensaje</label>
               <input
                 id={inputId}
@@ -395,7 +462,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
               />
               <button
                 type="submit"
-                disabled={!newMessage.trim() || loading || sending}
+                disabled={(!newMessage.trim() && !photo) || loading || sending || uploading}
                 aria-label="Enviar mensaje"
                 className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 font-bold text-white transition-all hover:from-primary-600 hover:to-secondary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:px-6"
               >

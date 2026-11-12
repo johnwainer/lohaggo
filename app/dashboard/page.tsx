@@ -38,6 +38,14 @@ import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 import { useClientNavCounts } from '@/hooks/useClientNavCounts'
 import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
 import { noDateLabel } from '@/lib/service-requests/draft'
+import CompareProposalsSheet from '@/components/proposals/CompareProposalsSheet'
+import PartnerReviewsPreview from '@/components/proposals/PartnerReviewsPreview'
+import WaitingInfo from '@/components/service-request/WaitingInfo'
+import { saveNextBooking } from '@/lib/pwa/next-booking'
+import { rebookHref } from '@/lib/service-requests/rebook'
+import { partnerLabel } from '@/lib/proposals/compare'
+import { recallNotified } from '@/lib/service-requests/useResponseTime'
+import { useTrust } from '@/lib/public/useTrust'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -133,6 +141,8 @@ interface ServiceRequest {
     proposedTime?: string | null
     partner: {
       verified: boolean
+      isCompany?: boolean | null
+      companyName?: string | null
       rating?: number
       totalReviews?: number
       completedServicesCount?: number
@@ -185,7 +195,14 @@ export default function DashboardPage() {
   const searchParams = useSearchParams()
   const unreadNotifications = useNotificationUnreadCount(status === 'authenticated')
   const navCounts = useClientNavCounts()
+  const { claims } = useTrust()
+  const [compareFor, setCompareFor] = useState<string | null>(null)
+  const [reviewsOpen, setReviewsOpen] = useState<string | null>(null)
+  // «Ya pagué» on a booking card opens its payment report: the signal is state, not a click on the DOM
+  const [payOpenSignal, setPayOpenSignal] = useState<Record<string, number>>({})
   const [bookings, setBookings] = useState<Booking[]>([])
+  // The offline page shows the next booking (service and hour only, kept on this device)
+  useEffect(() => { saveNextBooking(window.localStorage, bookings, 'CLIENT') }, [bookings])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
   // Proposals that arrived while the panel was open: highlighted, and announced in the page
   const knownProposalIds = useRef<Set<string> | null>(null)
@@ -242,6 +259,12 @@ export default function DashboardPage() {
     serviceName: string
     partnerName: string
     scheduledAt: string
+    /** What «Pedir de nuevo» and «Guardar en favoritos» need after the rating */
+    partnerId?: string | null
+    partnerSlug?: string | null
+    serviceSlug?: string
+    address?: string
+    notes?: string | null
   }>({
     isOpen: false,
     bookingId: '',
@@ -559,7 +582,7 @@ export default function DashboardPage() {
     setConfirmModal({
       isOpen: true,
       title: 'Aceptar propuesta',
-      message: `¿Aceptas la propuesta de ${partnerName}?\n\nTotal a pagar: ${formatCurrency(total)}${breakdown}\n\nAl aceptar:\n• Se creará una reserva automáticamente\n• Se rechazarán las demás propuestas\n• Le avisamos al socio`,
+      message: `¿Aceptas la propuesta de ${partnerName}?\n\nTotal a pagar: ${formatCurrency(total)}${breakdown}\n\nAl aceptar:\n• Se creará tu reserva automáticamente\n• Se rechazarán las demás propuestas\n• Le avisamos al socio`,
       type: 'info',
       onConfirm: async () => {
         try {
@@ -568,10 +591,13 @@ export default function DashboardPage() {
           })
 
           if (res.ok) {
+            // A proposal with day and hour already agreed starts confirmed: there is nothing left for the partner to confirm
+            const created = await res.json().catch(() => null) as { booking?: { status?: string } } | null
+            const confirmed = created?.booking?.status === 'CONFIRMED'
             setModal({
               isOpen: true,
-              title: '¡Reserva creada!',
-              message: `Qué sigue:\n1. ${partnerName} confirma la reserva (te avisamos por WhatsApp).\n2. Si necesitas otra hora, usa «Reprogramar» en tu reserva.\n3. El día del servicio pagas al socio en efectivo o transferencia y lo reportas aquí.\n4. Al terminar, califica el servicio.`,
+              title: confirmed ? '¡Reserva confirmada!' : '¡Reserva creada!',
+              message: `Qué sigue:\n1. ${confirmed ? `${partnerName} ya tiene tu reserva confirmada para el día y la hora que propuso.` : `${partnerName} confirma la reserva (te avisamos por WhatsApp).`}\n2. Si necesitas otra hora, usa «Reprogramar» en tu reserva.\n3. El día del servicio pagas al socio en efectivo o transferencia y lo reportas aquí.\n4. Al terminar, califica el servicio.`,
               type: 'success'
             })
             fetchServiceRequests()
@@ -662,17 +688,10 @@ export default function DashboardPage() {
 
   const cancelBooking = (id: string, serviceName: string) => setCancelSheet({ id, serviceName })
 
-  // «Ya pagué» on the card opens the same cash/transfer report that lives under it
+  // «Ya pagué» on the card opens the same cash/transfer report that lives under it (component state, no DOM clicks)
   const openOfflinePayment = (bookingId: string) => {
-    const block = document.getElementById(`offline-pay-${bookingId}`)
-    if (!block) return
-    block.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    const buttons = Array.from(block.querySelectorAll<HTMLButtonElement>('button:not([disabled])'))
-    const target = buttons.find((b) => /ya pagu|confirmar pago|reportar pago/i.test(b.textContent || '')) || buttons[0]
-    if (target) {
-      target.focus({ preventScroll: true })
-      target.click()
-    }
+    document.getElementById(`offline-pay-${bookingId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setPayOpenSignal((prev) => ({ ...prev, [bookingId]: (prev[bookingId] ?? 0) + 1 }))
   }
 
   const openPaymentModal = async (bookingId: string, serviceName: string, amount: number) => {
@@ -1553,6 +1572,11 @@ export default function DashboardPage() {
                           serviceName: booking.service.name,
                           partnerName: booking.partner?.user.name || 'el socio',
                           scheduledAt: bookingWhenText,
+                          partnerId: (booking.partner as { id?: string } | undefined)?.id ?? null,
+                          partnerSlug: (booking.partner as { slug?: string | null } | undefined)?.slug ?? null,
+                          serviceSlug: booking.service.slug,
+                          address: booking.address,
+                          notes: booking.notes,
                         }),
                       icon: <Star size={18} />,
                       variant: 'primary' as const,
@@ -1629,7 +1653,7 @@ export default function DashboardPage() {
                     if (booking.status === 'COMPLETED' && partnerId && booking.service.slug) {
                       secondaryActions.push({
                         label: 'Pedir de nuevo',
-                        onClick: () => router.push(`/servicios/${booking.service.slug}?partnerId=${partnerId}`),
+                        onClick: () => router.push(rebookHref(window.localStorage, { serviceSlug: booking.service.slug, partnerId, address: booking.address, notes: booking.notes })),
                         icon: <RefreshCw size={16} />,
                         variant: 'secondary',
                         disabled: session?.user?.isActive === false,
@@ -1680,6 +1704,7 @@ export default function DashboardPage() {
                               bookingStatus={booking.status}
                               payment={booking.payment as any}
                               partnerBankAccount={booking.partner?.bankAccounts?.find((b) => b.isDefault) || booking.partner?.bankAccounts?.[0] || null}
+                              openSignal={payOpenSignal[booking.id] ?? 0}
                               onChange={() => fetchBookings(true)}
                             />
                           </div>
@@ -2001,9 +2026,12 @@ export default function DashboardPage() {
                                 </button>
                               </div>
                             ) : (
-                              <p className="mb-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                                <span className="font-bold">Esperando propuestas de socios.</span> Te avisamos cuando llegue una.
-                              </p>
+                              <div className="mb-3">
+                                <p className="mb-2 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                                  <span className="font-bold">Esperando propuestas de socios.</span> Te avisamos cuando llegue una.
+                                </p>
+                                <WaitingInfo notified={recallNotified(request.id)} serviceName={request.service.name} hasPhotos={(request.photos?.length ?? 0) > 0} hasBudget={Boolean(request.budget)} />
+                              </div>
                             )
                           }
                           if (request.status === 'ACCEPTED') {
@@ -2126,6 +2154,16 @@ export default function DashboardPage() {
                                 {request.proposals.length} {request.status === 'ACTIVE' && !isExpired ? (request.proposals.length === 1 ? 'disponible' : 'disponibles') : (request.proposals.length === 1 ? 'recibida' : 'recibidas')}
                               </span>
                             </div>
+                            {request.status === 'ACTIVE' && !isExpired && request.proposals.filter((p) => p.status === 'PENDING').length >= 2 && (
+                              <button
+                                type="button"
+                                onClick={() => setCompareFor(request.id)}
+                                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border-2 border-primary-300 bg-primary-50 px-4 text-sm font-semibold text-primary-800 hover:bg-primary-100"
+                              >
+                                <Filter size={16} aria-hidden="true" />
+                                Comparar {request.proposals.filter((p) => p.status === 'PENDING').length} propuestas
+                              </button>
+                            )}
                             {sortedProposals.map((proposal) => {
                               const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
                               const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
@@ -2143,6 +2181,7 @@ export default function DashboardPage() {
                               const totalAmount = proposal.price + Math.round(proposal.price * (clientCommissionRate / 100))
                               const canAccept = request.status === 'ACTIVE' && !isExpired && proposal.status === 'PENDING'
                               const canChat = proposal.status === 'ACCEPTED' || canAccept
+                              const partnerName = partnerLabel(proposal.partner)
 
                               return (
                                 <div
@@ -2160,7 +2199,7 @@ export default function DashboardPage() {
                                   <div className="flex items-start justify-between gap-3 mb-2">
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{proposal.partner.user.name}</p>
+                                        <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{partnerName}</p>
                                         {isFullyVerified && <ShieldCheck size={14} className="text-emerald-700 shrink-0" role="img" aria-label="Documentos verificados" />}
                                         <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${PROPOSAL_STATUS[proposal.status]?.className || PROPOSAL_STATUS.PENDING.className}`}>
                                           {PROPOSAL_STATUS[proposal.status]?.label || proposal.status}
@@ -2177,10 +2216,16 @@ export default function DashboardPage() {
                                           <span className="font-medium text-gray-700">Nuevo{hasIdentity ? ' · identidad verificada' : ''}</span>
                                         )}
                                         {(proposal.partner.completedServicesCount ?? 0) > 0 && <span>· {proposal.partner.completedServicesCount} {proposal.partner.completedServicesCount === 1 ? 'trabajo' : 'trabajos'}</span>}
+                                        {(proposal.partner.totalReviews ?? 0) > 0 && (
+                                          <button type="button" aria-expanded={reviewsOpen === proposal.id} onClick={() => setReviewsOpen(reviewsOpen === proposal.id ? null : proposal.id)} className="inline-flex min-h-[44px] items-center font-semibold text-primary-700 underline-offset-2 hover:underline">
+                                            {reviewsOpen === proposal.id ? 'Ocultar reseñas' : 'Ver reseñas'}
+                                          </button>
+                                        )}
                                         {proposal.partner.slug && proposal.partner.isPublicProfile && (
-                                          <a href={`/pro/${proposal.partner.slug}`} target="_blank" rel="noopener" aria-label={`Ver perfil de ${proposal.partner.user.name} (se abre en otra pestaña)`} className="inline-flex min-h-[44px] items-center font-semibold text-primary-700 underline-offset-2 hover:underline">Ver perfil</a>
+                                          <a href={`/pro/${proposal.partner.slug}`} target="_blank" rel="noopener" aria-label={`Ver perfil de ${partnerName} (se abre en otra pestaña)`} className="inline-flex min-h-[44px] items-center font-semibold text-primary-700 underline-offset-2 hover:underline">Ver perfil</a>
                                         )}
                                       </p>
+                                      {reviewsOpen === proposal.id && <PartnerReviewsPreview proposalId={proposal.id} className="mt-1" />}
                                       <div className="mt-1 flex items-center gap-2">
                                         {getVerificationBadges(proposal.partner.documents)}
                                       </div>
@@ -2228,8 +2273,8 @@ export default function DashboardPage() {
                                     {canAccept && (
                                       <button
                                         type="button"
-                                        aria-label={`Aceptar la propuesta de ${proposal.partner.user.name}`}
-                                        onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
+                                        aria-label={`Aceptar la propuesta de ${partnerName}`}
+                                        onClick={() => acceptProposal(proposal.id, partnerName, proposal.price)}
                                         disabled={session?.user?.isActive === false}
                                         className="min-h-[44px] w-full sm:flex-1 bg-emerald-700 text-white px-3 py-2.5 rounded-full hover:bg-emerald-800 transition-colors font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-card"
                                       >
@@ -2240,8 +2285,8 @@ export default function DashboardPage() {
                                     {canAccept && (
                                       <button
                                         type="button"
-                                        aria-label={`No me sirve la propuesta de ${proposal.partner.user.name}`}
-                                        onClick={() => setRejectSheet({ id: proposal.id, partnerName: proposal.partner.user.name })}
+                                        aria-label={`No me sirve la propuesta de ${partnerName}`}
+                                        onClick={() => setRejectSheet({ id: proposal.id, partnerName: partnerName })}
                                         disabled={session?.user?.isActive === false}
                                         className="min-h-[44px] w-full sm:w-auto px-4 py-2.5 rounded-full text-gray-600 hover:text-gray-900 underline-offset-2 hover:underline transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                       >
@@ -2254,7 +2299,7 @@ export default function DashboardPage() {
                                         onClick={() => setChatModal({
                                           isOpen: true,
                                           proposalId: proposal.id,
-                                          partnerName: proposal.partner.user.name,
+                                          partnerName: partnerName,
                                           serviceName: request.service.name,
                                           contextLine: proposal.status === 'ACCEPTED' ? 'Propuesta aceptada' : 'Solicitud · propuesta',
                                         })}
@@ -2267,6 +2312,12 @@ export default function DashboardPage() {
                                       </button>
                                     )}
                                   </div>
+                                  {canAccept && claims.trust_guarantee && (
+                                    <p className="mt-2 flex items-start gap-1.5 text-xs text-emerald-900">
+                                      <ShieldCheck size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+                                      <span><span className="font-semibold">Garantía LoHaggo:</span> si no llega o queda mal, te conseguimos otro socio o lo corrige sin costo.</span>
+                                    </p>
+                                  )}
                                 </div>
                               )
                             })}
@@ -2281,6 +2332,23 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {(() => {
+        const req = serviceRequests.find((r) => r.id === compareFor)
+        if (!req) return null
+        return (
+          <CompareProposalsSheet
+            open
+            onClose={() => setCompareFor(null)}
+            serviceName={req.service.name}
+            proposals={req.proposals as any}
+            clientRatePct={clientCommissionRate}
+            showGuarantee={Boolean(claims.trust_guarantee)}
+            disabled={session?.user?.isActive === false}
+            onAccept={acceptProposal}
+          />
+        )
+      })()}
 
       {imageGallery.isOpen && (
         <ImageGalleryModal
@@ -2365,15 +2433,15 @@ export default function DashboardPage() {
         scheduledAt={ratingModal.scheduledAt}
         reviewType="client"
         targetName={ratingModal.partnerName}
-        onSuccess={() => {
-          setModal({
-            isOpen: true,
-            title: 'Calificación Enviada',
-            message: 'Tu calificación ha sido enviada exitosamente.',
-            type: 'success'
-          })
-          fetchBookings()
+        thanks={{
+          partnerId: ratingModal.partnerId,
+          partnerName: ratingModal.partnerName,
+          onRepeat: ratingModal.serviceSlug && ratingModal.partnerId
+            ? () => router.push(rebookHref(window.localStorage, { serviceSlug: ratingModal.serviceSlug!, partnerId: ratingModal.partnerId, address: ratingModal.address ?? '', notes: ratingModal.notes }))
+            : undefined,
+          shareUrl: ratingModal.partnerSlug && typeof window !== 'undefined' ? `${window.location.origin}/pro/${ratingModal.partnerSlug}` : undefined,
         }}
+        onSuccess={() => { fetchBookings() }}
       />
 
       {chatModal.isOpen && (

@@ -5,7 +5,8 @@ import { X, Download, RefreshCw } from 'lucide-react';
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client';
 import { PWA_EVENTS } from '@/lib/pwa/events';
 import { useSession } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePromptSlot } from '@/hooks/usePromptSlot';
+import { clearInstallEvent, useInstallEvent } from '@/lib/pwa/install-event';
 
 const VISIT_COUNT_KEY = 'pwa-visit-count';
 const INSTALL_DISMISSED_KEY = 'pwa-install-dismissed';
@@ -13,11 +14,11 @@ const MIN_VISITS_TO_SHOW = 3;
 
 export default function PWAInstallPrompt() {
   const { data: session } = useSession();
-  const pathname = usePathname();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const deferredPrompt = useInstallEvent();
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [visits, setVisits] = useState(0);
   // Track whether terms banner is still visible (hasn't been accepted yet)
   const [termsAccepted, setTermsAccepted] = useState(true);
 
@@ -35,50 +36,37 @@ export default function PWAInstallPrompt() {
     const newCount = currentCount + 1;
     localStorage.setItem(VISIT_COUNT_KEY, String(newCount));
 
-    const handleBeforeInstallPrompt = (e: Event) => {
-      const installDismissed = localStorage.getItem(INSTALL_DISMISSED_KEY);
-      const dismissedTime = installDismissed ? parseInt(installDismissed) : 0;
-      const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
-
-      // Only show after MIN_VISITS_TO_SHOW visits and if not recently dismissed.
-      // Respect the user's dismiss for 30 days (antes era 7) — menos fricción si dijeron "no".
-      if (newCount >= MIN_VISITS_TO_SHOW && (!installDismissed || daysSinceDismissed > 30)) {
-        e.preventDefault();
-        setDeferredPrompt(e);
-        setTimeout(() => {
-          // Re-check terms state at the time of showing
-          const accepted = Boolean(localStorage.getItem('terms-accepted'));
-          if (accepted) {
-            setShowInstallPrompt(true);
-            trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_PROMPT_SHOWN, source: 'global_install_prompt' });
-          } else {
-            // Delay until terms are accepted — poll briefly
-            const poll = setInterval(() => {
-              if (localStorage.getItem('terms-accepted')) {
-                clearInterval(poll);
-                setShowInstallPrompt(true);
-                trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_PROMPT_SHOWN, source: 'global_install_prompt' });
-              }
-            }, 1000);
-            // Stop polling after 2 minutes
-            setTimeout(() => clearInterval(poll), 120000);
-          }
-        }, 3000);
-      }
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
+    // The install event itself comes from the single shared listener (useInstallEvent)
+    setVisits(newCount);
   }, []);
+
+  // Offer the install after enough visits, once terms are accepted and unless it was dismissed recently
+  useEffect(() => {
+    if (!deferredPrompt || visits < MIN_VISITS_TO_SHOW) return;
+    const dismissedAt = parseInt(localStorage.getItem(INSTALL_DISMISSED_KEY) || '0', 10);
+    if (dismissedAt && (Date.now() - dismissedAt) / (1000 * 60 * 60 * 24) <= 30) return;
+    const timer = setTimeout(() => {
+      if (localStorage.getItem('terms-accepted')) {
+        setShowInstallPrompt(true);
+        return;
+      }
+      const poll = setInterval(() => {
+        if (localStorage.getItem('terms-accepted')) {
+          clearInterval(poll);
+          setShowInstallPrompt(true);
+        }
+      }, 1000);
+      setTimeout(() => clearInterval(poll), 120000);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [deferredPrompt, visits]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_CLICKED, source: 'global_install_prompt' });
-    deferredPrompt.prompt();
+    await deferredPrompt.prompt();
     await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
+    clearInstallEvent();
     setShowInstallPrompt(false);
   };
 
@@ -95,13 +83,18 @@ export default function PWAInstallPrompt() {
     setShowUpdatePrompt(false);
   };
 
-  if (pathname?.startsWith('/unete') || session?.user?.id || isStandalone || (!showInstallPrompt && !showUpdatePrompt)) {
-    return null;
-  }
+  const wantsInstall = showInstallPrompt && !session?.user?.id && !isStandalone;
+  const mayShowInstall = usePromptSlot('install', wantsInstall);
+  useEffect(() => {
+    if (mayShowInstall) trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_PROMPT_SHOWN, source: 'global_install_prompt' });
+  }, [mayShowInstall]);
+
+  if (!mayShowInstall && !showUpdatePrompt) return null;
+  if (session?.user?.id || isStandalone) return null;
 
   return (
     <>
-      {showInstallPrompt && (
+      {mayShowInstall && (
         /* Compact toast on mobile (con márgenes laterales para no tapar cards),
            card on desktop. Wrapper pointer-events-none por defensa: si alguna vez el
            wrapper es más grande que el contenido visible, los clicks pasan al contenido detrás. */
@@ -116,12 +109,12 @@ export default function PWAInstallPrompt() {
             </div>
             <button
               onClick={handleInstallClick}
-              className="flex-shrink-0 bg-primary-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-1"
+              className="flex-shrink-0 min-h-[44px] bg-primary-500 text-white text-xs font-bold px-3 rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-1"
             >
               <Download size={14} />
               Instalar
             </button>
-            <button onClick={handleDismissInstall} className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Cerrar">
+            <button onClick={handleDismissInstall} className="flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-full text-gray-400 hover:text-gray-600 transition-colors" aria-label="Cerrar">
               <X size={18} />
             </button>
           </div>

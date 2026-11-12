@@ -3,11 +3,10 @@
 import { use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { flushSync } from 'react-dom'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart, Building2 } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import { RemoteImage } from '@/components/ui/RemoteImage'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
 import ConfirmModal from '@/components/ConfirmModal'
@@ -19,6 +18,12 @@ import AddressStep from '@/components/service-request/AddressStep'
 import RequestSuccess from '@/components/service-request/RequestSuccess'
 import StickyRequestBar from '@/components/service-request/StickyRequestBar'
 import GuaranteeStrip from '@/components/service-request/GuaranteeStrip'
+import { ComingSoonSheet, WaitlistCapture } from '@/components/service-request/WaitlistCapture'
+import { rememberNotified } from '@/lib/service-requests/useResponseTime'
+import { useClientFee } from '@/lib/public/useClientFee'
+import { feeNote, priceFrom, priceFromLabel } from '@/lib/public/price-from'
+import { nearestLiveCity } from '@/lib/cities/nearest'
+import { DAY_CHIPS, TIME_RANGES, chipFromDate, dayChipDate, rangeAvailable, rangeFromTime, rangeTime, scheduledMomentOk, type TimeRange } from '@/lib/service-requests/schedule'
 import { ga4Loaded, track } from '@/lib/analytics/track'
 import { withRedirect } from '@/lib/navigation/safe-redirect'
 import { cityEnumFromName, splitAddressText } from '@/lib/geo/address'
@@ -87,7 +92,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const [phoneVerifyOpen, setPhoneVerifyOpen] = useState(false)
   const [submitAfterLogin, setSubmitAfterLogin] = useState(false)
   const router = useRouter()
-  const { getCityBySlug } = useCity()
+  const { getCityBySlug, selectedCity, setSelectedCity, cities } = useCity()
+  const clientFee = useClientFee()
   const { whatsappPhone, claims } = useTrust()
   const [service, setService] = useState<Service | null>(null)
   const [loading, setLoading] = useState(true)
@@ -101,13 +107,19 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const [addressMode, setAddressMode] = useState<AddressMode>('new')
   const [newAddress, setNewAddress] = useState<NewAddressDraft>({ street: '', neighborhood: '', instructions: '' })
   const [when, setWhen] = useState<WhenMode>('asap')
+  const [timeRange, setTimeRange] = useState<TimeRange>('any')
+  const [formError, setFormError] = useState<{ step: 1 | 2 | 3; field: string; message: string } | null>(null)
+  const [comingSoon, setComingSoon] = useState(false)
+  const [favoriteLoginOpen, setFavoriteLoginOpen] = useState(false)
+  const [pendingFavorite, setPendingFavorite] = useState<{ kind: 'partner'; partnerId: string } | { kind: 'service' } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [requestData, setRequestData] = useState({
     notes: '',
     budget: '',
     preferredDate: '',
     preferredTime: '',
   })
-  const [successInfo, setSuccessInfo] = useState<{ partnerName: string | null } | null>(null)
+  const [successInfo, setSuccessInfo] = useState<{ partnerName: string | null; partnersNotified: number | null; hasPhotos: boolean; hasBudget: boolean } | null>(null)
   const viewTracked = useRef(false)
   const resumeHandled = useRef(false)
 
@@ -164,10 +176,24 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   }, [service])
   const [submitting, setSubmitting] = useState(false)
   const [requestActionLoading, setRequestActionLoading] = useState<'ALL' | string | null>(null)
-  const [validationModal, setValidationModal] = useState({
-    isOpen: false,
-    message: ''
-  })
+  // Messages that are not about a form field (session loading, inactive account): a banner, never a blocking modal
+  const showNotice = (message: string) => {
+    setNotice(message)
+    window.setTimeout(() => setNotice((current) => (current === message ? null : current)), 6000)
+  }
+  const FIELD_ID: Record<string, string> = { street: 'req-street', neighborhood: 'req-neighborhood', saved: 'req-address-saved', date: 'req-date', time: 'req-time', photos: 'req-photos' }
+  /** Shows the error next to its field, goes to its step and puts the focus there. */
+  const raise = (step: 1 | 2 | 3, field: string, message: string) => {
+    setCurrentStep(step)
+    setFormError({ step, field, message })
+    window.setTimeout(() => {
+      const el = document.getElementById(FIELD_ID[field] || field)
+      el?.focus()
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }, 60)
+  }
+  // Editing anything clears the error that was pointing at it
+  useEffect(() => { setFormError(null) }, [newAddress, selectedAddressId, addressMode, requestData, timeRange, when])
   const [successModal, setSuccessModal] = useState({
     isOpen: false,
     message: '',
@@ -223,7 +249,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       return
     }
     if (!session) {
-      router.push('/login?redirect=/servicios/' + slug)
+      // Signed out: the WhatsApp code opens right here and the favourite is saved once they are in
+      setPendingFavorite({ kind: 'partner', partnerId })
+      setFavoriteLoginOpen(true)
       return
     }
 
@@ -281,7 +309,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       return
     }
     if (!session) {
-      router.push('/login?redirect=/servicios/' + slug)
+      setPendingFavorite({ kind: 'service' })
+      setFavoriteLoginOpen(true)
       return
     }
 
@@ -343,6 +372,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     setNewAddress(draft.newAddress)
     setWhen(draft.when)
     setRequestData({ notes: draft.notes, budget: draft.budget, preferredDate: draft.preferredDate, preferredTime: draft.preferredTime })
+    setTimeRange(rangeFromTime(draft.preferredTime))
     setSelectedPartnerId(partnerId === undefined ? draft.partnerId : (partnerId || ''))
     await restorePhotos()
     return draft.step
@@ -350,26 +380,17 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
   const openRequestFlow = async (partnerId: string | null, opts: { resume?: boolean } = {}) => {
     if (status === 'loading') {
-      setValidationModal({
-        isOpen: true,
-        message: 'Estamos validando tu sesión. Intenta nuevamente en unos segundos.'
-      })
+      showNotice('Estamos validando tu sesión. Intenta nuevamente en unos segundos.')
       return
     }
     if (session && session.user?.isActive === false) {
-      setValidationModal({
-        isOpen: true,
-        message: 'Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.'
-      })
+      showNotice('Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.')
       return
     }
 
-    const citySlug = localStorage.getItem('selectedCity') || 'medellin'
-    const currentCity = getCityBySlug(citySlug)
-
-    // Si la ciudad está en modo registro de socios, siempre redirigir.
-    if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
+    // A city that is not taking requests yet: «Pronto en {ciudad}» (WhatsApp list or the nearest live city), never the partner sign-up
+    if (activeCity()?.partnerRegistry) {
+      setComingSoon(true)
       return
     }
 
@@ -387,16 +408,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handleBooking = async (event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault()
     event?.stopPropagation()
-    const startedAt = Date.now()
-    flushSync(() => {
-      setRequestActionLoading('ALL')
-    })
+    setRequestActionLoading('ALL')
     try {
       await openRequestFlow(null)
-      const elapsed = Date.now() - startedAt
-      if (elapsed < 350) {
-        await new Promise((resolve) => setTimeout(resolve, 350 - elapsed))
-      }
     } finally {
       setRequestActionLoading(null)
     }
@@ -409,16 +423,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handleRequestToPartner = async (partnerId: string, event?: React.MouseEvent<HTMLElement>) => {
     event?.preventDefault()
     event?.stopPropagation()
-    const startedAt = Date.now()
-    flushSync(() => {
-      setRequestActionLoading(partnerId)
-    })
+    setRequestActionLoading(partnerId)
     try {
       await openRequestFlow(partnerId)
-      const elapsed = Date.now() - startedAt
-      if (elapsed < 350) {
-        await new Promise((resolve) => setTimeout(resolve, 350 - elapsed))
-      }
     } finally {
       setRequestActionLoading(null)
     }
@@ -507,10 +514,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length + photos.length > 5) {
-      setValidationModal({
-        isOpen: true,
-        message: 'Puedes subir máximo 5 fotos'
-      })
+      raise(3, 'photos', 'Puedes subir máximo 5 fotos')
       return
     }
 
@@ -553,26 +557,31 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     persistPhotos(next)
   }
 
-  const currentCityName = () => {
-    const citySlug = (typeof window !== 'undefined' && localStorage.getItem('selectedCity')) || 'medellin'
-    return getCityBySlug(citySlug)?.name || 'Medellín'
-  }
+  /** The city the client picked (context first, then what was saved), never the service slug. */
+  const activeCitySlug = () => selectedCity || (typeof window !== 'undefined' && localStorage.getItem('selectedCity')) || 'medellin'
+  const activeCity = () => getCityBySlug(activeCitySlug())
+  const currentCityName = () => activeCity()?.name || 'Medellín'
 
   const newAddressString = () =>
     `${newAddress.street.trim()}, ${newAddress.neighborhood.trim()}, ${currentCityName()}`
 
-  const validateAddressStep = (): string | null => {
+  type FieldError = { field: string; message: string }
+  const validateAddressStep = (): FieldError | null => {
     if (addressMode === 'saved' && addresses.length > 0) {
-      return selectedAddressId && addresses.some(a => a.id === selectedAddressId) ? null : 'Elige una dirección o usa otra'
+      return selectedAddressId && addresses.some(a => a.id === selectedAddressId) ? null : { field: 'saved', message: 'Elige una dirección o usa otra' }
     }
-    if (newAddress.street.trim().length < 5) return 'Escribe la dirección (calle y número)'
-    if (newAddress.neighborhood.trim().length < 2) return 'Escribe el barrio'
+    if (newAddress.street.trim().length < 5) return { field: 'street', message: 'Escribe la dirección (calle y número)' }
+    if (newAddress.neighborhood.trim().length < 2) return { field: 'neighborhood', message: 'Escribe el barrio' }
     return null
   }
 
-  const validateWhenStep = (): string | null => {
+  const validateWhenStep = (): FieldError | null => {
     if (when !== 'scheduled') return null
-    if (!requestData.preferredDate || !requestData.preferredTime) return 'Elige fecha y hora, o cambia a otra opción'
+    if (!requestData.preferredDate) return { field: 'date', message: 'Elige el día: Hoy, Mañana, En 5 días u otra fecha.' }
+    if (timeRange === 'exact' && !requestData.preferredTime) return { field: 'time', message: 'Escribe la hora o elige una franja.' }
+    if (!scheduledMomentOk(requestData.preferredDate, requestData.preferredTime)) {
+      return { field: requestData.preferredTime ? 'time' : 'date', message: 'Elige un momento al menos una hora adelante.' }
+    }
     return null
   }
 
@@ -606,17 +615,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     if (!service) return
 
     const addressError = validateAddressStep()
-    if (addressError) {
-      setCurrentStep(1)
-      setValidationModal({ isOpen: true, message: addressError })
-      return
-    }
+    if (addressError) return raise(1, addressError.field, addressError.message)
     const whenError = validateWhenStep()
-    if (whenError) {
-      setCurrentStep(2)
-      setValidationModal({ isOpen: true, message: whenError })
-      return
-    }
+    if (whenError) return raise(2, whenError.field, whenError.message)
 
     if (!session) {
       // No account needed: the phone is confirmed with a WhatsApp code and the request goes out
@@ -639,7 +640,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       finalCity = cityEnumFromName(currentCityName())
     }
 
-    const timing = timingPayload(when, requestData.preferredDate, requestData.preferredTime)
+    const timing = timingPayload(when, requestData.preferredDate, requestData.preferredTime, new Date(), timeRange)
     const notes = composeNotes({
       notes: requestData.notes,
       timingNote: timing.note,
@@ -689,12 +690,19 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       })
 
       if (res.ok) {
-        const created = await res.clone().json().catch(() => null) as { id?: string } | null
+        const created = await res.clone().json().catch(() => null) as { id?: string; partnersNotified?: number } | null
         if (!usingSaved) await saveNewAddress()
         clearDraft(safeStorage())
         track('lead', { content_name: service.name, content_ids: [service.id], content_category: service.category.name, value: requestData.budget ? parseFloat(requestData.budget) : undefined }, { eventId: created?.id ? `lead-${created.id}` : undefined })
         const partner = selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.partner : null
-        setSuccessInfo({ partnerName: partner ? (partner.isCompany && partner.companyName ? partner.companyName : partner.user.name) : null })
+        const partnersNotified = typeof created?.partnersNotified === 'number' ? created.partnersNotified : null
+        if (created?.id && partnersNotified !== null) rememberNotified(created.id, partnersNotified)
+        setSuccessInfo({
+          partnerName: partner ? (partner.isCompany && partner.companyName ? partner.companyName : partner.user.name) : null,
+          partnersNotified,
+          hasPhotos: photoUrls.length > 0,
+          hasBudget: Boolean(requestData.budget),
+        })
       } else {
         const error = await res.json().catch(() => ({}))
         setSuccessModal({
@@ -722,6 +730,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       setPhotos([])
       setPhotoPreviews([])
       setRequestData({ notes: '', budget: '', preferredDate: '', preferredTime: '' })
+      setTimeRange('any')
       setNewAddress({ street: '', neighborhood: '', instructions: '' })
       setWhen('asap')
     }
@@ -730,6 +739,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const trackWhatsApp = (source: string) => {
     track('whatsapp_click', { content_name: service?.name, source })
   }
+
+  // Signed in from the favourite heart: the favourite is saved now
+  useEffect(() => {
+    if (!pendingFavorite || !session?.user || !service) return
+    const pending = pendingFavorite
+    setPendingFavorite(null)
+    if (pending.kind === 'partner') void toggleFavorite(pending.partnerId)
+    else void toggleFavoriteService()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFavorite, session, service])
 
   // Signed in with the WhatsApp code: once the session is there, the request goes out with the draft
   useEffect(() => {
@@ -857,7 +876,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
   const selectedPartnerPrice = selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.price : undefined
   const minBudget = selectedPartnerPrice ?? service.basePrice
-  const fromPrice = service.partners.length > 0 ? Math.min(...service.partners.map(p => p.price)) : service.basePrice
+  // ONE «desde» everywhere: the lowest price an available partner offers; the base price while there is none
+  const from = priceFrom(service, service.partners.map(p => p.price))
+  const fromFee = feeNote(from.amount, clientFee, formatCurrency)
   const whatsappOrderText = `Hola, quiero pedir ${service.name} en Medellín. ¿Me ayudas? (ref: web-${slug})`
 
   return (
@@ -874,15 +895,18 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 <span className="bg-primary-100 text-primary-700 text-xs md:text-sm font-medium px-3 py-1 rounded-full w-fit">
                   {service.category.name}
                 </span>
-                {session?.user && (
+                {(
                   <button
+                    type="button"
+                    aria-pressed={isFavoriteService}
                     onClick={toggleFavoriteService}
                     disabled={loadingFavoriteService}
-                    className={`ml-auto sm:ml-2 p-2.5 rounded-xl transition-all shadow-md hover:shadow-lg ${isFavoriteService
+                    className={`ml-auto sm:ml-2 p-3 rounded-xl transition-all shadow-md hover:shadow-lg ${isFavoriteService
                       ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
                       : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                       } ${loadingFavoriteService ? 'opacity-50 cursor-not-allowed' : ''}`}
                     title={isFavoriteService ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                    aria-label={isFavoriteService ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                   >
                     <Heart size={20} fill={isFavoriteService ? 'currentColor' : 'none'} />
                   </button>
@@ -893,8 +917,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 md:gap-6">
                 <div className="flex items-center gap-2">
                   <DollarSign className="text-primary-600" size={18} />
-                  <span className="text-sm md:text-base text-gray-700">
-                    Desde <span className="font-bold text-primary-600">{formatCurrency(service.basePrice)}</span>
+                  <span className="text-sm md:text-base text-gray-700" title={priceFromLabel(from.source)}>
+                    Desde <span className="font-bold text-primary-600">{formatCurrency(from.amount)}</span>
+                    {fromFee && <span className="block text-xs text-gray-500">{fromFee}</span>}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -984,18 +1009,17 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   const tier = getPartnerTier(partnerService.partner.documents ?? [])
 
                   return (
-                    <div
+                    <article
                       key={partnerService.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={(event) => void handleRequestToPartner(partnerService.partner.id, event)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') void handleRequestToPartner(partnerService.partner.id) }}
-                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl cursor-pointer ${tier.card}`}
+                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl ${tier.card}`}
                     >
                       <button
-                        onClick={(e) => { e.stopPropagation(); toggleFavorite(partnerService.partner.id) }}
+                        type="button"
+                        onClick={() => toggleFavorite(partnerService.partner.id)}
                         disabled={loadingFavorite === partnerService.partner.id}
-                        className={`absolute top-4 right-4 p-2.5 rounded-full transition-all duration-200 z-10 shadow-sm hover:shadow-md ${favoritePartners.has(partnerService.partner.id)
+                        aria-label={favoritePartners.has(partnerService.partner.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+                        aria-pressed={favoritePartners.has(partnerService.partner.id)}
+                        className={`absolute top-3 right-3 flex h-11 w-11 items-center justify-center rounded-full transition-all duration-200 z-10 shadow-sm hover:shadow-md ${favoritePartners.has(partnerService.partner.id)
                           ? 'bg-red-500 text-white hover:bg-red-600 scale-110'
                           : 'bg-white text-gray-400 hover:bg-red-50 hover:text-red-500 hover:scale-110'
                           } ${loadingFavorite === partnerService.partner.id ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1030,7 +1054,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           )}
                         </div>
 
-                        <div className="flex-1 min-w-0 pr-8">
+                        <div className="flex-1 min-w-0 pr-10">
                           <div className="flex items-center gap-2 flex-wrap mb-1.5">
                             <h3 className="font-bold text-lg md:text-xl text-gray-900 truncate">
                               {partnerService.partner.isCompany && partnerService.partner.companyName
@@ -1090,11 +1114,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             {formatCurrency(partnerService.price)}
                           </p>
                         </div>
+                        {feeNote(partnerService.price, clientFee, formatCurrency) && (
+                          <p className="mt-1 text-xs text-gray-500">{feeNote(partnerService.price, clientFee, formatCurrency)}</p>
+                        )}
                       </div>
 
                       <button
                         type="button"
-                        onClick={(event) => { event.stopPropagation(); void handleRequestToPartner(partnerService.partner.id, event) }}
+                        onClick={(event) => void handleRequestToPartner(partnerService.partner.id, event)}
                         disabled={requestActionLoading !== null}
                         className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn bg-gradient-to-r ${tier.buttonBg} text-white`}
                       >
@@ -1114,13 +1141,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       {partnerService.partner.slug && partnerService.partner.isPublicProfile && (
                         <Link
                           href={`/pro/${partnerService.partner.slug}`}
-                          onClick={(e) => e.stopPropagation()}
                           className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
                         >
                           Ver perfil
                         </Link>
                       )}
-                    </div>
+                    </article>
                   )
                 })}
             </div>
@@ -1133,86 +1159,56 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <Users size={32} className="text-white md:w-10 md:h-10" />
                 </div>
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-                  ¡Aún no hay profesionales disponibles!
+                  Aún no hay profesionales de {service.name} en {currentCityName()}
                 </h2>
                 <p className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto">
-                  Sé el primero en ofrecer <span className="font-semibold text-primary-600">{service.name}</span> en tu ciudad o notifícanos que estás buscando este servicio.
+                  Pídelo igual: avisamos a los socios de la zona y ampliamos la búsqueda hasta que alguien te proponga. O déjanos tu WhatsApp y te escribimos cuando haya.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
-                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-primary-100 hover:border-primary-300 transition-all hover:shadow-xl group">
+                <div className="bg-white rounded-2xl p-5 md:p-6 shadow-md border-2 border-primary-100">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Briefcase size={24} className="text-white" />
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center">
+                      <Sparkles size={24} className="text-white" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2">Conviértete en Socio</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg text-gray-900 mb-1">Pídelo igual</h3>
                       <p className="text-gray-600 text-sm mb-4">
-                        Ofrece tus servicios profesionales, gana dinero extra y construye tu reputación en la plataforma.
+                        Creamos tu solicitud y se la mostramos a socios verificados de {currentCityName()} y alrededores. Te avisamos cuando llegue la primera propuesta.
                       </p>
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        <div className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded-full">
-                          <TrendingUp size={12} />
-                          <span>Ingresos flexibles</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-full">
-                          <Shield size={12} />
-                          <span>Verificación segura</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-purple-700 bg-purple-50 px-2 py-1 rounded-full">
-                          <Sparkles size={12} />
-                          <span>Sin costos iniciales</span>
-                        </div>
-                      </div>
                       <button
-                        onClick={async () => {
-                          if (session) {
-                            await signOut({ redirect: false })
-                          }
-                          router.push('/registro-socios')
-                        }}
-                        className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-primary-600 hover:to-secondary-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+                        type="button"
+                        onClick={(event) => void handleRequest(event)}
+                        disabled={requestActionLoading !== null}
+                        className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 text-base font-bold text-white shadow-md disabled:opacity-60"
                       >
-                        <UserPlus size={18} />
-                        <span>Registrarme como Socio</span>
-                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        {requestActionLoading === 'ALL' ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/70 border-t-white" /> : <ChevronRight size={18} />}
+                        <span>Solicitar {service.name}</span>
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-blue-100 hover:border-blue-300 transition-all hover:shadow-xl group">
+                <div className="bg-white rounded-2xl p-5 md:p-6 shadow-md border-2 border-blue-100">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
                       <Bell size={24} className="text-white" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2">Notificar Interés</h3>
-                      <p className="text-gray-600 text-sm mb-4">
-                        Déjanos saber que necesitas este servicio. Te avisaremos cuando haya profesionales disponibles.
-                      </p>
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                        <p className="text-xs text-blue-800">
-                          <span className="font-semibold">💡 Aviso:</span> Te avisamos cuando haya profesionales para este servicio.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const message = `Hola, estoy interesado en el servicio de ${service.name} en ${getCityBySlug(slug)?.name || 'mi ciudad'}. ¿Cuándo estará disponible?`
-                          if (whatsappPhone) window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`, '_blank')
-                          else window.location.href = `mailto:hola@lohaggo.com?subject=${encodeURIComponent(`Interés en ${service.name}`)}&body=${encodeURIComponent(message)}`
-                        }}
-                        className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
-                      >
-                        <Bell size={18} />
-                        <span>Notificar mi Interés</span>
-                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg text-gray-900 mb-1">Avísame cuando haya</h3>
+                      <p className="text-gray-600 text-sm mb-4">Guardamos tu interés en {service.name} y te escribimos por WhatsApp apenas haya socios.</p>
+                      <WaitlistCapture citySlug={activeCitySlug()} cityName={currentCityName()} serviceSlug={slug} serviceName={service.name} />
                     </div>
                   </div>
                 </div>
               </div>
+
+              {!session && (
+                <p className="mb-6 text-center text-sm text-gray-600">
+                  ¿Ofreces este servicio? <Link href="/registro-socios" className="font-semibold text-primary-600 underline underline-offset-2">Únete como socio</Link>
+                </p>
+              )}
 
               <div className="bg-gradient-to-r from-primary-100 to-secondary-100 rounded-xl p-6 border border-primary-200">
                 <div className="flex flex-col md:flex-row items-center gap-4">
@@ -1245,7 +1241,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         <>
           <div className="h-28 md:hidden" aria-hidden="true" />
           <StickyRequestBar
-            label={`Solicitar ${service.name} · desde ${formatCurrency(fromPrice)}`}
+            label={`Solicitar ${service.name}`}
+            price={`Desde ${formatCurrency(from.amount)}`}
+            feeNote={fromFee}
             loading={requestActionLoading === 'ALL'}
             onRequest={() => void handleRequest()}
             whatsappPhone={whatsappPhone}
@@ -1259,13 +1257,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       {/* Request Modal */}
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[100] sm:p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto relative z-[101]">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92dvh] overflow-y-auto overscroll-contain relative z-[101]">
             {successInfo ? (
               <RequestSuccess
                 serviceName={service.name}
                 cityName={currentCityName()}
                 partnerCount={service.partners.length}
                 partnerName={successInfo.partnerName}
+                partnersNotified={successInfo.partnersNotified}
+                hasPhotos={successInfo.hasPhotos}
+                hasBudget={successInfo.hasBudget}
                 whatsappPhone={whatsappPhone}
                 whatsappText={`Hola, acabo de pedir ${service.name} en LoHaggo. ¿Me ayudas? (ref: web-${slug})`}
                 onWhatsAppClick={() => trackWhatsApp('request_success')}
@@ -1317,6 +1318,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   onSelectSaved={(id) => { setSelectedAddressId(id); setAddressMode('saved') }}
                   onUseNew={() => setAddressMode('new')}
                   onNewAddressChange={setNewAddress}
+                  error={formError?.step === 1 ? { field: formError.field as 'street' | 'neighborhood' | 'saved', message: formError.message } : null}
                 />
               )}
 
@@ -1347,28 +1349,82 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
                         <p className="text-xs md:text-sm text-gray-600 mt-0.5">{opt.desc}</p>
                         {opt.id === 'scheduled' && when === 'scheduled' && (
-                          <div className="grid grid-cols-2 gap-3 mt-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
                             <div>
-                              <label htmlFor="req-date" className="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                              <p id="req-day-label" className="mb-1.5 text-xs font-medium text-gray-700">Día</p>
+                              <div role="group" aria-labelledby="req-day-label" className="flex flex-wrap gap-2">
+                                {DAY_CHIPS.map((chip) => {
+                                  const on = chipFromDate(requestData.preferredDate) === chip.id
+                                  return (
+                                    <button
+                                      key={chip.id}
+                                      type="button"
+                                      aria-pressed={on}
+                                      onClick={() => {
+                                        const date = dayChipDate(chip.id)
+                                        const keep = rangeAvailable(timeRange, date)
+                                        if (!keep) setTimeRange('any')
+                                        setRequestData({ ...requestData, preferredDate: date, preferredTime: keep ? requestData.preferredTime : '' })
+                                      }}
+                                      className={`min-h-[44px] rounded-full border-2 px-4 text-sm font-semibold transition ${on ? 'border-secondary-500 bg-secondary-500 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300'}`}
+                                    >
+                                      {chip.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              <label htmlFor="req-date" className="mb-1 mt-3 block text-xs font-medium text-gray-700">Otro día</label>
                               <input
                                 id="req-date"
                                 type="date"
-                                min={new Date(Date.now() - 5 * 3600_000).toISOString().split('T')[0]}
+                                min={dayChipDate('today')}
                                 value={requestData.preferredDate}
                                 onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
+                                aria-invalid={formError?.field === 'date'}
+                                aria-describedby={formError?.field === 'date' ? 'req-when-err' : undefined}
                                 className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-base"
                               />
                             </div>
                             <div>
-                              <label htmlFor="req-time" className="block text-xs font-medium text-gray-700 mb-1">Hora</label>
-                              <input
-                                id="req-time"
-                                type="time"
-                                value={requestData.preferredTime}
-                                onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
-                                className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-base"
-                              />
+                              <p id="req-range-label" className="mb-1.5 text-xs font-medium text-gray-700">Franja <span className="font-normal text-gray-400">(opcional)</span></p>
+                              <div role="group" aria-labelledby="req-range-label" className="grid grid-cols-2 gap-2">
+                                {TIME_RANGES.map((range) => {
+                                  const on = timeRange === range.id
+                                  const available = rangeAvailable(range.id, requestData.preferredDate)
+                                  return (
+                                    <button
+                                      key={range.id}
+                                      type="button"
+                                      aria-pressed={on}
+                                      disabled={!available}
+                                      onClick={() => {
+                                        setTimeRange(range.id)
+                                        setRequestData({ ...requestData, preferredTime: range.id === 'exact' ? requestData.preferredTime : rangeTime(range.id) })
+                                      }}
+                                      className={`min-h-[44px] rounded-2xl border-2 px-3 py-1.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${on ? 'border-secondary-500 bg-primary-50' : 'border-gray-200 bg-white hover:border-primary-300'}`}
+                                    >
+                                      <span className="block text-sm font-semibold text-gray-900">{range.label}</span>
+                                      <span className="block text-[11px] text-gray-500">{range.hint}</span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              {timeRange === 'exact' && (
+                                <div className="mt-3">
+                                  <label htmlFor="req-time" className="mb-1 block text-xs font-medium text-gray-700">Hora</label>
+                                  <input
+                                    id="req-time"
+                                    type="time"
+                                    value={requestData.preferredTime}
+                                    onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
+                                    aria-invalid={formError?.field === 'time'}
+                                    aria-describedby={formError?.field === 'time' ? 'req-when-err' : undefined}
+                                    className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-base"
+                                  />
+                                </div>
+                              )}
                             </div>
+                            {formError?.step === 2 && <p id="req-when-err" role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{formError.message}</p>}
                           </div>
                         )}
                       </div>
@@ -1397,7 +1453,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         {when === 'asap' && <span className="text-red-600 font-medium">⚡ {WHEN_LABEL.asap}</span>}
                         {when === 'flexible' && WHEN_LABEL.flexible}
                         {when === 'scheduled' && (requestData.preferredDate
-                          ? `${new Date(`${requestData.preferredDate}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${requestData.preferredTime || '—'}`
+                          ? `${new Date(`${requestData.preferredDate}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}${requestData.preferredTime ? ` a las ${requestData.preferredTime}` : ' · cualquier hora'}`
                           : 'Sin fecha')}
                       </span>
                     </div>
@@ -1436,7 +1492,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-secondary-500/20 focus:border-secondary-500 outline-none text-base"
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Si lo pones, debe ser al menos {formatCurrency(minBudget)}.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Si lo pones, debe ser al menos {formatCurrency(minBudget)}.
+                      {feeNote(minBudget, clientFee, formatCurrency) && <span> {feeNote(minBudget, clientFee, formatCurrency)}.</span>}
+                    </p>
                   </div>
 
                   <div>
@@ -1465,7 +1524,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </label>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Con fotos recibes propuestas más precisas.</p>
+                    <p id="req-photos" tabIndex={-1} className="mt-1 text-xs text-gray-500 outline-none">Con fotos recibes propuestas más precisas.</p>
+                    {formError?.field === 'photos' && <p role="alert" className="mt-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{formError.message}</p>}
                   </div>
 
                   {!session && (
@@ -1498,7 +1558,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                     onClick={() => {
                       const error = currentStep === 1 ? validateAddressStep() : validateWhenStep()
                       if (error) {
-                        setValidationModal({ isOpen: true, message: error })
+                        raise(currentStep as 1 | 2, error.field, error.message)
                         return
                       }
                       setCurrentStep(currentStep + 1)
@@ -1536,15 +1596,28 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         </div>
       )}
 
-      <ConfirmModal
-        isOpen={validationModal.isOpen}
-        onClose={() => setValidationModal({ isOpen: false, message: '' })}
-        onConfirm={() => setValidationModal({ isOpen: false, message: '' })}
-        title="Atención"
-        message={validationModal.message}
-        confirmText="Entendido"
-        type="warning"
-      />
+      {notice && (
+        <div role="alert" className="fixed inset-x-3 top-3 z-[120] mx-auto flex max-w-md items-start gap-3 rounded-2xl bg-gray-900 px-4 py-3 text-sm text-white shadow-lg">
+          <p className="flex-1">{notice}</p>
+          <button type="button" onClick={() => setNotice(null)} aria-label="Cerrar aviso" className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10">
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
+      {comingSoon && (
+        <ComingSoonSheet
+          cityName={currentCityName()}
+          citySlug={activeCitySlug()}
+          nearest={nearestLiveCity(activeCity(), cities)}
+          onUseNearest={(citySlug) => {
+            setSelectedCity(citySlug)
+            setComingSoon(false)
+            void fetchService()
+          }}
+          onClose={() => setComingSoon(false)}
+        />
+      )}
 
       <ConfirmModal
         isOpen={successModal.isOpen}
@@ -1565,6 +1638,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         confirmText="Entendido"
         type={successModal.type}
       />
+      {favoriteLoginOpen && !session && (
+        <PhoneVerify
+          mode="login"
+          onClose={() => { setFavoriteLoginOpen(false); setPendingFavorite(null) }}
+          onVerified={async () => {
+            setFavoriteLoginOpen(false)
+            await updateSession()
+          }}
+        />
+      )}
       {phoneVerifyOpen && (
         <PhoneVerify
           loginHref={withRedirect('/login', `/servicios/${slug}?resume=1`)}

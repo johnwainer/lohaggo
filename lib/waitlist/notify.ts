@@ -8,6 +8,7 @@ import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { deliverWa } from '@/lib/messaging/wa-send'
 import { WA } from '@/lib/messaging/wa-specs'
+import { isPlaceholderEmail } from '@/lib/accounts/phone-login-core'
 
 const logger = createLogger('waitlist-notify')
 const appUrl = () => (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://www.lohaggo.com').replace(/\/+$/, '')
@@ -17,7 +18,7 @@ export async function notifyWaitlistOpened(citySlug: string, opts: { limit?: num
   const city = await prisma.cityConfig.findUnique({ where: { slug: citySlug }, select: { name: true, status: true } })
   if (!city) throw new Error('Ciudad no encontrada')
   if (city.status !== 'ACTIVE') throw new Error(`${city.name} todavía no está activa: el aviso diría algo falso`)
-  const entries = await prisma.cityWaitlist.findMany({ where: { citySlug, notifiedAt: null }, orderBy: { createdAt: 'asc' }, take: opts.limit ?? 500 })
+  const entries = await prisma.cityWaitlist.findMany({ where: { citySlug, notifiedAt: null, NOT: { source: { startsWith: 'service:' } } }, orderBy: { createdAt: 'asc' }, take: opts.limit ?? 500 })
   const runtime = await getMessagingProviderRuntimeConfig()
   let whatsapp = 0
   let email = 0
@@ -28,7 +29,7 @@ export async function notifyWaitlistOpened(citySlug: string, opts: { limit?: num
       const r = await deliverWa({ userId: null, phone: e.phone, name: e.name }, WA.B25({ entryId: e.id, name: e.name, city: city.name })).catch(() => null)
       if (r?.ok) { sent = true; whatsapp++ }
     }
-    if (!sent && runtime.sendgrid?.active) {
+    if (!sent && runtime.sendgrid?.active && !isPlaceholderEmail(e.email)) {
       const first = escapeHtml((e.name || '').split(' ')[0] || '')
       const body = [
         `Hola${first ? ` ${first}` : ''},`,
