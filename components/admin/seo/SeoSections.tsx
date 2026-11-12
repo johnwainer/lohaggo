@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, Search, XCircle } from 'lucide-react'
 import type { SeoCycleOutput, SeoReportOutput, SeoOverview } from '@/lib/seo/agent/views'
-import { RUN_STATUS, RUN_TRIGGER, RUN_TYPE, card, fmtWhen, nf, usd } from './shared'
+import { Loader2 } from 'lucide-react'
+import { RUN_STATUS, RUN_TRIGGER, RUN_TYPE, btnGhost, btnPrimary, card, fmtWhen, nf, seoApi, usd } from './shared'
 
 type Gsc = NonNullable<SeoCycleOutput['gsc']>
 
@@ -14,7 +15,7 @@ const GSC_STEPS: Record<Exclude<Gsc['state'], 'ok'>, { title: string; steps: (g:
   },
   no_account: {
     title: 'Falta conectar la cuenta de Google',
-    steps: () => ['Ve a Conexiones y conecta la cuenta de Google de Search Console.', 'Vuelve aquí y pulsa «Ejecutar ahora».'],
+    steps: () => ['Crea una cuenta de servicio en Google Cloud, activa la «Search Console API» y descarga su clave en JSON.', 'Pega la clave aquí abajo (se guarda cifrada).', 'En Search Console → Configuración → Usuarios y permisos, agrega el correo de esa cuenta como usuario de la propiedad.'],
   },
   no_access: {
     title: 'Google no deja leer esta propiedad',
@@ -30,7 +31,53 @@ const GSC_STEPS: Record<Exclude<Gsc['state'], 'ok'>, { title: string; steps: (g:
   },
 }
 
-export function SearchConsoleCard({ gsc, hasCycle }: { gsc: Gsc | undefined; hasCycle: boolean }) {
+type Probe = { serviceEmail: string | null; siteUrl: string; test: { ok: boolean; message: string } }
+
+/** Connect the Google service account and test Search Console without leaving the SEO panel. */
+function GscConnect({ canEdit, serviceEmail, onChanged }: { canEdit: boolean; serviceEmail: string | null | undefined; onChanged: () => void }) {
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState<'save' | 'test' | null>(null)
+  const [result, setResult] = useState<Probe | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  async function run(mode: 'save' | 'test') {
+    setBusy(mode); setError(null)
+    try {
+      const r = mode === 'save' ? await seoApi<Probe>('/api/admin/seo/gsc', { method: 'PUT', json: { credentials: key } }) : await seoApi<Probe>('/api/admin/seo/gsc', { method: 'POST', json: {} })
+      setResult(r)
+      if (mode === 'save') setKey('')
+      if (r.test.ok) onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo completar')
+    } finally {
+      setBusy(null)
+    }
+  }
+  const email = result?.serviceEmail ?? serviceEmail
+  return (
+    <div className="mt-3 space-y-3 border-t border-amber-200 pt-3 text-gray-800">
+      {email && (
+        <div>
+          <p className="text-xs">Cuenta de servicio conectada (agrégala como usuario en Search Console):</p>
+          <p className="mt-1 break-all rounded-lg bg-white px-2 py-1.5 font-mono text-xs select-all">{email}</p>
+        </div>
+      )}
+      {canEdit ? (
+        <label className="block space-y-1">
+          <span className="text-xs font-medium">{email ? 'Cambiar la clave JSON (opcional)' : 'Clave JSON de la cuenta de servicio'}</span>
+          <textarea value={key} onChange={(e) => setKey(e.target.value)} rows={5} spellCheck={false} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 font-mono text-xs" placeholder='{"type": "service_account", ...}' />
+        </label>
+      ) : <p className="text-xs">Solo un superadmin puede conectar la cuenta de Google.</p>}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {canEdit && <button onClick={() => run('save')} disabled={busy !== null || !key.trim()} className={btnPrimary}>{busy === 'save' && <Loader2 size={15} className="animate-spin" />} Guardar y probar</button>}
+        {email && <button onClick={() => run('test')} disabled={busy !== null} className={btnGhost}>{busy === 'test' && <Loader2 size={15} className="animate-spin" />} Probar conexión</button>}
+      </div>
+      {error && <p className="text-xs text-rose-700">{error}</p>}
+      {result && <p className={`break-words text-xs ${result.test.ok ? 'text-emerald-700' : 'text-amber-900'}`}>{result.test.message}</p>}
+    </div>
+  )
+}
+
+export function SearchConsoleCard({ gsc, hasCycle, canEdit = false, onChanged = () => undefined }: { gsc: Gsc | undefined; hasCycle: boolean; canEdit?: boolean; onChanged?: () => void }) {
   return (
     <section className={card} aria-labelledby="seo-gsc">
       <h2 id="seo-gsc" className="flex items-center gap-2 text-base font-bold text-gray-900"><Search size={18} className="text-primary-600" /> Google Search Console</h2>
@@ -78,7 +125,7 @@ export function SearchConsoleCard({ gsc, hasCycle }: { gsc: Gsc | undefined; has
           <ol className="mt-2 list-decimal space-y-1 pl-5">
             {GSC_STEPS[gsc.state].steps(gsc).map((s) => <li key={s} className="break-words">{s}</li>)}
           </ol>
-          {gsc.state === 'no_access' && gsc.serviceEmail && <p className="mt-2 break-all rounded-lg bg-white px-2 py-1.5 font-mono text-xs select-all">{gsc.serviceEmail}</p>}
+          {(gsc.state === 'no_account' || gsc.state === 'no_access' || gsc.state === 'error') && <GscConnect canEdit={canEdit} serviceEmail={gsc.serviceEmail} onChanged={onChanged} />}
         </div>
       )}
     </section>

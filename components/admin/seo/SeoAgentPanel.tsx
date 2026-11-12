@@ -179,7 +179,7 @@ export default function SeoAgentPanel() {
         </div>
       </section>
 
-      <SearchConsoleCard gsc={out?.gsc} hasCycle={Boolean(lastCycle)} />
+      <SearchConsoleCard gsc={out?.gsc} hasCycle={Boolean(lastCycle)} canEdit={data.canEdit} onChanged={load} />
 
       <OpportunitiesSection
         items={data.opportunities}
