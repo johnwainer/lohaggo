@@ -52,27 +52,57 @@ export const staleAfterMs = (maxDurationS = DEFAULT_MAX_DURATION_S) => (maxDurat
 
 const timeoutType = (job: string) => `cron:timeout:${job}`
 
-/** Marks the runs killed by the platform (never finished) as errors and opens one incident per job. */
+/**
+ * Marks the runs killed by the platform as errors and opens one incident per job. A run counts only if its own row is
+ * still «running» past ITS route's maxDuration + 60 s and was never finished (no finishedAt/durationMs). Candidates are
+ * read first and flipped by id with the «still running» condition repeated, so a run that finishes between the read and
+ * the write (or another reaper that got there first) is never reported: the incident uses the rows really changed.
+ */
 export async function reapStaleRuns(job: string, maxDurationS = DEFAULT_MAX_DURATION_S, now = Date.now()) {
   const cutoff = new Date(now - staleAfterMs(maxDurationS))
+  const candidates = await prisma.cronRun.findMany({
+    where: { job, status: 'running', finishedAt: null, durationMs: null, startedAt: { lt: cutoff } },
+    select: { id: true, startedAt: true },
+    orderBy: { startedAt: 'asc' },
+    take: 50,
+  })
+  if (!candidates.length) return 0
   const { count } = await prisma.cronRun.updateMany({
-    where: { job, status: 'running', startedAt: { lt: cutoff } },
+    where: { id: { in: candidates.map((c) => c.id) }, job, status: 'running', finishedAt: null, durationMs: null, startedAt: { lt: cutoff } },
     data: { status: 'error', finishedAt: new Date(now), error: 'timeout' },
   })
   if (!count) return 0
   const type = timeoutType(job)
+  const detail = `Ejecución(es) ${candidates.slice(0, 5).map((c) => `${c.id} (inició ${c.startedAt.toISOString()})`).join(', ')}; maxDuration de la ruta: ${maxDurationS} s (límite de corte ${maxDurationS + 60} s); detectada ${new Date(now).toISOString()}.`
   const open = await prisma.adminIncident.findFirst({ where: { type, status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, select: { id: true } })
   if (open) {
-    await prisma.adminIncident.update({ where: { id: open.id }, data: { occurrences: { increment: count }, lastSeenAt: new Date(now) } })
+    await prisma.adminIncident.update({ where: { id: open.id }, data: { occurrences: { increment: count }, lastSeenAt: new Date(now), description: detail.slice(0, 1000) } })
   } else {
     const { openIncident } = await import('@/lib/ops/platform-ops')
     await openIncident({
       type, severity: 'HIGH', source: 'system', route: CRON_JOBS.find((j) => j.key === job)?.path ?? null,
       title: `La tarea automática se cortó por tiempo: ${JOB_LABEL[job] ?? job}`,
-      description: `La ejecución superó ${maxDurationS} s y la plataforma la cortó antes de terminar. El trabajo pendiente sigue en la próxima ejecución; si se repite, hay que dividir la tarea.`,
+      description: `La ejecución superó ${maxDurationS} s y la plataforma la cortó antes de terminar. El trabajo pendiente sigue en la próxima ejecución; si se repite, hay que dividir la tarea. ${detail}`,
     })
   }
   return count
+}
+
+/**
+ * Closes our row. A transient DB failure here used to leave a finished run «running» until the reaper reported it as a
+ * platform timeout, so the write is retried before giving up.
+ */
+async function finishRun(id: string, f: { status: 'ok' | 'error'; durationMs: number; summary: unknown; error: string | null }) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await prisma.cronRun.update({ where: { id }, data: { status: f.status, finishedAt: new Date(), durationMs: f.durationMs, summary: (f.summary ?? undefined) as never, error: f.error } })
+      return true
+    } catch (err) {
+      logger.warn(`Cron run ${id} could not be closed (attempt ${attempt + 1})`, err)
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 150 * (attempt + 1)))
+    }
+  }
+  return false
 }
 
 async function resolveTimeoutIncident(job: string) {
@@ -130,7 +160,7 @@ export function cronRoute(job: string, handler: (request: NextRequest) => Promis
     if (run) {
       const text = body ? JSON.stringify(body, (_k, v) => (typeof v === 'string' && v.length > 300 ? `${v.slice(0, 300)}…` : v)) : null
       const summary = text ? (text.length <= 4000 ? JSON.parse(text) : { truncated: true, preview: text.slice(0, 1000) }) : null
-      await prisma.cronRun.update({ where: { id: run.id }, data: { status: ok ? 'ok' : 'error', finishedAt: new Date(), durationMs: Date.now() - started, summary: summary ?? undefined, error } }).catch(() => null)
+      await finishRun(run.id, { status: ok ? 'ok' : 'error', durationMs: Date.now() - started, summary, error })
       await trackIncident(job, ok, error).catch(() => null)
       if (ok) await resolveTimeoutIncident(job).catch(() => null)
       // Keep 14 days of history

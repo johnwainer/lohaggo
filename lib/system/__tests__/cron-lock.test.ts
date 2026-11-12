@@ -75,19 +75,50 @@ describe('candado contra solapamiento', () => {
 })
 
 describe('ejecuciones cortadas por la plataforma', () => {
-  it('marca las viejas como error timeout y abre un incidente cron:timeout', async () => {
+  it('marca las viejas como error timeout y abre un incidente cron:timeout con el detalle', async () => {
+    m.cronFindMany.mockResolvedValueOnce([{ id: 'r1', startedAt: new Date(NOW - 400_000) }])
     m.cronUpdateMany.mockResolvedValueOnce({ count: 1 })
     m.incFindFirst.mockResolvedValueOnce(null)
     const n = await reapStaleRuns('automations', 300, NOW)
     expect(n).toBe(1)
+    expect(m.cronFindMany.mock.calls[0][0].where).toMatchObject({ job: 'automations', status: 'running', finishedAt: null, durationMs: null })
     const call = m.cronUpdateMany.mock.calls[0][0]
-    expect(call.where).toMatchObject({ job: 'automations', status: 'running' })
+    expect(call.where).toMatchObject({ id: { in: ['r1'] }, job: 'automations', status: 'running', finishedAt: null, durationMs: null })
     expect(call.where.startedAt.lt.getTime()).toBe(NOW - 360_000)
     expect(call.data).toMatchObject({ status: 'error', error: 'timeout' })
-    expect(m.openIncident).toHaveBeenCalledWith(expect.objectContaining({ type: 'cron:timeout:automations', severity: 'HIGH' }))
+    expect(m.openIncident).toHaveBeenCalledWith(expect.objectContaining({ type: 'cron:timeout:automations', severity: 'HIGH', description: expect.stringMatching(/r1.*maxDuration de la ruta: 300 s/) }))
+  })
+
+  it('falso positivo: una ejecución que terminó entre la lectura y la escritura no abre incidente', async () => {
+    m.cronFindMany.mockResolvedValueOnce([{ id: 'r1', startedAt: new Date(NOW - 400_000) }])
+    m.cronUpdateMany.mockResolvedValueOnce({ count: 0 })
+    expect(await reapStaleRuns('meta-pending', 300, NOW)).toBe(0)
+    expect(m.openIncident).not.toHaveBeenCalled()
+    expect(m.incUpdate).not.toHaveBeenCalled()
+  })
+
+  it('falso positivo: sin filas vivas pasado su propio límite no hay candidatas', async () => {
+    m.cronFindMany.mockResolvedValueOnce([])
+    expect(await reapStaleRuns('haggo', 60, NOW)).toBe(0)
+    expect(m.cronUpdateMany).not.toHaveBeenCalled()
+    expect(m.cronFindMany.mock.calls[0][0].where.startedAt.lt.getTime()).toBe(NOW - 120_000)
+  })
+
+  it('falso positivo: si el cierre de la fila falla una vez se reintenta y no queda «running»', async () => {
+    m.cronUpdateMany.mockResolvedValue({ count: 0 })
+    m.cronFindMany.mockResolvedValue([])
+    m.cronFindFirst.mockResolvedValue(null)
+    m.cronCreate.mockResolvedValueOnce({ id: 'mine' })
+    m.cronUpdate.mockRejectedValueOnce(new Error('pooler')).mockResolvedValue({})
+    m.incFindFirst.mockResolvedValue(null)
+    const handler = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    await cronRoute('haggo', handler)({ headers: new Headers({ authorization: 'Bearer cron-secret' }) } as never)
+    expect(m.cronUpdate).toHaveBeenCalledTimes(2)
+    expect(m.cronUpdate.mock.calls[1][0].data.status).toBe('ok')
   })
 
   it('no abre un segundo incidente si ya hay uno abierto', async () => {
+    m.cronFindMany.mockResolvedValueOnce([{ id: 'a', startedAt: new Date(NOW - 500_000) }, { id: 'b', startedAt: new Date(NOW - 450_000) }])
     m.cronUpdateMany.mockResolvedValueOnce({ count: 2 })
     m.incFindFirst.mockResolvedValueOnce({ id: 'inc1' })
     await reapStaleRuns('automations', 300, NOW)
@@ -96,7 +127,7 @@ describe('ejecuciones cortadas por la plataforma', () => {
   })
 
   it('sin ejecuciones colgadas no hace nada', async () => {
-    m.cronUpdateMany.mockResolvedValueOnce({ count: 0 })
+    m.cronFindMany.mockResolvedValueOnce([])
     expect(await reapStaleRuns('automations', 300, NOW)).toBe(0)
     expect(m.incFindFirst).not.toHaveBeenCalled()
   })

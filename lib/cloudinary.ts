@@ -145,6 +145,25 @@ class CloudinaryService {
     }
   }
 
+  /** Destroys one asset of any resource type. Resolves 'not found' when it is already gone; throws on any other failure. */
+  public async destroy(publicId: string, resourceType: 'image' | 'raw' | 'video' = 'image'): Promise<'ok' | 'not found'> {
+    if (!this.isEnabled() || !this.config) throw new Error('Cloudinary service is not configured')
+    const timestamp = Math.floor(Date.now() / 1000)
+    const signature = this.generateSignature({ invalidate: 'true', public_id: publicId, timestamp })
+    const form = new FormData()
+    form.append('public_id', publicId)
+    form.append('invalidate', 'true')
+    form.append('timestamp', String(timestamp))
+    form.append('api_key', this.config.apiKey)
+    form.append('signature', signature)
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${this.config.cloudName}/${resourceType}/destroy`, { method: 'POST', body: form })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(`Cloudinary destroy failed: ${data?.error?.message || res.status}`)
+    if (data?.result === 'ok') return 'ok'
+    if (data?.result === 'not found') return 'not found'
+    throw new Error(`Cloudinary destroy failed: ${data?.result ?? 'unknown result'}`)
+  }
+
   public async delete(publicId: string): Promise<void> {
     if (!this.isEnabled() || !this.config) {
       throw new Error('Cloudinary service is not configured')
