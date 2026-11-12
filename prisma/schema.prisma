@@ -210,6 +210,9 @@ model Booking {
   photos                BookingPhoto[]
 
   @@index([origin, createdAt])
+  @@index([status, scheduledDate])
+  @@index([userId, createdAt])
+  @@index([partnerId, status])
 }
 
 /// History of a booking: status changes, reschedules and payment steps, whoever made them (app, chat or admin).
@@ -289,6 +292,8 @@ model ServiceRequest {
   supportCases         AdminSupportCase[]
 
   @@index([origin, createdAt])
+  @@index([status, expiresAt])
+  @@index([userId])
 }
 
 model Proposal {
@@ -313,6 +318,7 @@ model Proposal {
   chat                 Chat?
 
   @@unique([serviceRequestId, partnerId])
+  @@index([partnerId, status])
 }
 
 model Notification {
