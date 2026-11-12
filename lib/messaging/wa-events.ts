@@ -133,7 +133,8 @@ export function waProposalAccepted(bookingId: string, origin?: OriginLike) {
   return safe('B8/C12', async () => {
     const b = await loadBooking(bookingId)
     if (!b) return null
-    if (!fromChat(origin)) await sendWaToUser(b.row.userId, WA.B8(b.data))
+    // A proposal that already had day and hour starts confirmed: the client hears «confirmada», not «te avisamos cuando confirme»
+    if (!fromChat(origin)) await sendWaToUser(b.row.userId, b.row.status === 'CONFIRMED' ? WA.reservaConfirmada(b.data) : WA.B8(b.data))
     if (b.row.partner?.userId) await sendWaToUser(b.row.partner.userId, WA.C12(b.data))
     return true
   })

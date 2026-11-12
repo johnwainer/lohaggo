@@ -181,6 +181,20 @@ describe('aceptar propuesta', () => {
     expect(data.scheduledTime).toBe('09:00')
   })
 
+  it('propuesta con día y hora → la reserva nace CONFIRMED y el evento lo dice; sin hora o con otra fecha del cliente, PENDING', async () => {
+    const day = new Date(Date.now() + 3 * 24 * 3600_000).toISOString().slice(0, 10)
+    m.proposalFindUnique.mockResolvedValue(pendingProposal({ proposedDate: new Date(`${day}T00:00:00.000Z`), proposedTime: '15:00' }))
+    await acceptProposal(client, 'pr1', APP_ORIGIN)
+    expect(m.bookingCreate.mock.calls[0][0].data).toMatchObject({ status: 'CONFIRMED', scheduledTime: '15:00' })
+    expect(m.eventCreate.mock.calls[0][0].data).toMatchObject({ toStatus: 'CONFIRMED' })
+    expect(m.notifyProposalAccepted).toHaveBeenCalledWith('pr1')
+
+    vi.clearAllMocks()
+    m.proposalFindUnique.mockResolvedValue(pendingProposal({ proposedDate: new Date(`${day}T00:00:00.000Z`), proposedTime: null }))
+    await acceptProposal(client, 'pr1', APP_ORIGIN)
+    expect(m.bookingCreate.mock.calls[0][0].data).toMatchObject({ status: 'PENDING' })
+  })
+
   it('una fecha elegida a menos de una hora (o pasada) se rechaza sin crear la reserva', async () => {
     const yesterday = new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10)
     await expect(acceptProposal(client, 'pr1', APP_ORIGIN, { scheduledDate: new Date(`${yesterday}T00:00:00.000Z`), scheduledTime: '10:00' }))

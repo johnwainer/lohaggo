@@ -11,6 +11,7 @@ import { OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@
 import { loadPlatformConfig, preferredDateOnly } from '@/lib/service-requests/ops'
 import { DEFAULT_BOOKING_TIME, bogotaClockTime, bookingWhen, dateOnlyUtc } from '@/lib/bookings/when'
 import { effectiveRates } from '@/lib/payments/commission'
+import { shouldAutoConfirm } from '@/lib/proposals/auto-confirm'
 import { clientCityMismatchMessage, partnerCityMismatchMessage, serviceCityMismatch } from '@/lib/proposals/city-match'
 import { PROPOSAL_FEEDBACK_ACTION, feedbackDetails, type ProposalFeedback, type ProposalReason } from '@/lib/proposals/feedback'
 
@@ -176,6 +177,8 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   // The client's own change wins; otherwise the date the partner proposed; otherwise the request's
   const proposed = proposal.proposedDate ? { scheduledDate: proposal.proposedDate, scheduledTime: proposal.proposedTime ?? sr.preferredTime ?? DEFAULT_BOOKING_TIME } : undefined
   const chosen = opts?.scheduledDate ? opts : proposed
+  // The partner proposed day and hour and the client took them: nothing left for the partner to agree to
+  const initialStatus = shouldAutoConfirm(proposal, opts) ? 'CONFIRMED' : 'PENDING'
   const { scheduledDate, scheduledTime } = resolveSchedule(sr, chosen ?? opts)
   // A date the client or the partner chose must still be ahead (the request's own date is kept as it came)
   if (chosen && bookingWhen({ scheduledDate, scheduledTime }).getTime() < Date.now() + 60 * 60_000) {
@@ -207,7 +210,7 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
         address: sr.address,
         notes: sr.notes,
         city: sr.city,
-        status: 'PENDING',
+        status: initialStatus,
         totalPrice: proposal.price,
         clientCommissionRate: rates.client,
         partnerCommissionRate: rates.partner,
@@ -223,11 +226,11 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
         bookingId: booking.id,
         type: 'status',
         fromStatus: null,
-        toStatus: 'PENDING',
+        toStatus: initialStatus,
         actorType: actorTypeOf(actor, origin),
         actorId: actor.userId,
         ...originColumns(origin),
-        detail: 'Reserva creada al aceptar la propuesta',
+        detail: initialStatus === 'CONFIRMED' ? 'Reserva creada y confirmada al aceptar la propuesta (el socio ya había propuesto día y hora)' : 'Reserva creada al aceptar la propuesta',
       },
     })
 
