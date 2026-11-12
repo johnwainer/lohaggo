@@ -68,7 +68,7 @@ const SMS_BODY: Record<NotificationType, string> = {
   REQUEST_EXPIRING_SOON:         'LoHaggo: Tu solicitud {{service_name}} expira pronto y no tiene propuestas aceptadas.\nVer: {{action_url}}',
   BOOKING_REMINDER_24H:          'LoHaggo: Recordatorio - tu servicio {{service_name}} es manana {{booking_date}} {{booking_time}}.\nVer: {{action_url}}',
   BOOKING_STARTING_SOON:         'LoHaggo: Tu servicio {{service_name}} empieza en 1 hora.\nVer: {{action_url}}',
-  PAYMENT_PENDING_REMINDER:      'LoHaggo: El cliente aun no reporta el pago de {{service_name}}.\nVer: {{action_url}}',
+  PAYMENT_PENDING_REMINDER:      'LoHaggo: {{message}}\nVer: {{action_url}}',
 }
 
 const WA_BODY: Record<NotificationType, string> = {
@@ -308,11 +308,11 @@ Ver detalles:
 {{action_url}}`,
 
   PAYMENT_PENDING_REMINDER:
-`💰 *LoHaggo* – Pago pendiente de reporte
+`💰 *LoHaggo* – ¿Ya te pagaron?
 
 Hola {{user_name}},
 
-El cliente aún no ha reportado el pago del servicio de {{service_name}}. Puedes recordarle por chat.
+{{message}}
 
 Ver reserva:
 {{action_url}}`,
@@ -411,7 +411,7 @@ const EMAIL_HTML: Record<NotificationType, string> = {
     ctxRow('Hora', '{{booking_time}}'),
     'Ver reserva'),
 
-  PAYMENT_PENDING_REMINDER: emailHtml('El cliente aún no ha reportado el pago.',
+  PAYMENT_PENDING_REMINDER: emailHtml('{{message}}',
     ctxRow('Servicio', '{{service_name}}') +
     ctxRow('Cliente', '{{client_name}}'),
     'Ver reserva'),
@@ -444,7 +444,7 @@ const NOTIFICATION_CATALOG: Array<{
   { type: 'REQUEST_EXPIRING_SOON',        name: 'Solicitud por expirar (cliente)',      role: 'CLIENT' },
   { type: 'BOOKING_REMINDER_24H',         name: 'Recordatorio 24h antes del servicio',  role: null },
   { type: 'BOOKING_STARTING_SOON',        name: 'Servicio empieza en 1h',               role: null },
-  { type: 'PAYMENT_PENDING_REMINDER',     name: 'Pago pendiente de reporte (socio)',    role: 'PARTNER' },
+  { type: 'PAYMENT_PENDING_REMINDER',     name: '¿Ya te pagaron? (socio)',    role: 'PARTNER' },
 ]
 
 const CHANNELS: MessagingChannel[] = ['PUSH', 'EMAIL', 'WHATSAPP', 'SMS']

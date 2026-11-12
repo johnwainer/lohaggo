@@ -444,7 +444,8 @@ export function completionNotices(p: CompletionInput) {
   const client = p.clientName?.split(' ')[0] || 'el cliente'
   const ways: string[] = []
   if (p.methods.cash) ways.push(`en efectivo a ${partner}`)
-  if (p.methods.transfer) ways.push(p.bank ? `por transferencia a ${p.bank.bankName} (${p.bank.accountType.toLowerCase()} ${p.bank.masked}; los datos completos están en tu reserva)` : 'por transferencia (los datos de la cuenta están en tu reserva)')
+  // Paid directly to the partner (cash or transfer): without an account on file the client asks for it in the booking chat
+  if (p.methods.transfer) ways.push(p.bank ? `por transferencia a ${p.bank.bankName} (${p.bank.accountType.toLowerCase()} ${p.bank.masked}; los datos completos están en tu reserva)` : `por transferencia (pídele los datos de su cuenta a ${partner} por el chat de tu reserva)`)
   if (p.methods.mercadoPago) ways.push('en línea con MercadoPago desde tu reserva')
   const how = ways.length ? ` Puedes pagar ${ways.length === 1 ? ways[0] : `${ways.slice(0, -1).join(', ')} o ${ways[ways.length - 1]}`}.` : ''
   return {
@@ -454,7 +455,7 @@ export function completionNotices(p: CompletionInput) {
     },
     partner: {
       title: 'Servicio completado: confirma el pago y califica',
-      message: `Completaste ${p.service} con ${client} (reserva #${p.ref}) por ${cop(p.price)}. Cuando ${client} reporte el pago, confírmalo en tus reservas («Confirmar pago»), y califica al cliente.${p.methods.transfer && !p.bank ? ' Registra tu cuenta bancaria para recibir transferencias.' : ''}`,
+      message: `Completaste ${p.service} con ${client} (reserva #${p.ref}) por ${cop(p.price)}. ${client} te paga directo${p.methods.cash && p.methods.transfer ? ', en efectivo o por transferencia' : ''}. Cuando recibas el dinero, confírmalo en tus reservas («Confirmar pago») aunque ${client} aún no lo haya reportado, y califica al cliente.${p.methods.transfer && !p.bank ? ' Registra tu cuenta bancaria o Nequi para que te puedan transferir.' : ''}`,
     },
   }
 }
