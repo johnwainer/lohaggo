@@ -21,6 +21,7 @@ import { requestCase, scanAttention } from '@/lib/admin/request-360'
 import { cityLaunchStatus } from '@/lib/cities/launch'
 import { conversionStats } from '@/lib/analytics/conversions'
 import { trafficTab } from '@/lib/analytics/ga4'
+import { seoOverview } from '@/lib/seo/agent/views'
 
 const H = 3600_000
 const MAX_OUTPUT = 8000
@@ -515,6 +516,30 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         recientes: runs.map((r) => ({ campana: r.agent.campaign.name, tipo: r.type, estado: r.status, resumen: r.summary?.slice(0, 160) ?? null, error: r.error?.slice(0, 200) ?? null, costo_usd: r.costUsd, fecha: r.startedAt })),
       }
     },
+  },
+  seo: {
+    def: { name: 'seo', description: 'El agente de SEO: si está encendido y cuándo corrió su último ciclo (y si falló), la salud de SEO del sitio con sus partes, Search Console (estado, clics, impresiones, consultas y páginas principales), las oportunidades abiertas (opportunityId, tipo, título, impacto, esfuerzo, puntaje, estado, palabra clave, URL, si tiene brief y si ya está en el calendario de marketing; las 25 de más puntaje), fallas técnicas por página pública, el último informe semanal (resumen, hallazgos e indicaciones para marketing), la actividad reciente y el gasto del mes frente al tope. Usa el opportunityId para proponer seo.send_to_marketing, seo.dismiss_opportunity o seo.mark_done.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const o = await seoOverview()
+      if (!o.tablesReady) return { agente: { encendido: o.config.enabled, tablas_listas: false, nota: 'Las tablas del agente de SEO aún no existen en la base (falta correr el SQL).' } }
+      const out = o.lastCycle?.output
+      const t = (v: string | null | undefined, n: number) => (v ? untrusted(v.slice(0, n)) : null)
+      const open = o.opportunities.filter((x) => ['open', 'briefed', 'sent'].includes(x.status)).slice(0, 25)
+      const report = o.lastReport?.output
+      return {
+        agente: { encendido: o.config.enabled, envio_automatico_a_marketing: o.config.autoSendToMarketing, ideas_aceptadas_al_enviar: o.config.autoAcceptIdeas, pide_versiones_para_redes: o.config.socialAdaptation, tablas_listas: true, ultimo_ciclo: o.lastCycle ? { fecha: o.lastCycle.at, estado: o.lastCycle.status, origen: o.lastCycle.trigger, resumen: t(o.lastCycle.summary, 300), error: t(o.lastCycle.error, 300) } : null, agente_de_marketing_web: o.marketing.agentId, ideas_web_por_decidir: o.marketing.ideasProposed },
+        gasto: { mes_usd: o.spend.month, tope_usd: o.spend.budget },
+        salud: out?.health ? { puntaje: out.health.score, partes: out.health.parts.map((p) => ({ parte: p.label, puntaje: p.score })) } : null,
+        search_console: out?.gsc ? { estado: out.gsc.state, mensaje: t(out.gsc.message, 200), dias: out.gsc.days, clics: out.gsc.clicks, impresiones: out.gsc.impressions, consultas_principales: out.gsc.top.slice(0, 15).map((q) => ({ consulta: untrusted(q.query.slice(0, 100)), clics: q.clicks, impresiones: q.impressions, posicion: Math.round(q.position * 10) / 10 })), paginas_principales: out.gsc.topPages.slice(0, 10).map((p) => ({ ruta: p.path.slice(0, 120), clics: p.clicks, impresiones: p.impressions })) } : null,
+        conteos: { ...o.counts, por_tipo: o.byKind },
+        oportunidades: open.map((x) => ({ opportunityId: x.id, tipo: x.kind, titulo: untrusted(x.title.slice(0, 160)), detalle: t(x.detail, 240), impacto: x.impact, esfuerzo: x.effort, puntaje: Math.round(x.score * 100) / 100, estado: x.status, palabra_clave: t(x.keyword, 80), url: x.targetUrl?.slice(0, 160) ?? null, con_brief: Boolean(x.brief), en_marketing: Boolean(x.marketingIdeaId), origen: x.source })),
+        fallas_tecnicas: (out?.pages ?? []).filter((p) => p.issues.length).slice(0, 25).map((p) => ({ ruta: p.path, http: p.status, palabras: p.words, fallas: p.issues.slice(0, 6).map((i) => ({ gravedad: i.severity, codigo: i.code, que: untrusted(i.message.slice(0, 160)) })) })),
+        ultimo_informe: report && o.lastReport ? { fecha: o.lastReport.at, resumen: untrusted(String(report.summary ?? '').slice(0, 800)), hallazgos: (report.findings ?? []).slice(0, 8).map((f) => untrusted(String(f).slice(0, 240))), para_marketing: (report.forMarketing ?? []).slice(0, 8).map((f) => untrusted(String(f).slice(0, 240))), propuestas: (report.proposals ?? []).slice(0, 8).map((f) => untrusted(String(f).slice(0, 240))) } : null,
+        actividad_reciente: o.runs.slice(0, 10).map((r) => ({ tipo: r.type, estado: r.status, origen: r.trigger, resumen: t(r.summary, 200), error: t(r.error, 200), costo_usd: r.costUsd, fecha: r.startedAt })),
+        no_disponible: out?.unavailable ?? [],
+      }
+    },
+    maxOutput: 24_000,
   },
   publicidad: {
     def: { name: 'publicidad', description: 'Anuncios internos del sitio (Publicidad): activos, vencidos, impresiones, clics y CTR.', input_schema: { type: 'object', properties: {} } },

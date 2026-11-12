@@ -38,10 +38,11 @@ export async function saveGa4Settings(input: { propertyId?: string | null; crede
   }
   if (input.credentials !== undefined) data.ga4CredentialsEncrypted = input.credentials ? encryptConfig(parseServiceAccount(input.credentials)) : null
   await prisma.analyticsSettings.upsert({ where: { id: 'platform' }, create: { id: 'platform', ...data }, update: data })
-  tokenCache = null
+  tokenCache.clear()
 }
 
-let tokenCache: { token: string; exp: number; email: string } | null = null
+const tokenCache = new Map<string, { token: string; exp: number; email: string }>()
+const ANALYTICS_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly'
 
 /** fetch with a 15 s limit; a slow Google answers as a readable error instead of hanging the tab. */
 async function gaFetch(url: string, init: RequestInit) {
@@ -57,11 +58,13 @@ async function gaFetch(url: string, init: RequestInit) {
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
 
-async function accessToken(account: ServiceAccount) {
-  if (tokenCache && tokenCache.email === account.client_email && tokenCache.exp > Date.now() + 60_000) return tokenCache.token
+/** Read-only token of the service account for one Google scope (Analytics by default; Search Console reuses it). */
+export async function accessToken(account: ServiceAccount, scope = ANALYTICS_SCOPE) {
+  const cached = tokenCache.get(scope)
+  if (cached && cached.email === account.client_email && cached.exp > Date.now() + 60_000) return cached.token
   const now = Math.floor(Date.now() / 1000)
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-  const claim = b64url(JSON.stringify({ iss: account.client_email, scope: 'https://www.googleapis.com/auth/analytics.readonly', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }))
+  const claim = b64url(JSON.stringify({ iss: account.client_email, scope, aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }))
   const signer = createSign('RSA-SHA256')
   signer.update(`${header}.${claim}`)
   const jwt = `${header}.${claim}.${b64url(signer.sign(account.private_key))}`
@@ -71,8 +74,8 @@ async function accessToken(account: ServiceAccount) {
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok || !data.access_token) throw new Ga4Error(`Google rechazó la cuenta de servicio: ${data.error_description || data.error || res.status}`)
-  tokenCache = { token: data.access_token, exp: Date.now() + (data.expires_in ?? 3600) * 1000, email: account.client_email }
-  return tokenCache.token
+  tokenCache.set(scope, { token: data.access_token, exp: Date.now() + (data.expires_in ?? 3600) * 1000, email: account.client_email })
+  return data.access_token as string
 }
 
 type Report = { dimensionHeaders?: Array<{ name: string }>; metricHeaders?: Array<{ name: string }>; rows?: Array<{ dimensionValues?: Array<{ value: string }>; metricValues?: Array<{ value: string }> }> }

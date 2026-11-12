@@ -1,5 +1,6 @@
 import type { Domain } from '@/lib/haggo/config'
 import { CLAIMS, isClaimKey } from '@/lib/public/claims'
+import type { SeoSnapshot } from '@/lib/seo/agent/views'
 
 /** The compact picture Haggo looks at each cycle. Numbers only: no customer text. */
 export type Snapshot = {
@@ -61,6 +62,8 @@ export type Snapshot = {
   requestAttention?: { critical: number; warning: number; info: number; codes: Record<string, number>; top: Array<{ id: string; ref: string; service: string; severity: string; code: string; title: string }> }
   /** WhatsApp code login of the last 24 h: codes sent and confirmed */
   phoneLogin?: { sent24h: number; used24h: number }
+  /** SEO agent (lib/seo/agent/views.ts): undefined when it could not be read */
+  seo?: SeoSnapshot
   /** WhatsApp catalog templates by Meta state (names of the rejected and of the approved under another category) */
   waTemplates?: { approved: number; pending: number; rejected: string[]; recategorized: string[] }
 }
@@ -156,6 +159,17 @@ export function detect(s: Snapshot): Detection[] {
   if (at && at.requests7d >= 5 && at.withOrigin7d / at.requests7d < 0.5) add({ key: 'mk:attribution-coverage', domain: 'marketing', severity: 'info', title: `Solo ${Math.round((at.withOrigin7d / at.requests7d) * 100)} % de las solicitudes de 7 días tienen origen`, detail: `${at.withOrigin7d} de ${at.requests7d}. Sin origen no se sabe qué pauta o pieza funciona: revisar UTM, refs del mensaje prellenado y cookies (resultados_marketing).` })
   if (s.conversions?.configured && at && at.requests7d >= 5 && s.conversions.sent7d === 0) add({ key: 'mk:conversions-silent', domain: 'marketing', severity: 'warning', title: `Las conversiones están configuradas pero no salió ninguna en 7 días (${at.requests7d} solicitudes)`, detail: 'Meta y Google optimizan a ciegas: revisar el token, el píxel y los envíos en Analítica → Origen → Conversiones.' })
   if ((s.attribution?.conversionsFailed7d ?? 0) >= 3) add({ key: 'mk:conversions-failed', domain: 'marketing', severity: 'warning', title: `${s.attribution!.conversionsFailed7d} conversiones no llegaron a Meta o Google en 7 días`, detail: 'Revisar el token y el píxel en Analítica → Origen → Conversiones.' })
+  const seo = s.seo
+  if (seo && seo.enabled && seo.tablesReady) {
+    if (seo.hoursSinceCycle == null || seo.hoursSinceCycle > 36) add({ key: 'seo:cycle-stale', domain: 'marketing', severity: 'warning', title: seo.hoursSinceCycle == null ? 'El agente de SEO nunca ha corrido un ciclo' : `El agente de SEO no corre un ciclo hace ${Math.round(seo.hoursSinceCycle)} h`, detail: 'Su cron corre a diario. Revisar la tarea «seo-agent» en salud_sistema y, si hace falta, correrlo con seo.run_cycle.' })
+    if (seo.lastCycleFailed) add({ key: 'seo:cycle-failing', domain: 'marketing', severity: 'warning', title: 'El último ciclo del agente de SEO falló', detail: 'Ver el error en la herramienta seo (actividad reciente) y reintentar con seo.run_cycle.' })
+    if (seo.pagesWithCritical.length) add({ key: 'seo:technical', domain: 'marketing', severity: 'critical', title: `${plural(seo.pagesWithCritical.length, 'página pública con fallas críticas', 'páginas públicas con fallas críticas')} (noindex inesperado, no responden, sin título)`, detail: seo.pagesWithCritical.map((p) => `${p.path}: ${p.message}`).join(' · ') + '. Ver seo (fallas_tecnicas).' })
+    if (seo.gsc === 'no_account' || seo.gsc === 'no_access') add({ key: 'seo:gsc-missing', domain: 'marketing', severity: 'info', title: seo.gsc === 'no_account' ? 'Search Console no está conectado al agente de SEO: falta la cuenta de servicio' : 'La cuenta de servicio no tiene acceso a la propiedad de Search Console', detail: seo.gsc === 'no_account' ? 'Usa la misma cuenta de servicio de GA4: sin ella el agente no ve consultas ni clics reales.' : 'Agregar el correo de la cuenta de servicio como usuario de la propiedad en Search Console.' })
+    if (seo.highOpen >= 8) add({ key: 'seo:backlog', domain: 'marketing', severity: 'info', title: `${seo.highOpen} oportunidades de SEO de impacto alto sin atender`, detail: `${seo.open} abiertas en total. Enviar los artículos a marketing (seo.send_to_marketing) o descartar lo que no aplica. Ver seo.` })
+    if (seo.budgetPct >= 90) add({ key: 'seo:budget', domain: 'marketing', severity: 'info', title: `El agente de SEO usó el ${seo.budgetPct} % de su presupuesto mensual de IA`, detail: 'Al llegar al tope sigue con las reglas gratis pero deja de escribir briefs hasta el mes siguiente.' })
+    if (seo.noMarketingAgent && seo.open > 0) add({ key: 'seo:no-marketing-agent', domain: 'marketing', severity: 'info', title: 'Hay oportunidades de SEO pero ningún agente de marketing con el canal web encendido', detail: 'Los briefs de artículos no tienen a dónde ir: activar un agente de marketing con el canal web.' })
+    if (seo.health != null && seo.health < 50) add({ key: 'seo:health-low', domain: 'marketing', severity: 'warning', title: `La salud de SEO del sitio está en ${seo.health}/100`, detail: 'Ver las partes de la puntuación en seo (salud).' })
+  }
   const ra = s.requestAttention
   if (ra) {
     for (const t of ra.top.filter((x) => x.severity === 'critical')) {

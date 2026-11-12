@@ -148,6 +148,11 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'requests.open_case': { raw: { requestId: 'req_123456', subject: 'Intentos de pasar contacto', description: 'Tres intentos bloqueados en el chat de la propuesta.' }, before: null },
   'marketing.request_ad_package': { raw: { service: 'Plomería', city: 'Medellín', instruction: 'Plomería trae solicitudes a $12.000 y no tiene pauta activa' }, before: { service: 'Plomería', city: 'Medellín', workspaceId: 'ws_default_lohaggo' } },
   'marketing.propose_budget_shift': { raw: { fromAdSet: 'Hogar', toAdSet: 'Reparaciones', dailyCop: 3000, reason: 'Hogar $40.000 por solicitud frente a $15.000 de Reparaciones en 7 días' }, before: { daysWithSpend: 5 } },
+  'seo.run_cycle': { raw: {}, before: { withAi: false } },
+  'seo.run_cycle_ai': { raw: {}, before: { withAi: true } },
+  'seo.send_to_marketing': { raw: { opportunityId: 'opp_123456' }, before: { title: 'Guía de plomería', kind: 'content_gap', status: 'briefed', hasBrief: true } },
+  'seo.dismiss_opportunity': { raw: { opportunityId: 'opp_123456', reason: 'Ya existe un artículo igual' }, before: { title: 'Guía de plomería', status: 'open' } },
+  'seo.mark_done': { raw: { opportunityId: 'opp_123456' }, before: { title: 'Título de la portada', status: 'open' } },
   'ai_agents.pause': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'active', open: 3 } },
   'ai_agents.activate': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'paused', open: 0 } },
   'ai_agents.update_instructions': { raw: { agentId: 'agent_123456', tone: 'Cercano' }, before: { name: 'Soporte', instructions: 'a', goal: 'b', tone: 'Formal' } },
@@ -378,7 +383,7 @@ describe('Haggo puede encontrar lo que cada acción necesita', () => {
     conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
     requestId: ['solicitudes_con_atencion', 'solicitud_detalle'], proposalId: ['solicitud_detalle'], bookingId: ['solicitud_detalle'],
     key: ['funciones', 'configuracion_plataforma'], partnerId: ['socios', 'resenas', 'verificacion_documentos', 'socio_detalle'], paymentId: ['dinero'], slug: ['configuracion_plataforma'],
-    campaignId: ['mensajeria'],
+    campaignId: ['mensajeria'], opportunityId: ['seo'],
   }
   it('todo identificador requerido tiene una herramienta de lectura que lo muestra', () => {
     for (const a of ACTIONS) {
@@ -443,5 +448,46 @@ describe('auditoría de Haggo', () => {
     expect(out.indexOf('requestAttention')).toBeLessThan(out.indexOf('sales'))
     expect(out).toContain('sin espacio para: big')
     expect(() => JSON.parse(out.split(' (sin espacio')[0])).not.toThrow()
+  })
+})
+
+describe('acciones del agente de SEO', () => {
+  const seo = ['seo.run_cycle', 'seo.run_cycle_ai', 'seo.send_to_marketing', 'seo.dismiss_opportunity', 'seo.mark_done']
+  it('están registradas en marketing y son de riesgo bajo, salvo la que gasta en IA', () => {
+    for (const id of seo) expect(getAction(id)?.domain, id).toBe('marketing')
+    expect(getAction('seo.run_cycle')).toMatchObject({ risk: 'low', sideEffects: [] })
+    expect(getAction('seo.run_cycle_ai')).toMatchObject({ risk: 'medium', sideEffects: ['spends'] })
+    for (const id of ['seo.send_to_marketing', 'seo.dismiss_opportunity', 'seo.mark_done']) expect(getAction(id)!.risk, id).toBe('low')
+  })
+  it('descartar exige un motivo de al menos 5 caracteres y un identificador válido', () => {
+    const a = getAction('seo.dismiss_opportunity')!
+    expect(a.parse({ opportunityId: 'opp_123456' }).ok).toBe(false)
+    expect(a.parse({ opportunityId: 'opp_123456', reason: 'no' }).ok).toBe(false)
+    expect(a.parse({ opportunityId: 'x; DROP', reason: 'No aplica a la marca' }).ok).toBe(false)
+    expect(a.parse({ opportunityId: 'opp_123456', reason: 'No aplica a la marca' }).ok).toBe(true)
+  })
+  it('las precondiciones leen el estado real: no existe, es un arreglo, ya está en marketing', async () => {
+    const find = vi.fn()
+    db.current = { seoOpportunity: { findUnique: find } }
+    const send = getAction('seo.send_to_marketing')!
+    const p = { opportunityId: 'opp_123456' }
+    find.mockResolvedValueOnce(null)
+    expect(await send.preconditions(p)).toMatchObject({ ok: false, reason: 'La oportunidad no existe' })
+    find.mockResolvedValueOnce({ title: 'x', kind: 'meta', status: 'open', marketingIdeaId: null, brief: null })
+    expect(await send.preconditions(p)).toMatchObject({ ok: false, reason: expect.stringContaining('arreglo') })
+    find.mockResolvedValueOnce({ title: 'x', kind: 'content_gap', status: 'sent', marketingIdeaId: 'idea_123456', brief: {} })
+    expect(await send.preconditions(p)).toMatchObject({ ok: false, reason: expect.stringContaining('calendario') })
+    find.mockResolvedValueOnce({ title: 'x', kind: 'content_gap', status: 'done', marketingIdeaId: null, brief: null })
+    expect(await getAction('seo.mark_done')!.preconditions(p)).toMatchObject({ ok: false })
+    find.mockResolvedValueOnce({ title: 'x', kind: 'content_gap', status: 'open', marketingIdeaId: null, brief: null })
+    expect(await getAction('seo.dismiss_opportunity')!.preconditions({ ...p, reason: 'No aplica' })).toMatchObject({ ok: true })
+    db.current = null
+  })
+  it('no corre un ciclo si ya hay uno en marcha', async () => {
+    db.current = { seoRun: { findFirst: vi.fn().mockResolvedValue({ id: 'run1' }) } }
+    expect(await getAction('seo.run_cycle')!.preconditions({})).toMatchObject({ ok: false })
+    db.current = { seoRun: { findFirst: vi.fn().mockResolvedValue(null) } }
+    expect(await getAction('seo.run_cycle')!.preconditions({})).toMatchObject({ ok: true })
+    db.current = null
   })
 })

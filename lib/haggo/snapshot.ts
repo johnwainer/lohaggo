@@ -13,6 +13,7 @@ import type { Snapshot } from '@/lib/haggo/detect'
 import { guaranteeStats } from '@/lib/guarantee/ops'
 import { cityLaunchStatus } from '@/lib/cities/launch'
 import { catalogStatus } from '@/lib/messaging/wa-registry'
+import { seoSnapshot } from '@/lib/seo/agent/views'
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
 const round = (n: number) => Math.round(n * 100) / 100
@@ -144,7 +145,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     Promise.all(capped.map((w) => safe(`budgets.${w.name}`, workspaceUsage(w.id).then((u) => ({ workspace: w.name, pct: evaluateBudget(u, { costCapUsd: w.aiMonthlyCostCapUsd, callCap: w.aiMonthlyCallCap }).pct })), null))).then((xs) => xs.filter((x): x is { workspace: string; pct: number } => Boolean(x))),
     moreExtras(today, day, week, safe),
   ])
-  const [attribution, requestAttention, phoneLogin] = await Promise.all([
+  const [attribution, requestAttention, phoneLogin, seo] = await Promise.all([
     safe('attribution', attributionSnapshot(now), undefined),
     safe('requestAttention', cachedAttention(now).then((items) => {
       const flags = items.flatMap((x) => x.flags.map((f) => ({ ...f, id: x.id, ref: x.ref, service: x.service })))
@@ -162,6 +163,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
       prisma.phoneLoginCode.count({ where: { createdAt: { gte: day } } }),
       prisma.phoneLoginCode.count({ where: { createdAt: { gte: day }, usedAt: { not: null } } }),
     ]).then(([sent, used]) => ({ sent24h: sent, used24h: used })), undefined),
+    safe('seo', seoSnapshot(now), undefined),
   ])
 
   const s = o?.series
@@ -229,6 +231,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     conversions: extras.conversions,
     requestAttention,
     phoneLogin,
+    seo,
   }
 }
 

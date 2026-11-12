@@ -13,6 +13,7 @@ export const PLATFORM_CAPABILITIES = `Cómo funciona LoHaggo hoy:
 - WhatsApp es el canal principal: un catálogo de plantillas (lib/messaging/wa-catalog.ts) que salen solas en cada evento (propuestas, reservas, pagos, garantía, documentos, avisos al equipo). Se activan el día que Meta las aprueba (registro en vivo de Twilio); mientras tanto cae a la plantilla vieja aprobada o no sale. Cada envío queda en la conversación y los botones de respuesta rápida los atiende el agente de IA.
 - Operación por chat: herramientas (por grupos; las de cada agente en agente_ia) para que clientes y socios hagan todo por WhatsApp/Messenger/Instagram (pedir un servicio, aceptar propuestas, reprogramar, cancelar, reportar y confirmar pagos, calificar, proponer como socio, editar su perfil, reclamar la garantía). Vinculación de la cuenta con un código, confirmación explícita antes de lo que compromete dinero o agenda, límites diarios por conversación, marca origin='chat' en cada registro, registro en AiAgentAction y, en copiloto, aprobación de la acción en la bandeja.
 - Marketing: agentes de marketing por campaña (estrategia, plan, redacción, programación), editor de publicaciones con revisión editorial (corrector y editor), blog y redes (Facebook, Instagram), y agente de pauta que prepara anuncios para Meta Ads (se suben a mano).
+- Agente de SEO (lib/seo/agent, panel /admin/seo): cada día corre reglas gratis sobre el catálogo, las ciudades, el blog, las búsquedas sin resultado, la revisión técnica de páginas públicas (noindex, páginas que no responden, sin título) y Search Console (misma cuenta de servicio de GA4). Cada semana, con IA, escribe briefs de artículos y un informe con propuestas. Los briefs se envían al backlog del agente de marketing como ideas del canal web, y el planificador y el redactor de marketing reciben sus palabras clave y briefs. Si su configuración lo pide (socialAdaptation), el artículo también pide versiones de Instagram y Facebook al agente de marketing. Todo es configurable en su Configuración y nunca publica. Lo lees con la herramienta seo y lo operas con seo.run_cycle, seo.send_to_marketing, seo.dismiss_opportunity y seo.mark_done.
 - Garantía LoHaggo (lib/guarantee/policy.ts, página /garantia): cubre «no llegó» (hasta 24 h después de la hora), trabajo incompleto o distinto (hasta 72 h después de completada) y daños (siempre una persona; LoHaggo media, no paga daños). Remedios: otro socio con prioridad (solicitud nueva urgente), cancelación sin costo, que el mismo socio corrija, y reembolso solo si pagó en línea. SLA: solución en 24 h, resuelto en 72 h. 2 faltas del socio en 90 días lo pausan solo; con 3 el equipo decide suspender. El cliente reclama por chat (reportar_problema_servicio) y el equipo resuelve en /admin/guarantee; tú solo recomiendas.
 - Afirmaciones públicas del sitio (confianza y promociones) controladas por interruptores (lib/public/claims.ts); las cifras salen de la base y solo se muestran sobre un mínimo. Nada inventado.
 - Pedir sin cuenta: al final del formulario el cliente confirma su celular con un código por WhatsApp (plantilla A1) y queda con sesión; si el número no tiene cuenta se crea una de cliente con correo interno (wa-…@clientes.lohaggo.com, nunca recibe correo). Una cuenta existente cuyo celular nunca se confirmó recibe el enlace en su correo. /login también entra con código, y el enlace de acceso a pedido llega por WhatsApp (B2/C2) al número de la cuenta.
@@ -27,6 +28,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-11-13',
+    area: 'SEO',
+    change: 'Agente de SEO (/admin/seo). Cada día corre sus reglas gratis; cada semana usa IA para escribir briefs de artículos y un informe con propuestas. Los briefs entran al backlog del agente de marketing como ideas del canal web y su planificador y redactor reciben sus palabras clave y guiones. Nunca publica. Tienes la herramienta seo (salud, Search Console, oportunidades, fallas técnicas, informe, actividad y gasto), las acciones seo.run_cycle, seo.run_cycle_ai, seo.send_to_marketing, seo.dismiss_opportunity y seo.mark_done, y las reglas seo:cycle-stale, seo:cycle-failing, seo:technical, seo:gsc-missing, seo:backlog, seo:budget, seo:no-marketing-agent y seo:health-low. La foto trae seo.',
+    impacto: 'El blog y las páginas se orientan a lo que la gente busca y los arreglos técnicos (noindex, páginas caídas, sin título) se detectan solos.',
+    comoVerlo: 'seo (oportunidades, fallas_tecnicas, ultimo_informe), la foto (seo.*) y las reglas seo:*.',
+  },
   {
     date: '2026-10-01',
     area: 'Marketing',
@@ -124,13 +132,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'Revisión editorial automática (corrector y editor experto); el agente aplica las sugerencias y aprende de ellas; Haggo puede pedir otra revisión.',
     impacto: 'Las piezas no salen sin revisión; el editor puede retenerlas.',
     comoVerlo: 'marketing (retenidas_por_editor) y la foto (marketing.editorial).',
-  },
-  {
-    date: '2026-09-26',
-    area: 'Marketing',
-    change: 'Calendario con arrastrar y soltar por canal e idea; el plan revisa semana a semana hasta el fin de la campaña.',
-    impacto: 'Reprogramar publicaciones es más fácil; planes más largos.',
-    comoVerlo: 'marketing (programadas).',
   },
 ]
 

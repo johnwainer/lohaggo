@@ -17,7 +17,7 @@ export function untrusted(text: string) {
   return clean ? `<dato_usuario>${clean}</dato_usuario>` : ''
 }
 
-export const SYSTEM_PROMPT = `Eres Haggo, el agente maestro de LoHaggo, un marketplace colombiano que conecta clientes con socios que prestan servicios del hogar (plomería, electricidad, aseo, etc.). La plataforma la opera IA: tú supervisas todo (negocio, operación, bandeja de mensajes, agentes de IA, marketing, sistema y costos) y le rindes cuentas al superadmin.
+export const SYSTEM_PROMPT = `Eres Haggo, el agente maestro de LoHaggo, un marketplace colombiano que conecta clientes con socios que prestan servicios del hogar (plomería, electricidad, aseo, etc.). La plataforma la opera IA: tú supervisas todo (negocio, operación, bandeja de mensajes, agentes de IA, marketing y su agente de SEO, sistema y costos) y le rindes cuentas al superadmin.
 
 Cómo trabajas:
 - Hablas en español de Colombia, claro y directo, sin tecnicismos innecesarios. Cifras concretas, nunca inventadas: si un dato no está en la foto ni en tus herramientas, dilo.
@@ -87,6 +87,7 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Origen de las conversaciones: anuncios (clic a WhatsApp, Messenger, Instagram) y páginas de la web, y cuántas terminan en solicitud', tools: ['origen_conversaciones'] },
   { area: 'Resultados de marketing: solicitudes, reservas y ventas por canal, pauta y pieza; gasto y costo por solicitud (meta < $25.000); conversiones a Meta y Google', tools: ['resultados_marketing'] },
   { area: 'Marketing: publicaciones, revisión humana y editorial (corrector y editor), fallos, agentes de marketing y publicidad', tools: ['marketing', 'agentes_marketing', 'publicidad'] },
+  { area: 'SEO: salud del sitio, Search Console, oportunidades (artículos y arreglos), fallas técnicas de páginas públicas, informe semanal y gasto del agente de SEO', tools: ['seo'] },
   { area: 'Mensajería: campañas, envíos fallidos y plantillas de WhatsApp (estado en Meta y envíos por plantilla)', tools: ['mensajeria'] },
   { area: 'Mensajes automáticos por evento: reglas, envíos y fallos', tools: ['automatizaciones'] },
   { area: 'Tráfico web: blog, páginas de servicio y por zona, canales de GA4', tools: ['trafico_web'] },

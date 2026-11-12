@@ -92,6 +92,7 @@ import { upgradeOneStyleExample } from '@/lib/marketing/image-style-examples'
 import { ARBITER_TOOL, REVIEW_MISSING_REASON, arbiterPrecheck, arbiterSystem, arbiterTask, isLinkParamAsk, parseArbiter, type ArbiterDecision } from '@/lib/marketing/arbiter-core'
 import { overrideReview } from '@/lib/marketing/editorial-ops'
 import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
+import { WEB_SEO_RULES, briefForIdea, briefText, seoGuidanceForPlanner } from '@/lib/seo/agent/marketing-bridge'
 
 const logger = createLogger('marketing-agent')
 
@@ -391,7 +392,7 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     const toDay = bogota(new Date(Math.min(now.getTime() + agent.horizonDays * DAY, endsAt ? endsAt.getTime() : Infinity))).key
     const input = await callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 7000, effort: 'medium',
-      task: planTask({ gaps, daily, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas }),
+      task: planTask({ gaps, daily, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas, seo: await seoGuidanceForPlanner(now) }),
     }, meter)
     const parsed = parseIdeas(input, { pillars: strategy.pillars.map((p) => p.name), channels: enabledChannels(config), services: ctx.catalog.services.map((s) => s.name), fromDay, toDay, max: maxIdeas, formats: { INSTAGRAM: config.channels.INSTAGRAM.formats, FACEBOOK: config.channels.FACEBOOK.formats, WEB: config.channels.WEB.formats } })
     if (!parsed.ok) throw new AgentError(parsed.errors.join(' · '))
@@ -765,12 +766,15 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     if (!channels.length) throw new AgentError('La idea no tiene canales activos en el agente')
     const ideaInfo = { pillar: idea.pillar, service: idea.service, angle: idea.angle, hypothesis: idea.hypothesis, channels, formats: (idea.formats as Partial<Record<MarketingChannel, string>> | null) ?? {}, rationale: idea.rationale }
     const previous = existing ? versionText(existing.variants) : null
+    // The SEO agent's brief for this idea (or its short rules for any web piece): keyword, outline, FAQs, internal links
+    const seoBrief = channels.includes('WEB') ? await briefForIdea(idea.id) : null
+    const seoText = channels.includes('WEB') ? (seoBrief ? briefText(seoBrief) : WEB_SEO_RULES) : null
     // Time left in the cron: the optional rewrites are skipped when it runs short (a cut run duplicates work)
     const shortOnTime = () => opts.deadline != null && opts.deadline - Date.now() < 90_000
     const utmNote = 'Los enlaces a lohaggo.com escríbelos sin parámetros: la plataforma les añade el seguimiento de la campaña (UTM).'
     const ask = async (corrections: string[] | null, prev: string | null, editor: string[] | null = null) => callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_draft', system: ctx.system, tool: DRAFT_TOOL, maxTokens: channels.includes('WEB') ? 9000 : 4000, effort: 'medium',
-      task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev, editor }),
+      task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev, editor, seo: seoText }),
     }, meter)
 
     // A new version asked to apply the editor's last review starts from its asks

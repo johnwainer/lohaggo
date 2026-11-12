@@ -57,6 +57,8 @@ export const KIND_MODEL: Partial<Record<string, string>> = {
   copilot_suggestion: HAIKU_MODEL,
   comment_suggestion: HAIKU_MODEL,
   marketing_review_spelling: HAIKU_MODEL,
+  seo_agent_brief: SONNET_MODEL,
+  seo_agent_report: SONNET_MODEL,
   haggo_cycle: SONNET_MODEL,
   haggo_report: SONNET_MODEL,
 }

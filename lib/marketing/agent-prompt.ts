@@ -330,7 +330,7 @@ export function strategyTask(extra?: string | null, previous?: Strategy | null) 
   ].filter(Boolean).join('\n')
 }
 
-export function planTask(p: { gaps: Array<{ channel: MarketingChannel; needed: number; dates: string[] }>; daily?: Array<{ channel: MarketingChannel; format: string; perDay: number; dates: string[] }>; order: Array<{ pillar: string; target: number; actual: number }>; exploreCount: number; fromDay: string; toDay: string; maxIdeas: number }) {
+export function planTask(p: { gaps: Array<{ channel: MarketingChannel; needed: number; dates: string[] }>; daily?: Array<{ channel: MarketingChannel; format: string; perDay: number; dates: string[] }>; order: Array<{ pillar: string; target: number; actual: number }>; exploreCount: number; fromDay: string; toDay: string; maxIdeas: number; seo?: string | null }) {
   const daily = p.daily ?? []
   return [
     `Planifica ideas para los huecos del calendario entre ${p.fromDay} y ${p.toDay} con la herramienta proponer_ideas.`,
@@ -342,10 +342,11 @@ export function planTask(p: { gaps: Array<{ channel: MarketingChannel; needed: n
     `Pilares por cubrir primero (objetivo vs. real): ${p.order.map((o) => `${o.pillar} ${o.target} % / ${o.actual} %`).join('; ')}.`,
     `De las ideas, ${p.exploreCount} deben ser de exploración (explore: true), probando pilares, formatos o ángulos poco medidos; el resto, en lo que ya funciona.`,
     `Como máximo ${p.maxIdeas} ideas. No repitas un servicio con el mismo ángulo de lo que ya está en el calendario.`,
-  ].join('\n\n')
+    p.seo ? `<datos tipo="agente de SEO">\n${p.seo}\n</datos>` : '',
+  ].filter(Boolean).join('\n\n')
 }
 
-export function draftTask(p: { idea: { pillar: string; service: string | null; angle: string; hypothesis: string | null; channels: MarketingChannel[]; formats: Partial<Record<MarketingChannel, string>>; rationale: string | null }; utmNote: string; instruction?: string | null; corrections?: string[] | null; previous?: string | null; editor?: string[] | null }) {
+export function draftTask(p: { idea: { pillar: string; service: string | null; angle: string; hypothesis: string | null; channels: MarketingChannel[]; formats: Partial<Record<MarketingChannel, string>>; rationale: string | null }; utmNote: string; instruction?: string | null; corrections?: string[] | null; previous?: string | null; editor?: string[] | null; seo?: string | null }) {
   const i = p.idea
   return [
     'Redacta esta pieza con la herramienta redactar_pieza, una versión por canal pedido.',
@@ -354,6 +355,7 @@ export function draftTask(p: { idea: { pillar: string; service: string | null; a
     Object.values(i.formats).some((f) => f === 'reel' || f === 'story' || f === 'historia')
       ? 'Esta pieza lleva reel o historia: entrega «screen» con el titular y la llamada a la acción en pantalla (y videoQuery si hay reel). En una historia el texto de Instagram o Facebook no se muestra: déjalo vacío.'
       : '',
+    p.seo ? `Plan del agente de SEO para el artículo web (síguelo: estructura, palabra clave, preguntas frecuentes y enlaces internos; no inventes más datos que los que trae):\n<datos tipo="brief SEO">\n${p.seo}\n</datos>` : '',
     p.utmNote,
     p.instruction ? `<datos tipo="indicación del equipo para esta versión">${p.instruction}</datos>` : '',
     p.previous ? `<datos tipo="versión anterior">\n${p.previous.slice(0, 4000)}\n</datos>` : '',

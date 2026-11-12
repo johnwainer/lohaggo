@@ -3110,3 +3110,75 @@ model PhoneLoginCode {
 
   @@index([phone, createdAt])
 }
+
+// ─── SEO agent ───────────────────────────────────────────────────────────────
+
+/// Settings of the SEO agent (one row, id = 'platform'). Sanitized by lib/seo/agent/settings-core.ts.
+model SeoSettings {
+  id             String   @id @default("platform")
+  config         Json
+  updatedByEmail String?
+  updatedAt      DateTime @updatedAt
+}
+
+/// Something the SEO agent found that can bring organic traffic: a content gap, a page to refresh, a technical fix…
+model SeoOpportunity {
+  id              String    @id @default(cuid())
+  /// content_gap | demand_gap | refresh | meta | cannibalization | internal_link | technical | programmatic | ugc | local | growth
+  kind            String
+  title           String
+  detail          String?
+  targetUrl       String?
+  keyword         String?
+  serviceSlug     String?
+  citySlug        String?
+  /// 0–100, higher first
+  score           Float     @default(0)
+  /// low | medium | high
+  impact          String    @default("medium")
+  effort          String    @default("medium")
+  /// open | briefed | sent | done | dismissed
+  status          String    @default("open")
+  /// rules | gsc | page_audit | ai | marketing
+  source          String    @default("rules")
+  evidence        Json?
+  /// Brief written by the agent (lib/seo/agent/brief-core.ts)
+  brief           Json?
+  briefedAt       DateTime?
+  /// MarketingIdea created from this opportunity (marketing agent backlog)
+  marketingIdeaId String?   @unique
+  /// Same finding once: «gap:plomeria:medellin»
+  dedupeKey       String    @unique
+  dismissedReason String?
+  resolvedAt      DateTime?
+  lastSeenAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, score])
+  @@index([kind, status])
+}
+
+/// One execution of the SEO agent: what it read, found and wrote, and what it cost
+model SeoRun {
+  id         String    @id @default(cuid())
+  /// cycle | sync | audit | brief | report
+  type       String
+  /// running | ok | skipped | error
+  status     String    @default("running")
+  /// cron | manual | haggo | marketing
+  trigger    String    @default("cron")
+  summary    String?
+  input      Json?
+  output     Json?
+  costUsd    Float     @default(0)
+  tokensIn   Int       @default(0)
+  tokensOut  Int       @default(0)
+  model      String?
+  error      String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([startedAt])
+  @@index([type, startedAt])
+}

@@ -249,6 +249,39 @@ describe('reglas de detección', () => {
     expect(keys({ attribution: { ...attribution, withOrigin7d: 8 }, conversions: { configured: false, sent7d: 0 } })).toEqual([])
   })
 
+  it('SEO: cada regla se dispara y se cierra sola cuando la condición desaparece', () => {
+    const ok = { enabled: true, tablesReady: true, hoursSinceCycle: 5, lastCycleFailed: false, health: 80, open: 3, highOpen: 1, gsc: 'ok' as const, pagesWithCritical: [], briefsWaiting: 0, budgetPct: 10, noMarketingAgent: false }
+    expect(keys({ seo: ok })).toEqual([])
+    expect(keys({ seo: { ...ok, hoursSinceCycle: 40 } })).toEqual(['seo:cycle-stale'])
+    expect(keys({ seo: { ...ok, hoursSinceCycle: null } })).toEqual(['seo:cycle-stale'])
+    expect(keys({ seo: { ...ok, hoursSinceCycle: 36 } })).toEqual([])
+    expect(keys({ seo: { ...ok, lastCycleFailed: true } })).toEqual(['seo:cycle-failing'])
+    const t = detect({ ...base, seo: { ...ok, pagesWithCritical: [{ path: '/servicios/plomeria', message: 'noindex inesperado' }] } })
+    expect(t.map((d) => d.key)).toEqual(['seo:technical'])
+    expect(t[0]).toMatchObject({ severity: 'critical', domain: 'marketing' })
+    expect(t[0].detail).toContain('/servicios/plomeria')
+    expect(keys({ seo: { ...ok, gsc: 'no_account' } })).toEqual(['seo:gsc-missing'])
+    expect(keys({ seo: { ...ok, gsc: 'no_access' } })).toEqual(['seo:gsc-missing'])
+    expect(keys({ seo: { ...ok, gsc: 'off' } })).toEqual([])
+    expect(keys({ seo: { ...ok, gsc: 'unknown' } })).toEqual([])
+    expect(keys({ seo: { ...ok, highOpen: 8 } })).toEqual(['seo:backlog'])
+    expect(keys({ seo: { ...ok, highOpen: 7 } })).toEqual([])
+    expect(keys({ seo: { ...ok, budgetPct: 90 } })).toEqual(['seo:budget'])
+    expect(keys({ seo: { ...ok, budgetPct: 89 } })).toEqual([])
+    expect(keys({ seo: { ...ok, noMarketingAgent: true } })).toEqual(['seo:no-marketing-agent'])
+    expect(keys({ seo: { ...ok, noMarketingAgent: true, open: 0 } })).toEqual([])
+    expect(detect({ ...base, seo: { ...ok, health: 40 } }).map((d) => [d.key, d.severity])).toEqual([['seo:health-low', 'warning']])
+    expect(keys({ seo: { ...ok, health: null } })).toEqual([])
+  })
+
+  it('SEO: apagado, sin tablas o sin lectura no avisa nada', () => {
+    const bad = { enabled: true, tablesReady: true, hoursSinceCycle: null, lastCycleFailed: true, health: 10, open: 20, highOpen: 20, gsc: 'no_account' as const, pagesWithCritical: [{ path: '/', message: 'x' }], briefsWaiting: 0, budgetPct: 100, noMarketingAgent: true }
+    expect(keys({ seo: bad }).length).toBeGreaterThan(5)
+    expect(keys({ seo: { ...bad, enabled: false } })).toEqual([])
+    expect(keys({ seo: { ...bad, tablesReady: false } })).toEqual([])
+    expect(keys({ seo: undefined })).toEqual([])
+  })
+
   it('costo de IA: hoy más del doble del promedio de 7 días', () => {
     expect(keys({ aiCost: { today: 3, month: 20, avg7d: 1 } })).toEqual(['ai:cost-spike'])
     expect(keys({ aiCost: { today: 1.5, month: 20, avg7d: 1 } })).toEqual([])

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, HeartPulse, LifeBuoy, ToggleRight, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, Sparkles, ShieldCheck, ListChecks, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, HeartPulse, LifeBuoy, ToggleRight, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, Sparkles, ShieldCheck, ListChecks, SearchCheck, type LucideIcon } from 'lucide-react'
 
 export interface MenuItem {
   id: string
@@ -63,6 +63,7 @@ export const ADMIN_MENU: MenuGroup[] = [
     hint: 'Adquisición, comunicación y alcance',
     items: [
       { id: 'marketing', label: 'Publicaciones', icon: Newspaper, href: '/admin/marketing' },
+      { id: 'seo', label: 'SEO', icon: SearchCheck, href: '/admin/seo' },
       { id: 'ads', label: 'Publicidad', icon: Megaphone, href: '/admin/ads' },
       { id: 'communications', label: 'Comunicaciones', icon: Bell, href: '/admin/communications' },
       { id: 'inbox', label: 'Bandeja de entrada', icon: Inbox, href: '/admin/inbox' },
