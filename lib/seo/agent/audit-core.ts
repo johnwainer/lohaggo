@@ -27,6 +27,10 @@ export type SeoFacts = {
   zeroSearches: Array<{ term: string; count: number }>
   /** null = Search Console not connected or unreachable */
   gsc: { rows: GscRow[]; days: number } | null
+  /** Impressions and clicks per page (Search Console, no query dimension); empty when not connected */
+  pageTotals: Array<{ path: string; clicks: number; impressions: number }>
+  /** What Google says about each article URL (URL Inspection); empty when not available */
+  inspections: Array<{ path: string; verdict: string; coverage: string; lastCrawl: string | null }>
   pages: PageAudit[]
   /** Slugs of the services that already have /precios/[slug] */
   pricePageSlugs: string[]
@@ -162,18 +166,33 @@ function fromSearchConsole(f: SeoFacts, config: SeoConfig): Candidate[] {
       })
     }
   }
-  // Published for three weeks and Google shows it to nobody
-  const impressionsByPath = new Map(Array.from(pageAgg.entries()).map(([p, a]) => [p, a.impressions]))
+  return out
+}
+
+/**
+ * Articles Google has not indexed. Source of truth is the URL Inspection answer; without it, the page totals
+ * (never the query report: it hides anonymized queries and shows indexed pages as «zero impressions»).
+ */
+function notIndexed(f: SeoFacts): Candidate[] {
+  const out: Candidate[] = []
+  const inspected = new Map(f.inspections.map((i) => [i.path, i]))
+  const totals = new Map(f.pageTotals.map((p) => [p.path, p]))
+  const haveTotals = f.pageTotals.length > 0
   for (const a of f.articles) {
-    const ageDays = (f.now.getTime() - a.publishedAt.getTime()) / 86_400_000
-    if (ageDays >= 21 && !(impressionsByPath.get(`/blog/${a.slug}`) ?? 0)) {
-      out.push({
-        kind: 'technical', title: `«${a.title}» no aparece en Google tras ${Math.floor(ageDays)} días`,
-        detail: 'Sin impresiones en Search Console. Pedir indexación en Search Console, enlazarlo desde páginas con tráfico y revisar que no tenga noindex.',
-        targetUrl: `/blog/${a.slug}`, impact: 'medium', effort: 'low', source: 'gsc',
-        evidence: { ageDays: Math.floor(ageDays) }, dedupeKey: `index:${a.slug}`, score: scoreOf({ impact: 'medium', effort: 'low', demand: 5 }),
-      })
-    }
+    const path = `/blog/${a.slug}`
+    const ageDays = Math.floor((f.now.getTime() - a.publishedAt.getTime()) / 86_400_000)
+    if (ageDays < 7) continue
+    const ins = inspected.get(path)
+    let reason: string | null = null
+    if (ins) { if (ins.verdict !== 'PASS') reason = ins.coverage || 'Google no la tiene en su índice' }
+    else if (haveTotals && ageDays >= 21 && !(totals.get(path)?.impressions ?? 0)) reason = 'Sin impresiones en 28 días'
+    if (!reason) continue
+    out.push({
+      kind: 'technical', title: `«${a.title}» no está en Google (${reason.toLowerCase()})`,
+      detail: `Publicado hace ${ageDays} días. Pedir la indexación en Search Console (Inspección de URL → Solicitar indexación; máximo ~10 al día) y enlazarlo desde páginas fuertes (inicio y los servicios relacionados).${ins?.lastCrawl ? ` Último rastreo: ${ins.lastCrawl.slice(0, 10)}.` : ' Google nunca lo ha rastreado.'}`,
+      targetUrl: path, impact: 'high', effort: 'low', source: 'gsc',
+      evidence: { ageDays, coverage: ins?.coverage ?? null, lastCrawl: ins?.lastCrawl ?? null }, dedupeKey: `index:${a.slug}`, score: scoreOf({ impact: 'high', effort: 'low', demand: 6 }),
+    })
   }
   return out
 }
@@ -298,6 +317,7 @@ export function detectOpportunities(f: SeoFacts, config: SeoConfig): Candidate[]
     ...serviceCityGaps(f, config),
     ...zeroResultSearches(f, config),
     ...fromSearchConsole(f, config),
+    ...notIndexed(f),
     ...articleChecks(f, config),
     ...fromPageAudit(f),
     ...programmaticPages(f, config),

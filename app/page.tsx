@@ -12,6 +12,7 @@ import { getPublicTrustSafe, publicContactExtras, realTestimonials } from '@/lib
 import { STAT_MINIMUMS } from '@/lib/public/claims'
 import { WhatIsLoHaggo } from '@/components/public/WhatIsLoHaggo'
 import { defaultOgImages } from '@/lib/seo/site'
+import { RelatedGuides } from '@/components/public/RelatedGuides'
 
 // Everything personal (session banner, selected city, tour) is a client island; the server part is public
 // catalogue and trust data, so the page is regenerated every 5 minutes instead of rendered per request.
@@ -141,6 +142,8 @@ export default async function Home() {
           {testimonials.length >= STAT_MINIMUMS.testimonials && (
             <HomePublicTestimonials testimonials={testimonials} />
           )}
+
+          <Suspense fallback={null}><RelatedGuides max={6} /></Suspense>
 
           <WhatIsLoHaggo trust={trust} />
         </div>

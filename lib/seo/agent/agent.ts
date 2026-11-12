@@ -285,8 +285,10 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
 
     // Search Console summary (for the panel and the report)
     const rows = facts.gsc?.rows ?? []
-    const clicks = rows.reduce((a, r) => a + r.clicks, 0)
-    const impressions = rows.reduce((a, r) => a + r.impressions, 0)
+    // Real totals come from the per-page report; the query report leaves out anonymized queries
+    const totals = facts.pageTotals
+    const clicks = totals.length ? totals.reduce((a, p) => a + p.clicks, 0) : rows.reduce((a, r) => a + r.clicks, 0)
+    const impressions = totals.length ? totals.reduce((a, p) => a + p.impressions, 0) : rows.reduce((a, r) => a + r.impressions, 0)
     const byQuery = new Map<string, { clicks: number; impressions: number; pos: number }>()
     for (const r of rows) {
       const q = byQuery.get(r.query) ?? { clicks: 0, impressions: 0, pos: 0 }
@@ -302,7 +304,8 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
       x.clicks += r.clicks; x.impressions += r.impressions
       pageClicks.set(p, x)
     }
-    const topPages = Array.from(pageClicks.entries()).map(([path, v]) => ({ path, ...v })).sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions).slice(0, 10)
+    const topPages = (totals.length ? totals : Array.from(pageClicks.entries()).map(([path, v]) => ({ path, ...v }))).slice().sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions).slice(0, 10)
+    const indexing = facts.inspections.length ? { inspected: facts.inspections.length, indexed: facts.inspections.filter((i) => i.verdict === 'PASS').length, notIndexed: facts.inspections.filter((i) => i.verdict !== 'PASS').map((i) => ({ path: i.path, coverage: i.coverage })) } : null
 
     // The model part: only on the weekly day (or on demand), within budget and time
     let briefs = 0
@@ -339,7 +342,7 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
     return {
       summary, value: { created: synced.created, closed: synced.closed + synced.published, briefs, reportAdded },
       output: {
-        health, gsc: { ...gscState, days: facts.gsc?.days ?? null, clicks, impressions, top, topPages },
+        health, gsc: { ...gscState, days: facts.gsc?.days ?? null, clicks, impressions, top, topPages, indexing },
         pages: facts.pages.map((p) => ({ path: p.path, status: p.status, words: p.words, issues: p.issues.map((i) => ({ code: i.code, severity: i.severity, message: i.message })) })),
         counts: { services: facts.services.length, articles: facts.articles.length, zeroSearches: facts.zeroSearches.length, thinPartnerProfiles: facts.thinPartnerProfiles }, unavailable, aiNote,
       },

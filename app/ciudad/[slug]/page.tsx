@@ -12,6 +12,7 @@ import { getPublicTrustSafe, publicContactExtras } from '@/lib/public/trust'
 import { faqJsonLd, focusZones, FOCUS_SERVICE_SLUGS, serviceZonePath, type FaqItem } from '@/lib/public/serviceZones'
 import { withRef } from '@/lib/public/whatsapp'
 import { jsonLdScript } from '@/lib/marketing/seo'
+import { RelatedGuides } from '@/components/public/RelatedGuides'
 import { cityEnumOf, loadCity, type PublicCity } from '@/lib/seo/city'
 import { getCatalogSafe, groupByCategory } from '@/lib/seo/data'
 import { cityIsIndexable } from '@/lib/seo/indexing'
@@ -167,6 +168,8 @@ async function ActiveCityLanding({ city }: { city: PublicCity }) {
         </section>
 
         <FaqList items={faq} title={`Preguntas frecuentes sobre servicios en ${city.name}`} />
+
+        <RelatedGuides max={4} className="mt-10 rounded-3xl border" />
 
         <div className="mt-10 rounded-3xl bg-gradient-to-br from-primary-600 to-secondary-500 p-6 text-white">
           <p className="text-lg font-bold">¿Qué necesitas resolver hoy?</p>

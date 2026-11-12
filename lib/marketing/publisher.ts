@@ -240,6 +240,10 @@ function revalidateBlog(slug?: string | null) {
     revalidatePath('/blog')
     if (slug) revalidatePath(`/blog/${slug}`)
     revalidatePath('/sitemap.xml')
+    // The pages that link the newest guides (home, services, cities) show the new one right away
+    revalidatePath('/')
+    revalidatePath('/servicios/[slug]', 'layout')
+    revalidatePath('/ciudad/[slug]', 'page')
   } catch {
     // Outside a request (tests, scripts): nothing to revalidate
   }

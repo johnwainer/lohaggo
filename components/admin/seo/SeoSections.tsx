@@ -88,6 +88,16 @@ export function SearchConsoleCard({ gsc, hasCycle, canEdit = false, onChanged = 
             <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Clics{gsc.days ? ` (${gsc.days} días)` : ''}</p><p className="text-xl font-bold text-gray-900">{nf(gsc.clicks)}</p></div>
             <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Impresiones</p><p className="text-xl font-bold text-gray-900">{nf(gsc.impressions)}</p></div>
           </div>
+          {gsc.indexing && (
+            <div className={`rounded-xl border p-3 text-sm ${gsc.indexing.notIndexed.length ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+              <p className="font-semibold">Artículos en Google: {gsc.indexing.indexed} de {gsc.indexing.inspected} indexados</p>
+              {gsc.indexing.notIndexed.length > 0 && (
+                <ul className="mt-1 space-y-0.5 text-xs">
+                  {gsc.indexing.notIndexed.map((n) => <li key={n.path} className="break-words"><span className="font-medium">{n.path}</span>: {n.coverage || 'sin indexar'}. Pide la indexación en Search Console (Inspección de URL).</li>)}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <h3 className="mb-1.5 text-sm font-semibold text-gray-800">Lo que más busca la gente</h3>

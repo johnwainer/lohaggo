@@ -9,7 +9,7 @@ import { getPricesSafe, PRICE_PAGE_LIMIT } from '@/lib/seo/data'
 import { partnerIsIndexable } from '@/lib/seo/indexing'
 import { stripMarkdown } from '@/lib/marketing/seo'
 import type { SeoFacts } from '@/lib/seo/agent/audit-core'
-import { fetchSearchConsole, type GscResult } from '@/lib/seo/agent/gsc'
+import { fetchPageTotals, fetchSearchConsole, inspectUrls, type GscResult } from '@/lib/seo/agent/gsc'
 import { auditPages } from '@/lib/seo/agent/page-audit'
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
 
@@ -99,9 +99,20 @@ export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadlin
     }),
     zeroSearches: zero.map((z) => ({ term: z.normalized, count: z._count._all })),
     gsc: gscResult && gscResult.ok ? { rows: gscResult.rows, days: gscResult.days } : null,
+    pageTotals: [],
+    inspections: [],
     pages: [],
     pricePageSlugs: prices ? prices.items.slice(0, PRICE_PAGE_LIMIT).map((s) => s.slug) : [],
     thinPartnerProfiles: partners.filter((p) => !partnerIsIndexable({ totalReviews: p.totalReviews, bio: p.bio, image: p.user?.image })).length,
+  }
+
+  // Search Console, only when it answered: real totals per page and whether Google has each article in its index
+  if (gscResult && gscResult.ok) {
+    const site = config.gsc.siteUrl
+    const urls = facts.articles.slice(0, 25).map((a) => `https://www.lohaggo.com/blog/${a.slug}`)
+    const [totals, inspections] = await Promise.all([safe('gscPages', fetchPageTotals(site, 28, now), null), safe('gscInspect', inspectUrls(site, urls, Math.min(opts.deadline ?? Infinity, Date.now() + 60_000)), [])])
+    facts.pageTotals = totals ?? []
+    facts.inspections = inspections
   }
 
   if (config.pageAudit.enabled && opts.withPages !== false) {

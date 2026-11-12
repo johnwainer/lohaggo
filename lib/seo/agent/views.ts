@@ -19,7 +19,7 @@ export type SeoOpportunityView = {
 
 export type SeoCycleOutput = {
   health?: { score: number; parts: Array<{ label: string; score: number }> }
-  gsc?: { state: 'ok' | 'off' | 'no_account' | 'no_access' | 'error'; message: string; serviceEmail?: string | null; days: number | null; clicks: number; impressions: number; top: Array<{ query: string; clicks: number; impressions: number; position: number }>; topPages: Array<{ path: string; clicks: number; impressions: number }> }
+  gsc?: { state: 'ok' | 'off' | 'no_account' | 'no_access' | 'error'; message: string; serviceEmail?: string | null; days: number | null; clicks: number; impressions: number; top: Array<{ query: string; clicks: number; impressions: number; position: number }>; topPages: Array<{ path: string; clicks: number; impressions: number }>; indexing?: { inspected: number; indexed: number; notIndexed: Array<{ path: string; coverage: string }> } | null }
   pages?: Array<{ path: string; status: number | null; words: number; issues: Array<{ code: string; severity: 'critical' | 'warning' | 'info'; message: string }> }>
   counts?: { services: number; articles: number; zeroSearches: number; thinPartnerProfiles: number }
   unavailable?: string[]

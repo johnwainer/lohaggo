@@ -11,7 +11,7 @@ const base = (): SeoFacts => ({
   ],
   cities: [{ slug: 'medellin', name: 'Medellín', status: 'ACTIVE' }, { slug: 'bogota', name: 'Bogotá', status: 'COMING_SOON' }],
   supply: [{ serviceSlug: 'plomeria', citySlug: 'medellin', partners: 5, requests90d: 12 }, { serviceSlug: 'plomeria', citySlug: 'bogota', partners: 2, requests90d: 3 }],
-  articles: [], zeroSearches: [], gsc: null, pages: [], pricePageSlugs: [], thinPartnerProfiles: 0,
+  articles: [], zeroSearches: [], gsc: null, pageTotals: [], inspections: [], pages: [], pricePageSlugs: [], thinPartnerProfiles: 0,
 })
 const cfg = DEFAULT_SEO_CONFIG
 const keys = (f: SeoFacts, c = cfg) => detectOpportunities(f, c).map((o) => o.dedupeKey)
@@ -117,5 +117,33 @@ describe('healthScore', () => {
     expect(bad).toBeLessThan(good)
     expect(bad).toBeGreaterThanOrEqual(0)
     expect(good).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('articles Google has not indexed', () => {
+  const art = (days: number) => ({ slug: 'cerrajeria', title: 'Cerrajería', publishedAt: new Date(now.getTime() - days * 86_400_000), updatedAt: now, words: 900, seoTitle: 'x'.repeat(40), seoDescription: 'x'.repeat(100), category: null, tags: [], links: [], haystack: 'cerrajeria', bodyText: '', views: 0 })
+  it('uses the URL inspection answer', () => {
+    const f = base()
+    f.articles = [art(40)]
+    f.inspections = [{ path: '/blog/cerrajeria', verdict: 'NEUTRAL', coverage: 'Descubierta: actualmente sin indexar', lastCrawl: null }]
+    expect(keys(f)).toContain('index:cerrajeria')
+    f.inspections = [{ path: '/blog/cerrajeria', verdict: 'PASS', coverage: 'Enviada e indexada', lastCrawl: '2026-11-01' }]
+    expect(keys(f)).not.toContain('index:cerrajeria')
+  })
+  it('falls back to page totals, never to the query report', () => {
+    const f = base()
+    f.articles = [art(40)]
+    f.pageTotals = [{ path: '/blog/otra', clicks: 1, impressions: 50 }]
+    expect(keys(f)).toContain('index:cerrajeria')
+    f.pageTotals = [{ path: '/blog/cerrajeria', clicks: 0, impressions: 9 }]
+    expect(keys(f)).not.toContain('index:cerrajeria')
+  })
+  it('says nothing without Search Console data or for brand-new articles', () => {
+    const f = base()
+    f.articles = [art(40)]
+    expect(keys(f)).not.toContain('index:cerrajeria')
+    f.articles = [art(3)]
+    f.inspections = [{ path: '/blog/cerrajeria', verdict: 'NEUTRAL', coverage: 'x', lastCrawl: null }]
+    expect(keys(f)).not.toContain('index:cerrajeria')
   })
 })

@@ -5,7 +5,7 @@ import { holdAgentPost, refreshPostStatus } from '@/lib/marketing/publisher'
 /** Published web articles: a WEB variant with webPublishedAt of a post that is not archived. */
 const liveWhere = { channel: 'WEB' as const, webPublishedAt: { not: null, lte: new Date() }, slug: { not: null }, post: { status: { not: 'archived' } } }
 
-export const BLOG_PAGE_SIZE = 12
+export const BLOG_PAGE_SIZE = 24
 
 export async function listArticles(opts: { page?: number; category?: string | null } = {}) {
   const page = Math.max(1, opts.page || 1)
@@ -22,6 +22,38 @@ export async function listArticles(opts: { page?: number; category?: string | nu
     prisma.marketingPostVariant.groupBy({ by: ['category'], where: { ...liveWhere, webPublishedAt: { not: null, lte: new Date() }, category: { not: null } }, _count: { _all: true } }),
   ])
   return { items, total, page, pages: Math.max(1, Math.ceil(total / BLOG_PAGE_SIZE)), categories: categories.map((c) => ({ name: c.category!, count: c._count._all })) }
+}
+
+/**
+ * Guides to link from a page: the ones about the service first (by title, category or tag), the newest to
+ * complete up to `max`. Every page that shows them links the newest articles, so Google finds them quickly.
+ */
+export async function guidesFor(serviceName: string | undefined, max = 4) {
+  const now = new Date()
+  const select = { slug: true, excerpt: true, post: { select: { title: true } } } as const
+  const base = { ...liveWhere, webPublishedAt: { not: null, lte: now }, noindex: false }
+  const name = serviceName?.trim()
+  const about = name
+    ? await prisma.marketingPostVariant.findMany({
+        where: { ...base, OR: [{ category: { contains: name, mode: 'insensitive' } }, { tags: { has: name } }, { post: { title: { contains: name, mode: 'insensitive' } } }] },
+        orderBy: { webPublishedAt: 'desc' }, take: max, select,
+      })
+    : []
+  const rest = about.length < max
+    ? await prisma.marketingPostVariant.findMany({ where: { ...base, slug: { notIn: about.map((a) => a.slug!).filter(Boolean) } }, orderBy: { webPublishedAt: 'desc' }, take: max - about.length, select })
+    : []
+  return [...about, ...rest].map((a) => ({ slug: a.slug!, title: a.post.title, excerpt: a.excerpt }))
+}
+
+/** Pages that link the newest guides: refreshed when an article goes live or comes down. */
+export function revalidateGuideLinks() {
+  try {
+    revalidatePath('/')
+    revalidatePath('/servicios/[slug]', 'layout')
+    revalidatePath('/ciudad/[slug]', 'page')
+  } catch {
+    // outside a request
+  }
 }
 
 export async function getArticle(slug: string) {
@@ -64,6 +96,7 @@ export async function unpublishArticle(postId: string) {
   } catch {
     // outside a request
   }
+  revalidateGuideLinks()
 }
 
 /** After editing a published article (or renaming its URL): refresh its page, the index and the sitemap. */
@@ -79,4 +112,5 @@ export async function revalidateLiveArticle(postId: string) {
   } catch {
     // outside a request
   }
+  revalidateGuideLinks()
 }

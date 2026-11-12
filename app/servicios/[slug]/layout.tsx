@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
 import { jsonLdScript } from '@/lib/marketing/seo'
+import { RelatedGuides } from '@/components/public/RelatedGuides'
 import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } from '@/lib/public/serviceZones'
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import { STAT_MINIMUMS } from '@/lib/public/claims'
@@ -307,6 +308,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
         </section>
       )}
       {verifiedPartners > 0 && <ServiceLinksSection serviceId={service.id} serviceName={service.name} />}
+      <RelatedGuides serviceName={service.name} title={`Guías de ${service.name.toLowerCase()} y del hogar`} max={4} />
     </>
   )
 }
