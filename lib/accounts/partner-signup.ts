@@ -4,6 +4,7 @@ import { createLogger } from '@/lib/logger'
 import { accessLinkMessage, createAccessLink, emailAccessLink } from '@/lib/accounts/from-contact'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
+import { isPlaceholderEmail } from '@/lib/accounts/phone-login-core'
 import { toE164 } from '@/lib/inbox/contacts'
 
 /**
@@ -45,7 +46,8 @@ export async function deliverPartnerAccessLink(user: { id: string; email: string
   try {
     const { url } = await createAccessLink(user.id, 'PARTNER')
     const [mail, wa] = await Promise.allSettled([
-      emailAccessLink(user.email, user.name, 'PARTNER', url),
+      // Placeholder addresses (wa-…@clientes.lohaggo.com) never receive mail
+      isPlaceholderEmail(user.email) ? Promise.resolve({ ok: false as const, error: 'placeholder' }) : emailAccessLink(user.email, user.name, 'PARTNER', url),
       (async () => {
         const to = toE164(user.phone)
         if (!to) return { ok: false }
@@ -60,7 +62,7 @@ export async function deliverPartnerAccessLink(user: { id: string; email: string
     ])
     sent.email = mail.status === 'fulfilled' && mail.value.ok
     sent.whatsapp = wa.status === 'fulfilled' && Boolean(wa.value.ok)
-    if (!sent.email) logger.warn('Access link email not sent', { userId: user.id, reason: mail.status === 'fulfilled' && !mail.value.ok ? mail.value.error : 'exception' })
+    if (!sent.email && !isPlaceholderEmail(user.email)) logger.warn('Access link email not sent', { userId: user.id, reason: mail.status === 'fulfilled' && !mail.value.ok ? mail.value.error : 'exception' })
   } catch (err) {
     logger.error('Access link could not be created', { userId: user.id, err })
   }

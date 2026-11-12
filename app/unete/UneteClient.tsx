@@ -207,6 +207,9 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
 
     const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', phone: '' })
     const [touched, setTouched] = useState({ name: false, email: false, phone: false })
+    // No email: the phone is confirmed with a WhatsApp code and the server gets a signed proof of it
+    const [phoneCheck, setPhoneCheck] = useState<{ step: 'idle' | 'code'; code: string; sentTo: string; busy: boolean; error: string; hasAccount: boolean }>({ step: 'idle', code: '', sentTo: '', busy: false, error: '', hasAccount: false })
+    const [phoneProof, setPhoneProof] = useState<{ phone: string; proof: string } | null>(null)
     const [leadFired, setLeadFired] = useState(false)
     const [allServices, setAllServices] = useState<string[]>([])
     const [servicesPage, setServicesPage] = useState(0)
@@ -295,7 +298,8 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
     }, [cities, formData.city])
 
     const validateName = (v: string) => (!v ? 'El nombre es obligatorio' : v.length < 2 ? 'Debe tener al menos 2 caracteres' : '')
-    const validateEmail = (v: string) => (!v ? 'El correo es obligatorio' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Correo inválido' : '')
+    // Optional: without it the partner confirms the phone with a WhatsApp code instead
+    const validateEmail = (v: string) => (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Correo inválido' : '')
     const validatePhone = (v: string) => {
         if (!v) return 'El teléfono es obligatorio'
         const mobile = parseColombianMobile(v)
@@ -340,13 +344,45 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
             return
         }
 
+        if (!formData.email.trim()) {
+            const proven = phoneProof && phoneProof.phone === formData.phone ? phoneProof.proof : null
+            if (!proven) return sendPhoneCode()
+            return register(proven)
+        }
+        return register(null)
+    }
+
+    const phoneCheckPost = async (url: string, body: unknown) => {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        return { res, data: await res.json().catch(() => ({})) }
+    }
+
+    const sendPhoneCode = async () => {
+        setPhoneCheck((c) => ({ ...c, busy: true, error: '', hasAccount: false }))
+        const { res, data } = await phoneCheckPost('/api/auth/phone/code', { phone: formData.phone })
+        if (!res.ok) return setPhoneCheck((c) => ({ ...c, busy: false, step: 'idle', error: data.error || 'No pudimos enviar el código' }))
+        setPhoneCheck({ step: 'code', code: '', sentTo: data.sentTo || formData.phone, busy: false, error: '', hasAccount: false })
+    }
+
+    const confirmPhoneCode = async () => {
+        setPhoneCheck((c) => ({ ...c, busy: true, error: '' }))
+        const { res, data } = await phoneCheckPost('/api/auth/phone/prove', { phone: formData.phone, code: phoneCheck.code })
+        if (!res.ok || !data.proof) {
+            return setPhoneCheck((c) => ({ ...c, busy: false, error: data.error || 'No pudimos confirmar el código', hasAccount: data.code === 'has_account' }))
+        }
+        setPhoneProof({ phone: formData.phone, proof: data.proof })
+        setPhoneCheck((c) => ({ ...c, busy: false, step: 'idle', code: '' }))
+        await register(data.proof)
+    }
+
+    const register = async (proof: string | null) => {
         setLoading(true)
 
         try {
             const savedUtm = sessionStorage.getItem('unete_utm')
             const utmData = savedUtm ? JSON.parse(savedUtm) : {}
             // No password: the server picks a random one and sends an access link to create their own
-            const payload = { ...formData, captchaToken, honeypot, formStartedAt, marketingConsent, ref: captureReferral(new URLSearchParams(window.location.search).get('ref')), ...utmData }
+            const payload = { ...formData, ...(proof ? { phoneProof: proof } : {}), captchaToken, honeypot, formStartedAt, marketingConsent, ref: captureReferral(new URLSearchParams(window.location.search).get('ref')), ...utmData }
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -354,7 +390,10 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
             })
 
             const data = await res.json()
-            if (!res.ok) throw new Error(data.error || 'Error al registrar')
+            if (!res.ok) {
+                if (data.code === 'phone_proof_required') setPhoneProof(null)
+                throw new Error(data.error || 'Error al registrar')
+            }
 
             if (data.accessLinkSent) setAccessLinkSent(data.accessLinkSent)
             // Keep the new partner signed in: exchange the single-use handoff token for a session cookie
@@ -650,7 +689,7 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
 
                             {/* Email */}
                             <div className="space-y-1">
-                                <label htmlFor="unete-email" className="text-sm font-bold text-gray-700">Tu correo electrónico</label>
+                                <label htmlFor="unete-email" className="text-sm font-bold text-gray-700">Tu correo electrónico <span className="font-normal text-gray-500">(opcional)</span></label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                     <input
@@ -666,7 +705,7 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
                                         onBlur={() => handleFieldBlur('email')}
                                     />
                                 </div>
-                                <p id="unete-email-hint" className="text-xs text-gray-500">Es tu usuario y donde llega el enlace para entrar a tu cuenta.</p>
+                                <p id="unete-email-hint" className="text-xs text-gray-500">Si lo escribes, ahí llega el enlace para entrar. Si no, confirmamos tu WhatsApp con un código.</p>
                                 {fieldErrors.email && touched.email && <p id="unete-email-err" role="alert" className="text-xs text-red-600 font-semibold">{fieldErrors.email}</p>}
                             </div>
 
@@ -687,10 +726,40 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
                                 )}
                             </div>
 
+                            {phoneCheck.step === 'code' && (
+                                <div className="space-y-2 rounded-2xl border-2 border-primary-200 bg-primary-50/50 p-4" role="group" aria-labelledby="unete-code-title">
+                                    <p id="unete-code-title" className="text-sm font-bold text-gray-800">Confirma tu WhatsApp</p>
+                                    <p className="text-xs text-gray-600">Enviamos un código de 6 números a {phoneCheck.sentTo}. Vence en 10 minutos.</p>
+                                    <label htmlFor="unete-code" className="sr-only">Código de 6 números</label>
+                                    <input
+                                        id="unete-code"
+                                        className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] outline-none focus:border-primary-500"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        maxLength={6}
+                                        value={phoneCheck.code}
+                                        onChange={(e) => { const code = e.target.value.replace(/\D/g, '').slice(0, 6); setPhoneCheck((c) => ({ ...c, code })) }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (phoneCheck.code.length === 6 && !phoneCheck.busy) void confirmPhoneCode() } }}
+                                        placeholder="••••••"
+                                    />
+                                    <div className="flex items-center justify-between gap-3">
+                                        <button type="button" onClick={confirmPhoneCode} disabled={phoneCheck.code.length !== 6 || phoneCheck.busy} className="flex-1 rounded-xl bg-secondary-500 py-3 font-bold text-white disabled:opacity-50">
+                                            {phoneCheck.busy ? 'Confirmando...' : 'Confirmar y registrarme'}
+                                        </button>
+                                        <button type="button" onClick={sendPhoneCode} disabled={phoneCheck.busy} className="text-sm font-semibold text-primary-700 underline disabled:opacity-50">Reenviar código</button>
+                                    </div>
+                                </div>
+                            )}
+                            {phoneCheck.error && (
+                                <p role="alert" className="text-sm font-semibold text-red-600">
+                                    {phoneCheck.error}{phoneCheck.hasAccount && <> <Link href="/login" className="underline">Entrar con mi celular</Link></>}
+                                </p>
+                            )}
+
                             <div>
                                 <button
                                     type="submit"
-                                    disabled={loading}
+                                    disabled={loading || phoneCheck.busy}
                                     className="mt-2 w-full bg-secondary-500 hover:bg-secondary-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                                 >
                                     {loading ? 'Procesando...' : 'Quiero recibir clientes'} <ArrowRight size={18} />

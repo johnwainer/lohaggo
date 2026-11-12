@@ -21,6 +21,7 @@ import { sendAccessLink } from '@/lib/accounts/access-link'
 import {
   PHONE_CODE_MAX_ATTEMPTS, PHONE_CODE_TTL_MS, hashPhoneCode, isPlaceholderEmail, phoneLoginDecision, placeholderEmail, sameHash,
 } from '@/lib/accounts/phone-login-core'
+import { PHONE_PROOF_TTL_MS, checkPhoneProof, signPhoneProof } from '@/lib/accounts/phone-proof'
 import type { SessionUser } from '@/lib/session-cookie'
 
 const logger = createLogger('phone-login')
@@ -81,11 +82,13 @@ export type VerifyResult =
 
 const sessionSelect = { id: true, name: true, email: true, image: true, phone: true, role: true, isActive: true, partnerProfile: { select: { id: true } } } as const
 
-export async function verifyPhoneCode(p: { phone: string; code: string; name?: string | null; email?: string | null; ip: string; acquisition?: Prisma.InputJsonValue | null }): Promise<VerifyResult> {
-  const phone = phoneE164(p.phone)
-  const code = (p.code || '').replace(/\D/g, '')
-  if (!phone || code.length !== 6) return { ok: false, status: 400, code: 'invalid', error: 'El código son 6 números' }
-  const limit = await overLimit(`phoneverify:ip:${p.ip}`, 3600_000, 30)
+type CodeCheck =
+  | { ok: true; row: { id: string } }
+  | { ok: false; status: number; code: 'invalid' | 'expired' | 'limit'; error: string; remaining?: number }
+
+/** The newest unused code of the number matches: rate limit, expiry and the 5 tries are all here. */
+async function checkPhoneCode(phone: string, code: string, ip: string): Promise<CodeCheck> {
+  const limit = await overLimit(`phoneverify:ip:${ip}`, 3600_000, 30)
   if (limit.blocked) return { ok: false, status: 429, code: 'limit', error: 'Demasiados intentos. Espera un rato.' }
 
   const row = await prisma.phoneLoginCode.findFirst({ where: { phone, usedAt: null }, orderBy: { createdAt: 'desc' } })
@@ -96,6 +99,53 @@ export async function verifyPhoneCode(p: { phone: string; code: string; name?: s
     const remaining = Math.max(0, PHONE_CODE_MAX_ATTEMPTS - next.attempts)
     return { ok: false, status: 400, code: 'invalid', remaining, error: remaining ? `Código incorrecto. Te quedan ${remaining} intentos.` : 'Código incorrecto. Pide uno nuevo.' }
   }
+  return { ok: true, row }
+}
+
+export type ProofResult =
+  | { ok: true; proof: string }
+  | { ok: false; status: number; code: 'invalid' | 'expired' | 'limit' | 'has_account'; error: string; remaining?: number }
+
+export const HAS_ACCOUNT_ERROR = 'Ya tienes cuenta: entra con tu celular.'
+
+/**
+ * Confirms a code for the /unete signup without email: nothing is created or signed in. A number that already
+ * has an account (any role) gets no proof. The code stays unused (valid up to the proof's lifetime) until
+ * /api/register spends it.
+ */
+export async function provePhoneCode(p: { phone: string; code: string; ip: string }): Promise<ProofResult> {
+  const phone = phoneE164(p.phone)
+  const code = (p.code || '').replace(/\D/g, '')
+  if (!phone || code.length !== 6) return { ok: false, status: 400, code: 'invalid', error: 'El código son 6 números' }
+  const checked = await checkPhoneCode(phone, code, p.ip)
+  if (!checked.ok) return checked
+  const taken = await prisma.user.count({ where: { phone: { in: storedPhoneVariants(phone) } } })
+  if (taken > 0) {
+    await prisma.phoneLoginCode.updateMany({ where: { id: checked.row.id, usedAt: null }, data: { usedAt: new Date() } })
+    return { ok: false, status: 409, code: 'has_account', error: HAS_ACCOUNT_ERROR }
+  }
+  const exp = Date.now() + PHONE_PROOF_TTL_MS
+  await prisma.phoneLoginCode.update({ where: { id: checked.row.id }, data: { expiresAt: new Date(exp) } })
+  return { ok: true, proof: signPhoneProof({ phone, codeId: checked.row.id, exp }, secret()) }
+}
+
+/** Validates the proof for exactly this number and spends it (atomic: a second use finds the code used). */
+export async function consumePhoneProof(token: string | null | undefined, rawPhone: string): Promise<boolean> {
+  const phone = phoneE164(rawPhone)
+  if (!phone) return false
+  const check = checkPhoneProof(token, phone, secret())
+  if (!check.ok) return false
+  const spent = await prisma.phoneLoginCode.updateMany({ where: { id: check.codeId, phone, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } })
+  return spent.count === 1
+}
+
+export async function verifyPhoneCode(p: { phone: string; code: string; name?: string | null; email?: string | null; ip: string; acquisition?: Prisma.InputJsonValue | null }): Promise<VerifyResult> {
+  const phone = phoneE164(p.phone)
+  const code = (p.code || '').replace(/\D/g, '')
+  if (!phone || code.length !== 6) return { ok: false, status: 400, code: 'invalid', error: 'El código son 6 números' }
+  const checked = await checkPhoneCode(phone, code, p.ip)
+  if (!checked.ok) return checked
+  const row = checked.row
 
   // The code is right: from here on the person holds this phone
   // Accounts stored before phones were normalized (without +57) count too
