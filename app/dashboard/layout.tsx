@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import TermsAcceptBanner from '@/components/legal/TermsAcceptBanner'
 
 export default async function DashboardLayout({
   children,
@@ -17,5 +18,5 @@ export default async function DashboardLayout({
     redirect('/')
   }
 
-  return <>{children}</>
+  return <>{children}<TermsAcceptBanner /></>
 }

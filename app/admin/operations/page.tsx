@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react'
 import TodayServices from '@/components/admin/TodayServices'
+import OpsExtras from '@/components/admin/ops/OpsExtras'
 
 type Incident = {
   id: string
@@ -147,6 +148,8 @@ export default function AdminOperationsPage() {
       </div>
 
       <TodayServices />
+
+      <OpsExtras />
 
       {loadError && (
         <div role="alert" className="flex flex-wrap items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

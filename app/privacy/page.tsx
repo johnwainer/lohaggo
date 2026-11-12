@@ -217,7 +217,7 @@ export default function PrivacyPage() {
                   <li><strong>Portabilidad:</strong> Recibir sus datos en formato estructurado</li>
                 </ul>
                 <p className="mt-4">
-                  Para ejercer estos derechos, escribe a <strong>hola@lohaggo.com</strong> con el asunto &quot;Datos personales&quot;.
+                  Para ejercer estos derechos usa el <Link href="/datos-personales" className="font-semibold text-primary-600 underline">formulario de datos personales</Link> o escribe a <strong>hola@lohaggo.com</strong> con el asunto &quot;Datos personales&quot;.
                 </p>
                 <p>
                   Responderemos a su solicitud dentro de los 15 días hábiles siguientes a su recepción, 

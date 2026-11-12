@@ -12,6 +12,7 @@ import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import { safeInternalPath, withRedirect } from '@/lib/navigation/safe-redirect'
 import { formatNationalPhone, parseColombianMobile } from '@/lib/phone'
+import { captureReferral } from '@/lib/referrals/client'
 
 function RegisterForm() {
   const router = useRouter()
@@ -29,6 +30,7 @@ function RegisterForm() {
     city: '',
     services: [] as string[],
   })
+  const [marketingConsent, setMarketingConsent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [captchaToken, setCaptchaToken] = useState('')
@@ -359,6 +361,8 @@ function RegisterForm() {
         captchaToken,
         honeypot,
         formStartedAt,
+        marketingConsent,
+        ref: captureReferral(searchParams.get('ref')),
       }
 
       const res = await fetch('/api/register', {
@@ -966,6 +970,10 @@ function RegisterForm() {
                 </Link>
                 .
               </p>
+              <label className="mt-3 flex items-start gap-2 text-sm text-gray-600">
+                <input type="checkbox" checked={marketingConsent} onChange={(e) => setMarketingConsent(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                <span>Quiero recibir novedades y ofertas de LoHaggo por WhatsApp o SMS (opcional; puedes darte de baja cuando quieras).</span>
+              </label>
             </div>
 
             {isBotProtectionEnabled && (

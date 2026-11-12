@@ -35,7 +35,18 @@ model User {
   updatedAt                         DateTime                    @updatedAt
   /// First visit that brought the person: utm_*, referrer, landing page (first touch)
   acquisition                       Json?
+  /// Ley 1581: when and which version of the terms/privacy policy the person accepted (null = never recorded, e.g. chat-born accounts)
+  termsAcceptedAt                   DateTime?
+  termsVersion                      String?
+  /// Explicit consent to receive marketing by WhatsApp/SMS (null = none recorded; see lib/privacy/consent.ts)
+  marketingConsentAt                DateTime?
+  /// The user whose ?ref= link brought this person
+  referredByUserId                  String?
   mercadopagoCustomerId             String?                     @unique
+  dataRequests                      DataRequest[]
+  referralCode                      ReferralCode?
+  referralsMade                     Referral[]                  @relation("ReferrerReferrals")
+  referralReceived                  Referral?                   @relation("ReferredReferral")
   addresses                         Address[]
   bookings                          Booking[]
   notifications                     Notification[]
@@ -1449,6 +1460,69 @@ model FraudSignal {
 
   @@index([status, severity])
   @@index([score])
+}
+
+/// Habeas data (Ley 1581): a person asks to see, delete or correct their data. dueAt = 15 business days.
+model DataRequest {
+  id         String            @id @default(cuid())
+  userId     String?
+  email      String
+  name       String?
+  type       DataRequestType
+  status     DataRequestStatus @default(OPEN)
+  message    String?
+  dueAt      DateTime
+  resolvedAt DateTime?
+  resolvedBy String?
+  notes      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, dueAt])
+  @@index([email])
+}
+
+enum DataRequestType {
+  ACCESS
+  DELETE
+  CORRECT
+}
+
+enum DataRequestStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+/// One referral link per user (?ref=CODE). qualifiedCount and priorityNotifications are the referrer's reward (no money).
+model ReferralCode {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  code                  String   @unique
+  qualifiedCount        Int      @default(0)
+  priorityNotifications Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id            String         @id @default(cuid())
+  referrerId    String
+  referredId    String         @unique
+  status        ReferralStatus @default(PENDING)
+  qualifiedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  referrer      User           @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred      User           @relation("ReferredReferral", fields: [referredId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId, status])
+}
+
+enum ReferralStatus {
+  PENDING
+  QUALIFIED
 }
 
 enum AdPlacement {

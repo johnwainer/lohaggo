@@ -11,6 +11,7 @@ import AccountPanel from '@/components/shared/AccountPanel'
 import QrCode from '@/components/QrCode'
 import { normalizeSlug } from '@/lib/slug'
 import ConfirmModal from '@/components/ConfirmModal'
+import ReferralShareCard from '@/components/referrals/ReferralShareCard'
 
 type NotificationPreference = {
   channel: 'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'
@@ -812,6 +813,8 @@ export default function ProfilePage() {
                 </form>
               </div>
             </AccountPanel>
+
+            <ReferralShareCard />
 
             {/* Public profile section — partners only */}
             {isPartner && pubLoaded && (

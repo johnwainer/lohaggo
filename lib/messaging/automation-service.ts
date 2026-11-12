@@ -1,3 +1,4 @@
+import { hasMarketingConsent } from '@/lib/privacy/consent'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { sendMessageViaProvider, sendMetaWhatsAppTemplate, sendWhatsAppTemplate } from '@/lib/messaging/providers'
@@ -106,7 +107,7 @@ export async function processDueAutomations(limit = 100) {
     where: { status: 'PENDING', scheduledAt: { lte: new Date() } },
     include: {
       rule: true,
-      user: { select: { id: true, name: true, email: true, phone: true, role: true, excludedFromMarketing: true } },
+      user: { select: { id: true, name: true, email: true, phone: true, role: true, excludedFromMarketing: true, marketingConsentAt: true, createdAt: true } },
     },
     take: limit,
     orderBy: { scheduledAt: 'asc' },
@@ -141,6 +142,13 @@ export async function processDueAutomations(limit = 100) {
         where: { id: execution.id },
         data: { status: 'SKIPPED', executedAt: new Date(), error: skipReason },
       })
+      skipped++
+      continue
+    }
+
+    // Ley 1581: promotional automations by WhatsApp/SMS need consent or the grandfathered basis
+    if (MARKETING_TRIGGERS.has(rule.trigger as AutomationTrigger) && (execution.channel === 'WHATSAPP' || execution.channel === 'SMS') && !hasMarketingConsent(user)) {
+      await prisma.automationExecution.update({ where: { id: execution.id }, data: { status: 'SKIPPED', executedAt: new Date(), error: 'Sin consentimiento de marketing' } })
       skipped++
       continue
     }

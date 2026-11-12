@@ -28,6 +28,7 @@ import { PWA_EVENTS } from '@/lib/pwa/events'
 import type { PublicTrust } from '@/lib/public/trust'
 import { partnerCommission, partnerPayout, partnersJoinLine } from '@/lib/public/copy'
 import { formatNationalPhone, parseColombianMobile } from '@/lib/phone'
+import { captureReferral } from '@/lib/referrals/client'
 
 // ─── How it works steps ────────────────────────────────────────────────────
 function howItWorks(trust: PublicTrust) {
@@ -201,6 +202,7 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
     const [linkCopied, setLinkCopied] = useState(false)
     const [captchaToken, setCaptchaToken] = useState('')
     const [honeypot, setHoneypot] = useState('')
+    const [marketingConsent, setMarketingConsent] = useState(false)
     const [formStartedAt] = useState(() => Date.now().toString())
 
     const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', phone: '' })
@@ -344,7 +346,7 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
             const savedUtm = sessionStorage.getItem('unete_utm')
             const utmData = savedUtm ? JSON.parse(savedUtm) : {}
             // No password: the server picks a random one and sends an access link to create their own
-            const payload = { ...formData, captchaToken, honeypot, formStartedAt, ...utmData }
+            const payload = { ...formData, captchaToken, honeypot, formStartedAt, marketingConsent, ref: captureReferral(new URLSearchParams(window.location.search).get('ref')), ...utmData }
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -655,6 +657,14 @@ function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servic
 
                             {/* Honeypot */}
                             <input type="text" className="hidden" aria-hidden="true" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
+
+                            <div className="space-y-2 text-xs text-gray-600">
+                                <p>Al continuar aceptas los <Link href="/terms" target="_blank" className="font-semibold text-primary-600 underline">Términos</Link> y la <Link href="/privacy" target="_blank" className="font-semibold text-primary-600 underline">Política de privacidad</Link>.</p>
+                                <label className="flex items-start gap-2">
+                                    <input type="checkbox" checked={marketingConsent} onChange={(e) => setMarketingConsent(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-gray-300" />
+                                    <span>Quiero recibir novedades y oportunidades de LoHaggo por WhatsApp o SMS (opcional; puedes darte de baja cuando quieras).</span>
+                                </label>
+                            </div>
 
                             <div className="pt-2" style={{ minHeight: isBotProtectionEnabled ? '70px' : 0 }}>
                                 {isBotProtectionEnabled && (

@@ -13,6 +13,10 @@ export const registerSchema = z.object({
     captchaToken: z.string().optional(),
     honeypot: z.string().optional(),
     formStartedAt: z.string().optional(),
+    /** Optional checkbox: WhatsApp/SMS marketing consent (Ley 1581) */
+    marketingConsent: z.boolean().optional(),
+    /** Referral code from ?ref= */
+    ref: z.string().max(32).optional(),
 })
 
 export type RegisterInput = z.infer<typeof registerSchema>

@@ -5,6 +5,7 @@
  * step, skip and exit is an AdminAuditLog row (PARTNER_REACTIVATION_STEP, entityType User), which is also
  * the data of the report. Runs from the hourly automations cron, Monday to Saturday in the configured hours.
  */
+import { hasMarketingConsent } from '@/lib/privacy/consent'
 import type { City } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
@@ -38,7 +39,7 @@ export async function loadSnapshots(): Promise<PartnerSnapshot[]> {
       where: { user: { role: 'PARTNER' } },
       select: {
         id: true, userId: true, city: true, slug: true, verified: true, isActive: true, createdAt: true,
-        user: { select: { name: true, email: true, phone: true, isActive: true, excludedFromMarketing: true } },
+        user: { select: { name: true, email: true, phone: true, isActive: true, excludedFromMarketing: true, marketingConsentAt: true, createdAt: true } },
         documents: { select: { type: true, status: true, createdAt: true } },
         services: { select: { serviceId: true, active: true, city: true, createdAt: true, service: { select: { name: true } } } },
         _count: { select: { proposals: true } },
@@ -59,7 +60,8 @@ export async function loadSnapshots(): Promise<PartnerSnapshot[]> {
     slug: p.slug,
     verified: p.verified,
     active: p.isActive && p.user.isActive,
-    excludedFromMarketing: p.user.excludedFromMarketing,
+    // Partners who joined before the consent rule are grandfathered (lib/privacy/consent.ts): the running campaign keeps its audience
+    excludedFromMarketing: p.user.excludedFromMarketing || !hasMarketingConsent(p.user),
     createdAt: p.createdAt,
     docs: p.documents.map((d) => ({ type: d.type, status: d.status, createdAt: d.createdAt })),
     services: p.services.map((s) => ({ serviceId: s.serviceId, name: s.service.name, active: s.active, city: s.city, createdAt: s.createdAt })),

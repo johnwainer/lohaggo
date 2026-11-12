@@ -4,6 +4,7 @@
  * Limits are shared across instances (RateLimitHit); the code is stored hashed, lives 10 minutes and allows
  * 5 tries. Asking for a code answers the same whether the number has an account or not.
  */
+import { signupConsent } from '@/lib/privacy/consent'
 import bcrypt from 'bcryptjs'
 import { randomBytes, randomInt, randomUUID } from 'crypto'
 import type { Prisma } from '@prisma/client'
@@ -135,6 +136,8 @@ export async function verifyPhoneCode(p: { phone: string; code: string; name?: s
       phone,
       phoneVerifiedAt: new Date(),
       role: 'CLIENT',
+      // The login form says «Al continuar aceptas los términos y la política de privacidad»
+      ...signupConsent({}),
       ...(p.acquisition ? { acquisition: p.acquisition } : {}),
     },
     select: sessionSelect,

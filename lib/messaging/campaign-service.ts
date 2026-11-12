@@ -1,3 +1,4 @@
+import { hasMarketingConsent } from '@/lib/privacy/consent'
 import { normalizePhone } from '@/lib/phone'
 import { toE164 } from '@/lib/inbox/contacts'
 import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, Prisma } from '@prisma/client'
@@ -238,6 +239,15 @@ export async function processCampaign(campaignId: string, opts: { from?: Messagi
     return variants[0]
   }
 
+  // Ley 1581: WhatsApp/SMS marketing only to people with consent or grandfathered (lib/privacy/consent.ts)
+  const consentByUser = new Map<string, { marketingConsentAt: Date | null; createdAt: Date }>()
+  if (campaign.channel === 'WHATSAPP' || campaign.channel === 'SMS') {
+    for (let i = 0; i < users.length; i += 1000) {
+      const rows = await prisma.user.findMany({ where: { id: { in: users.slice(i, i + 1000).map((u) => u.id) } }, select: { id: true, marketingConsentAt: true, createdAt: true } })
+      for (const r of rows) consentByUser.set(r.id, r)
+    }
+  }
+
   let paused = false
   let sinceHeartbeat = 0
   for (const user of users) {
@@ -279,7 +289,10 @@ export async function processCampaign(campaignId: string, opts: { from?: Messagi
       noMarketingPhones.size > 0 &&
       (noMarketingPhones.has(`user:${user.id}`) || noMarketingPhones.has(toE164(normalizePhone(destination)) ?? ''))
 
-    if (optedOut || taggedNoMarketing) {
+    const consentRow = consentByUser.get(user.id)
+    const noConsent = Boolean(consentRow) && !hasMarketingConsent(consentRow!)
+
+    if (optedOut || taggedNoMarketing || noConsent) {
       await prisma.messagingDelivery.create({
         data: {
           campaignId: campaign.id,
@@ -288,8 +301,8 @@ export async function processCampaign(campaignId: string, opts: { from?: Messagi
           destination,
           status: 'UNSUBSCRIBED',
           provider: 'internal',
-          errorCode: optedOut ? 'OPTOUT' : 'NO_MARKETING',
-          errorMessage: optedOut ? 'Recipient opted out' : 'Recipient asked for no marketing messages',
+          errorCode: optedOut ? 'OPTOUT' : noConsent && !taggedNoMarketing ? 'NO_CONSENT' : 'NO_MARKETING',
+          errorMessage: optedOut ? 'Recipient opted out' : noConsent && !taggedNoMarketing ? 'No marketing consent recorded (Ley 1581)' : 'Recipient asked for no marketing messages',
         },
       })
       continue

@@ -36,6 +36,7 @@ export function Footer({ services = [] }: { services?: TopService[] }) {
             <Link href="/faq" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Ayuda</Link>
             <Link href="/privacy" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Privacidad</Link>
             <Link href="/terms" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Términos</Link>
+            <Link href="/datos-personales" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Mis datos</Link>
           </nav>
         </div>
       </footer>
@@ -192,6 +193,9 @@ export function Footer({ services = [] }: { services?: TopService[] }) {
               </Link>
               <Link href="/cookies" className="text-gray-400 hover:text-primary-600 transition-colors font-medium">
                 Cookies
+              </Link>
+              <Link href="/datos-personales" className="text-gray-400 hover:text-primary-600 transition-colors font-medium">
+                Mis datos
               </Link>
             </div>
           </div>

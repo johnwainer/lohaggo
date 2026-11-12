@@ -13,6 +13,8 @@ import {
   verifyTurnstileToken,
 } from '@/lib/security/bot-protection'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
+import { signupConsent } from '@/lib/privacy/consent'
+import { attachReferral } from '@/lib/referrals/service'
 import { normalizePhone, parseColombianMobile } from '@/lib/phone'
 import { createSessionHandoffToken, deliverPartnerAccessLink, generateStrongPassword, type AccessLinkDelivery } from '@/lib/accounts/partner-signup'
 
@@ -51,6 +53,8 @@ async function handlePOST(request: NextRequest) {
       captchaToken,
       honeypot,
       formStartedAt,
+      marketingConsent,
+      ref,
     } = validation.data
 
     if (phone) {
@@ -172,11 +176,13 @@ async function handlePOST(request: NextRequest) {
 
     const acquisition = acquisitionFrom(request, body)
     const user = await prisma.user.create({
-      data: { ...userData, ...(acquisition ? { acquisition } : {}) },
+      data: { ...userData, ...(acquisition ? { acquisition } : {}), ...signupConsent({ marketing: marketingConsent === true }) },
       include: {
         partnerProfile: true
       }
     })
+
+    if (ref) await attachReferral(user.id, ref).catch((err) => logger.warn('attachReferral failed', { userId: user.id, err }))
 
     // Si es socio y tiene servicios seleccionados, crear las relaciones
     // oficio is now an array of service names from the DB

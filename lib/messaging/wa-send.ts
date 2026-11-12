@@ -4,6 +4,7 @@
  * AdminAuditLog, and the sent text as an outgoing message in the person's WhatsApp conversation with
  * `customFields.lastTemplate`, so the inbox AI agent knows what a button press refers to.
  */
+import { hasMarketingConsent } from '@/lib/privacy/consent'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
@@ -60,6 +61,12 @@ async function marketingOptedOut(r: WaRecipient, phone: string) {
   return Boolean(row || tagged)
 }
 
+async function userHasMarketingConsent(userId: string) {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { marketingConsentAt: true, createdAt: true } })
+  // Unknown user: not blocked here (other checks apply)
+  return !u || hasMarketingConsent(u)
+}
+
 export async function alreadySent(key: string, windowMs?: number, now = new Date()) {
   const hit = await prisma.adminAuditLog.findFirst({
     where: { action: WA_SENT_ACTION, entityType: WA_ENTITY, entityId: key, ...(windowMs ? { createdAt: { gte: new Date(now.getTime() - windowMs) } } : {}) },
@@ -78,7 +85,9 @@ export async function deliverWa(recipient: WaRecipient, spec: WaSpec, now = new 
     const phone = toE164(recipient.phone)
     if (!phone) return { ok: false, skipped: 'no_phone', requested }
 
-    const allowMarketing = !recipient.excludedFromMarketing && !isMarketingQuietHour(now) && !(await marketingOptedOut(recipient, phone))
+    // Ley 1581: marketing needs consent or the grandfathered basis (lib/privacy/consent.ts). A recipient without an account (userId null) is not checked here.
+    const consented = !spec.marketing || !recipient.userId || (await userHasMarketingConsent(recipient.userId))
+    const allowMarketing = consented && !recipient.excludedFromMarketing && !isMarketingQuietHour(now) && !(await marketingOptedOut(recipient, phone))
     if (spec.marketing && !allowMarketing) return { ok: false, skipped: 'marketing_blocked', requested }
 
     const recipientKey = recipient.userId ?? phone

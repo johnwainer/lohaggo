@@ -11,6 +11,7 @@ import { emitProposalBroadcast } from '@/lib/supabase-admin'
 import { computeChatState } from '@/lib/chat-status'
 import { detectHelpQuery, formatHelpSystemMessage } from '@/lib/chat/help-responses'
 import { detectContactInfo } from '@/lib/chat/contact-guard'
+import { recordContactBlock } from '@/lib/fraud/signals'
 import { partnerOnWaySignal, partnerUnavailableSignal, type UnavailableKind } from '@/lib/bookings/partner-unavailable-core'
 import { bookingWhen } from '@/lib/bookings/when'
 import { cloudinaryService } from '@/lib/cloudinary'
@@ -141,6 +142,7 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
     await prisma.adminAuditLog.create({
       data: { action: 'CHAT_CONTACT_BLOCKED', entityType: 'Chat', entityId: chatId, actorId: actor.userId, actorEmail: side === 'CLIENT' ? 'cliente' : 'socio', details: JSON.stringify({ side, reason: contact.reason, fragment: contact.fragment, text: content.slice(0, 300), origin: origin.via }).slice(0, 1000) },
     }).catch(() => null)
+    await recordContactBlock({ userId: actor.userId, partnerProfileId: chat.partnerId, chatId, side, reason: contact.reason, fragment: contact.fragment, bookingId: chat.proposal.bookings[0]?.id ?? null })
     void emitProposalBroadcast(chat.proposalId)
     await createNotification({
       userId: recipientUserId,
