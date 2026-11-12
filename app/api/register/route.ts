@@ -15,7 +15,8 @@ import {
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { signupConsent } from '@/lib/privacy/consent'
 import { attachReferral } from '@/lib/referrals/service'
-import { normalizePhone, parseColombianMobile } from '@/lib/phone'
+import { normalizePhone, parseColombianMobile, storedPhoneVariants } from '@/lib/phone'
+import { isPlaceholderEmail, placeholderEmail } from '@/lib/accounts/phone-login-core'
 import { createSessionHandoffToken, deliverPartnerAccessLink, generateStrongPassword, type AccessLinkDelivery } from '@/lib/accounts/partner-signup'
 
 const logger = createLogger('register')
@@ -42,7 +43,8 @@ async function handlePOST(request: NextRequest) {
     }
 
     const {
-      email,
+      email: emailInput,
+      phoneProof,
       password,
       name,
       phone,
@@ -98,6 +100,26 @@ async function handlePOST(request: NextRequest) {
       )
     }
 
+    // Without email (only a partner from /unete): the account takes the placeholder address and the phone must
+    // be proven below with a WhatsApp code, because placeholder accounts sign in by phone
+    // A typed placeholder address would skip the proof that goes with it
+    if (isPlaceholderEmail(emailInput)) return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+    let email = emailInput ?? ''
+    let proofPhone: string | null = null
+    if (!email) {
+      const { phoneE164, HAS_ACCOUNT_ERROR } = await import('@/lib/accounts/phone-login')
+      const e164 = phone ? phoneE164(phone) : null
+      if (role !== 'PARTNER' || !serverPassword || !e164) {
+        return NextResponse.json({ error: 'El correo es obligatorio' }, { status: 400 })
+      }
+      const taken = await prisma.user.count({ where: { phone: { in: storedPhoneVariants(e164) } } })
+      if (taken > 0) {
+        return NextResponse.json({ error: HAS_ACCOUNT_ERROR, code: 'phone_has_account' }, { status: 409 })
+      }
+      email = placeholderEmail(e164)
+      proofPhone = e164
+    }
+
     // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
       where: { email }
@@ -149,6 +171,17 @@ async function handlePOST(request: NextRequest) {
       cityEnum = cityName as City
     }
 
+    // The proof is spent only now, after every other check, so a typo above does not burn it
+    if (proofPhone) {
+      const { consumePhoneProof } = await import('@/lib/accounts/phone-login')
+      if (!(await consumePhoneProof(phoneProof, proofPhone))) {
+        return NextResponse.json(
+          { error: 'Confirma tu número con el código de WhatsApp para registrarte sin correo.', code: 'phone_proof_required' },
+          { status: 403 }
+        )
+      }
+    }
+
     // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password || generateStrongPassword(), 10)
 
@@ -158,7 +191,8 @@ async function handlePOST(request: NextRequest) {
       password: hashedPassword,
       name,
       phone: normalizePhone(phone),
-      role: role || "CLIENT"
+      role: role || "CLIENT",
+      ...(proofPhone ? { phoneVerifiedAt: new Date() } : {}),
     }
 
     // Si es socio, crear perfil de socio con ciudad y servicios
