@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { PLACEHOLDER_EMAIL_DOMAIN } from '@/lib/accounts/phone-login-core'
 import { maskAccountNumber } from '@/lib/admin/pagination'
+import { cloudinaryService } from '@/lib/cloudinary'
+import { assetFromUrl, deleteAssets, type AssetRef, type DeleteAssetsResult } from '@/lib/privacy/assets'
 
 export const ANONYMIZED_NAME = 'Usuario eliminado'
 
@@ -43,10 +45,41 @@ async function countBlockers(userId: string, partnerId: string | null) {
  * public profile, verification document files (row kept for audit, URL emptied), bank holder data and account number
  * (masked), WhatsApp/chat contact name and phone and the messages the contact wrote. Retained (tax and accounting
  * duties, without contact data): bookings, payments, payouts and reviews.
+ * After the transaction succeeds, the files behind those URLs (verification documents, work photos, profile image, chat
+ * media, booking and request photos the person uploaded) are destroyed at the storage provider, best-effort: a failure
+ * never rolls the anonymization back, it is reported in `storage` and its refs stay in `storage.pending` to retry.
+ * `onAssetsCollected` runs before the transaction (the URLs are emptied by it), so the caller can persist the list.
  * Returns what was done, for the audit log.
  */
-export async function anonymizeUser(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, phone: true, partnerProfile: { select: { id: true } } } })
+export type AnonymizeStorage = DeleteAssetsResult & { total: number }
+
+/** Files of this person in LoHaggo's storage, read from the URLs/publicIds the transaction is about to empty. */
+export async function collectUserAssets(userId: string, partnerId: string | null, convIds: string[], image: string | null): Promise<AssetRef[]> {
+  const cloud = cloudinaryService.cloudName()
+  if (!cloud) return []
+  const none = '__none__'
+  const [docs, work, media, chatImgs, bookingPhotos, requestPhotos] = await Promise.all([
+    prisma.verificationDocument.findMany({ where: { partnerId: partnerId ?? none }, select: { documentUrl: true, publicId: true } }),
+    prisma.partnerWorkPhoto.findMany({ where: { partnerId: partnerId ?? none }, select: { url: true, publicId: true } }),
+    convIds.length ? prisma.conversationMessage.findMany({ where: { conversationId: { in: convIds }, direction: 'INBOUND', mediaUrl: { not: null } }, select: { mediaUrl: true } }) : Promise.resolve([] as { mediaUrl: string | null }[]),
+    prisma.chatMessage.findMany({ where: { senderId: userId, imageUrl: { not: null } }, select: { imageUrl: true } }),
+    prisma.bookingPhoto.findMany({ where: { uploadedById: userId }, select: { url: true } }),
+    prisma.requestPhoto.findMany({ where: { serviceRequest: { userId } }, select: { url: true, publicId: true } }),
+  ])
+  const refs = [
+    ...docs.map((d) => assetFromUrl(d.documentUrl, d.publicId, cloud)),
+    ...work.map((w) => assetFromUrl(w.url, w.publicId, cloud)),
+    ...media.map((m) => assetFromUrl(m.mediaUrl, null, cloud)),
+    ...chatImgs.map((c) => assetFromUrl(c.imageUrl, null, cloud)),
+    ...bookingPhotos.map((b) => assetFromUrl(b.url, null, cloud)),
+    ...requestPhotos.map((r) => assetFromUrl(r.url, r.publicId, cloud)),
+    assetFromUrl(image, null, cloud),
+  ]
+  return Array.from(new Set(refs.filter((r): r is AssetRef => !!r)))
+}
+
+export async function anonymizeUser(userId: string, opts: { onAssetsCollected?: (refs: AssetRef[]) => Promise<void> } = {}) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, phone: true, image: true, partnerProfile: { select: { id: true } } } })
   if (!user) return { ok: false as const, error: 'Usuario no encontrado' }
   if (user.role === 'ADMIN') return { ok: false as const, error: 'No se anonimizan cuentas de administrador' }
 
@@ -62,6 +95,9 @@ export async function anonymizeUser(userId: string) {
   const convIds = convs.map((c) => c.id)
   const banks = partnerId ? await prisma.partnerBankAccount.findMany({ where: { partnerId }, select: { id: true, accountNumber: true, holderDocumentNumber: true } }) : []
 
+  const assets = await collectUserAssets(userId, partnerId, convIds, user.image ?? null)
+  if (assets.length && opts.onAssetsCollected) await opts.onAssetsCollected(assets)
+
   const [addresses, cards, photos, docs] = await prisma.$transaction([
     prisma.address.deleteMany({ where: { userId } }),
     prisma.paymentMethod.deleteMany({ where: { userId } }),
@@ -71,6 +107,9 @@ export async function anonymizeUser(userId: string) {
     ...convs.map((c) => prisma.conversation.update({ where: { id: c.id }, data: { contactName: ANONYMIZED_NAME, contactPhone: `eliminado-${c.id}`, lastMessageBody: null, aiSummary: null, postCaption: null } })),
     prisma.conversationMessage.updateMany({ where: { conversationId: { in: convIds }, direction: 'INBOUND' }, data: { body: DELETED_MESSAGE, mediaUrl: null, mediaName: null } }),
     ...banks.map((b) => prisma.partnerBankAccount.update({ where: { id: b.id }, data: { accountNumber: maskAccountNumber(b.accountNumber) ?? '', accountHolderName: ANONYMIZED_NAME, holderDocumentNumber: maskAccountNumber(b.holderDocumentNumber) ?? '', isActive: false, isDefault: false, mercadoPagoRecipientId: null } })),
+    prisma.chatMessage.updateMany({ where: { senderId: userId, imageUrl: { not: null } }, data: { imageUrl: null } }),
+    prisma.bookingPhoto.updateMany({ where: { uploadedById: userId }, data: { url: '' } }),
+    prisma.requestPhoto.updateMany({ where: { serviceRequest: { userId } }, data: { url: '', publicId: null } }),
     prisma.contact.updateMany({ where: { userId }, data: { name: ANONYMIZED_NAME, phone: null, email: null, notes: null } }),
     ...(partnerId
       ? [prisma.partnerProfile.update({ where: { id: partnerId }, data: { isActive: false, isAvailable: false, isPublicProfile: false, bio: null, profileHeadline: null, slug: null, companyName: null, companyNit: null } })]
@@ -96,5 +135,6 @@ export async function anonymizeUser(userId: string) {
       },
     }),
   ])
-  return { ok: true as const, addresses: addresses.count, cards: cards.count, photos: photos.count, documents: docs.count, conversations: convIds.length, bankAccounts: banks.length }
+  const storage: AnonymizeStorage = { ...(await deleteAssets(assets)), total: assets.length }
+  return { ok: true as const, storage, addresses: addresses.count, cards: cards.count, photos: photos.count, documents: docs.count, conversations: convIds.length, bankAccounts: banks.length }
 }
