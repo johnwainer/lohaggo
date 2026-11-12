@@ -1,593 +1,300 @@
-'use client'
-
-import { use, useEffect, useState, type FormEvent } from 'react'
-import { useCity } from '@/lib/city-context'
-import { useRouter } from 'next/navigation'
-import { Sparkles, Shield, Star, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Mail, MessageCircle, CheckCircle2, Loader2 } from 'lucide-react'
-import ServiceIcon from '@/components/ServiceIcon'
 import Link from 'next/link'
-import { useTrust } from '@/lib/public/useTrust'
-import { fmtCount } from '@/lib/public/claims'
-import { guarantee, verificationLong, verificationShort } from '@/lib/public/copy'
+import { notFound } from 'next/navigation'
+import { Shield, Star, Zap, Users, Award, MessageCircle, Calendar, Heart, Sparkles, Mail } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
+import { WaitlistCard } from '@/components/city/WaitlistCard'
+import { FaqList } from '@/components/public/ServiceSeoBlocks'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { prisma } from '@/lib/prisma'
+import { fmtCount, STAT_MINIMUMS } from '@/lib/public/claims'
+import { clientPayment, guarantee, verificationLong, verificationShort } from '@/lib/public/copy'
+import { getPublicTrustSafe, publicContactExtras } from '@/lib/public/trust'
+import { faqJsonLd, focusZones, FOCUS_SERVICE_SLUGS, serviceZonePath, type FaqItem } from '@/lib/public/serviceZones'
+import { withRef } from '@/lib/public/whatsapp'
+import { jsonLdScript } from '@/lib/marketing/seo'
+import { cityEnumOf, loadCity, type PublicCity } from '@/lib/seo/city'
+import { getCatalogSafe, groupByCategory } from '@/lib/seo/data'
+import { cityIsIndexable } from '@/lib/seo/indexing'
+import { pesosCO } from '@/lib/seo/site'
+import { ZONES } from '@/lib/geo/zones'
 
-export default function CityComingSoonPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params)
-  const router = useRouter()
-  const { cities } = useCity()
-  const trust = useTrust()
-  const [isAnimating, setIsAnimating] = useState(false)
-  const [activeTab, setActiveTab] = useState<'benefits' | 'services' | 'how'>('benefits')
-  const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
-  const [role, setRole] = useState<'client' | 'partner'>('client')
-  const [consent, setConsent] = useState(false)
-  const [phone, setPhone] = useState('')
-  const [phoneConsent, setPhoneConsent] = useState(false)
-  const [website, setWebsite] = useState('')
-  const [formState, setFormState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle')
-  const [formError, setFormError] = useState<string | null>(null)
+// The city page is server-rendered (Google used to receive «Ciudad no encontrada»); regenerated every 10 minutes
+export const revalidate = 600
 
-  const city = cities.find(c => c.slug === slug)
+type Props = { params: Promise<{ slug: string }> }
 
-  useEffect(() => {
-    setIsAnimating(true)
-  }, [])
+export default async function CityPage({ params }: Props) {
+  const { slug } = await params
+  const city = await loadCity(slug)
+  if (!city) notFound()
+  return cityIsIndexable(city.status) ? <ActiveCityLanding city={city} /> : <ComingSoonCity city={city} />
+}
 
-  useEffect(() => {
-    if (city && city.status === 'ACTIVE') {
-      router.push('/')
-    }
-  }, [city, router])
+const STEPS = [
+  { title: 'Pides el servicio', description: 'Describe lo que necesitas, tu dirección y cuándo te sirve. Toma menos de 2 minutos.', icon: MessageCircle },
+  { title: 'Recibes propuestas', description: 'Socios verificados te envían su oferta con precio y fecha.', icon: Users },
+  { title: 'Eliges y agendas', description: 'Comparas, eliges la que más te convenga y coordinas por el chat.', icon: Calendar },
+  { title: 'Te atienden en casa', description: 'El socio llega a tu dirección y hace el trabajo.', icon: Heart },
+]
 
-  if (!city) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Ciudad no encontrada</h1>
-          <Link href="/" className="text-primary-600 hover:underline">
-            Volver al inicio
+/* ───────────────────────────── Open city ───────────────────────────── */
+
+async function ActiveCityLanding({ city }: { city: PublicCity }) {
+  const enumCity = cityEnumOf(city.slug)
+  const [trust, catalog, cityPartners] = await Promise.all([
+    getPublicTrustSafe(),
+    getCatalogSafe(),
+    enumCity ? prisma.partnerProfile.count({ where: { verified: true, isActive: true, city: enumCity } }).catch(() => null) : Promise.resolve(null),
+  ])
+  const contact = await publicContactExtras(trust.claims)
+
+  const withPartners = catalog.filter((s) => s.partners > 0)
+  const groups = groupByCategory(withPartners)
+  const showPartners = trust.claims.trust_real_stats && cityPartners !== null && cityPartners >= STAT_MINIMUMS.verifiedPartners
+  const guaranteeText = guarantee(trust)
+  const hasZones = city.slug === 'medellin'
+  const nameBySlug = new Map(catalog.map((s) => [s.slug, s.name]))
+  const cheapest = withPartners.length ? Math.min(...withPartners.map((s) => s.from)) : null
+
+  const faq: FaqItem[] = [
+    {
+      q: `¿Cuánto cuesta un servicio a domicilio en ${city.name}?`,
+      a: `Depende del servicio y del trabajo. ${cheapest !== null ? `Los precios base parten desde ${pesosCO(cheapest)} COP y cada página de servicio muestra su «desde». ` : ''}Cada socio te envía su propuesta con precio y tú eliges antes de confirmar. En /precios hay rangos de referencia.`,
+    },
+    {
+      q: '¿Los socios están verificados?',
+      a: `Sí. ${verificationLong(trust)}${showPartners ? ` Hoy hay ${fmtCount(cityPartners as number)} socios verificados en ${city.name}.` : ''}`,
+    },
+    { q: '¿Cómo pago?', a: clientPayment(trust) },
+    ...(hasZones
+      ? [{ q: `¿Qué zonas de ${city.name} cubren?`, a: `Medellín y el Valle de Aburrá: ${ZONES.slice(0, 8).map((z) => z.name).join(', ')} y más. La cobertura depende de cada socio; al pedir indicas tu dirección y los socios que atienden tu zona te envían su propuesta.` }]
+      : []),
+    ...(guaranteeText ? [{ q: '¿Qué pasa si el socio no llega o el trabajo queda mal?', a: guaranteeText }] : []),
+    {
+      q: `¿Cómo pido un servicio en ${city.name}?`,
+      a: contact.whatsappPhone
+        ? 'Crea la solicitud en la web o escríbenos por WhatsApp y la creamos por ti. Luego recibes las propuestas de los socios y eliges.'
+        : 'Crea la solicitud en la web en pocos pasos. Luego recibes las propuestas de los socios y eliges.',
+    },
+  ]
+
+  return (
+    <div className="min-h-screen bg-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd(faq)) }} />
+
+      <section className="bg-gradient-to-br from-primary-600 to-secondary-600 text-white">
+        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 md:py-14">
+          <nav aria-label="Ruta" className="text-sm text-white/80">
+            <Link href="/" className="hover:underline">Inicio</Link> <span aria-hidden>›</span> {city.name}
+          </nav>
+          <h1 className="mt-3 text-3xl font-black leading-tight md:text-5xl">Servicios a domicilio en {city.name}</h1>
+          <p className="mt-3 max-w-2xl text-base text-white/90 md:text-lg">
+            Plomeros, electricistas, limpieza, pintura y más en {city.name}. Pides, recibes propuestas con precio de socios
+            verificados y eliges la que más te convenga.
+          </p>
+          <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+            <WhatsAppButton phone={contact.whatsappPhone} message={withRef(`Hola, necesito un servicio en ${city.name}`, `web-ciudad-${city.slug}`)} refTag={`web-ciudad-${city.slug}`} className="w-full sm:w-auto" trackData={{ placement: 'city-hero' }} />
+            <Link href="/servicios" className="inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-white px-6 py-3 text-base font-bold text-primary-700 shadow-lg sm:w-auto">
+              Ver todos los servicios
+            </Link>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2 text-sm font-semibold">
+            {showPartners && <span className="rounded-full bg-white/15 px-3 py-1.5">{fmtCount(cityPartners as number)} socios verificados</span>}
+            <span className="rounded-full bg-white/15 px-3 py-1.5">{verificationLong(trust).replace(/\.$/, '')}</span>
+            <span className="rounded-full bg-white/15 px-3 py-1.5">{clientPayment(trust).replace(/\.$/, '')}</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-5xl px-4 pb-12 sm:px-6">
+        <section aria-labelledby="servicios-ciudad" className="mt-10">
+          <h2 id="servicios-ciudad" className="text-2xl font-bold text-gray-900">Servicios disponibles en {city.name}</h2>
+          <p className="mt-2 text-gray-600">Precio base de cada servicio. El valor final lo define la propuesta del socio.</p>
+          <div className="mt-6 grid gap-8 sm:grid-cols-2">
+            {groups.map((g) => (
+              <div key={g.slug}>
+                <h3 className="text-lg font-bold text-gray-900">{g.name}</h3>
+                <ul className="mt-3 space-y-2">
+                  {g.services.map((s) => (
+                    <li key={s.slug}>
+                      <Link href={`/servicios/${s.slug}`} className="flex items-baseline justify-between gap-3 rounded-xl border border-gray-100 px-4 py-3 hover:border-primary-200 hover:bg-primary-50">
+                        <span className="font-semibold text-gray-800">{s.name}</span>
+                        <span className="shrink-0 text-sm text-gray-500">desde {pesosCO(s.from)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="mt-5 text-sm text-gray-600">
+            ¿Quieres una referencia más real? Mira los <Link href="/precios" className="font-semibold text-primary-700 underline">precios típicos por servicio</Link>.
+          </p>
+        </section>
+
+        {hasZones && (
+          <section aria-labelledby="zonas-ciudad" className="mt-10">
+            <h2 id="zonas-ciudad" className="text-2xl font-bold text-gray-900">Zonas que atendemos</h2>
+            <p className="mt-2 text-gray-600">Comunas de Medellín y municipios del Valle de Aburrá. Al pedir indicas tu dirección y los socios que cubren tu zona te envían su propuesta.</p>
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {ZONES.map((z) => (
+                <li key={z.key} className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700">{z.name}</li>
+              ))}
+            </ul>
+            {FOCUS_SERVICE_SLUGS.filter((s) => nameBySlug.has(s)).map((s) => (
+              <div key={s} className="mt-5">
+                <p className="font-semibold text-gray-900">{nameBySlug.get(s)} por zona</p>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {focusZones().map((z) => (
+                    <li key={z.key}>
+                      <Link href={serviceZonePath(s, z.key)} className="inline-flex min-h-[40px] items-center rounded-full border border-primary-100 bg-primary-50 px-4 text-sm font-semibold text-primary-700 hover:bg-primary-100">
+                        {nameBySlug.get(s)} en {z.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </section>
+        )}
+
+        <HowItWorksCity />
+
+        <section aria-labelledby="garantia-ciudad" className="mt-10 rounded-3xl border border-gray-100 bg-gray-50 p-6">
+          <h2 id="garantia-ciudad" className="text-xl font-bold text-gray-900">{guaranteeText ? 'Garantía LoHaggo' : 'Confianza'}</h2>
+          <p className="mt-2 leading-7 text-gray-700">{guaranteeText ?? verificationLong(trust)}</p>
+          {guaranteeText && <p className="mt-2 text-sm"><Link href="/garantia" className="font-semibold text-primary-700 underline">Ver la garantía completa</Link></p>}
+        </section>
+
+        <FaqList items={faq} title={`Preguntas frecuentes sobre servicios en ${city.name}`} />
+
+        <div className="mt-10 rounded-3xl bg-gradient-to-br from-primary-600 to-secondary-500 p-6 text-white">
+          <p className="text-lg font-bold">¿Qué necesitas resolver hoy?</p>
+          <p className="mt-1 text-sm text-white/90">Pide el servicio y recibe propuestas de socios verificados en {city.name}.</p>
+          <Link href="/servicios" className="mt-4 inline-flex min-h-[48px] items-center justify-center rounded-full bg-white px-6 text-base font-bold text-primary-700 hover:bg-white/90">
+            Ver servicios
           </Link>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!consent) {
-      setFormState('error')
-      setFormError('Para avisarte necesitamos tu autorización.')
-      return
-    }
-    if (phone.trim() && !phoneConsent) {
-      setFormState('error')
-      setFormError('Marca la autorización para avisarte por WhatsApp, o deja el número vacío.')
-      return
-    }
-    setFormState('sending')
-    setFormError(null)
-    try {
-      const res = await fetch('/api/public/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ citySlug: city.slug, email, name: name || undefined, role, consent, website, phone: phone.trim() || undefined, phoneConsent: phone.trim() ? phoneConsent : undefined }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'No pudimos guardar tu registro. Intenta de nuevo.')
-      setFormState('done')
-    } catch (err: any) {
-      setFormState('error')
-      setFormError(err.message || 'No pudimos guardar tu registro. Intenta de nuevo.')
-    }
-  }
+/** The generic «Cómo funciona» steps (the HowItWorks block is per service; this one is for the city). */
+function HowItWorksCity() {
+  return (
+    <section aria-labelledby="como-funciona-ciudad" className="mt-10">
+      <h2 id="como-funciona-ciudad" className="text-2xl font-bold text-gray-900">Cómo funciona</h2>
+      <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {STEPS.map((s, i) => (
+          <li key={s.title} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white">{i + 1}</span>
+            <p className="mt-3 font-semibold text-gray-900">{s.title}</p>
+            <p className="mt-1 text-sm leading-6 text-gray-600">{s.description}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
 
-  const notifyText = `Hola, quiero que me avisen cuando LoHaggo llegue a ${city.name}.`
-  const notifyHref = trust.whatsappPhone
-    ? `https://wa.me/${trust.whatsappPhone}?text=${encodeURIComponent(notifyText)}`
-    : `mailto:hola@lohaggo.com?subject=${encodeURIComponent(`Avísenme cuando lleguen a ${city.name}`)}&body=${encodeURIComponent(notifyText)}`
+/* ─────────────────────────── Coming-soon city ─────────────────────────── */
+
+const SOON_SERVICES = [
+  { name: 'Plomería', slug: 'plomeria' },
+  { name: 'Electricidad', slug: 'electricidad' },
+  { name: 'Limpieza', slug: 'limpieza-hogar' },
+  { name: 'Belleza', slug: 'manicure-pedicure' },
+  { name: 'Carpintería', slug: 'carpinteria' },
+  { name: 'Pintura', slug: 'pintura' },
+  { name: 'Jardinería', slug: 'jardineria' },
+  { name: 'Mudanzas', slug: 'mudanzas' },
+  { name: 'Masajes', slug: 'masajes' },
+  { name: 'Cerrajería', slug: 'cerrajeria' },
+  { name: 'Aire Acondicionado', slug: 'reparacion-aires' },
+  { name: 'Tecnología', slug: 'soporte-tecnico' },
+]
+
+async function ComingSoonCity({ city }: { city: PublicCity }) {
+  const trust = await getPublicTrustSafe()
+  const contact = await publicContactExtras(trust.claims)
   const guaranteeText = guarantee(trust)
-  const cityIsActive = city.status === 'ACTIVE' && trust.stats.activeCities.length === 1 && trust.stats.activeCities[0] === city.name
 
   const benefits = [
-    {
-      icon: <Zap className="w-6 h-6" />,
-      title: "Solicita en línea",
-      description: "Describe lo que necesitas y recibe propuestas de profesionales",
-      color: "from-primary-500 to-red-500"
-    },
-    {
-      icon: <Shield className="w-6 h-6" />,
-      title: verificationShort(trust),
-      description: verificationLong(trust),
-      color: "from-blue-500 to-cyan-500"
-    },
-    ...(guaranteeText ? [{
-      icon: <Star className="w-6 h-6" />,
-      title: "Garantía de servicio",
-      description: guaranteeText,
-      color: "from-yellow-500 to-primary-400"
-    }] : []),
-    {
-      icon: <Users className="w-6 h-6" />,
-      title: "Red de Expertos",
-      // The platform-wide count belongs to the active cities, not to this one
-      description: cityIsActive && trust.stats.verifiedPartners !== null
-        ? `${fmtCount(trust.stats.verifiedPartners)} profesionales verificados en ${city.name}`
-        : "Profesionales verificados de distintos oficios",
-      color: "from-purple-500 to-secondary-500"
-    },
-    {
-      icon: <Award className="w-6 h-6" />,
-      title: "Mejor Precio",
-      description: "Compara propuestas y elige la que mejor se ajuste",
-      color: "from-green-500 to-emerald-500"
-    },
-    {
-      icon: <TrendingUp className="w-6 h-6" />,
-      title: "Siempre Mejorando",
-      description: "Innovamos constantemente para ofrecerte lo mejor",
-      color: "from-indigo-500 to-accent-500"
-    }
+    { icon: Zap, title: 'Solicita en línea', description: 'Describe lo que necesitas y recibe propuestas de profesionales.' },
+    { icon: Shield, title: verificationShort(trust), description: verificationLong(trust) },
+    ...(guaranteeText ? [{ icon: Star, title: 'Garantía de servicio', description: guaranteeText }] : []),
+    { icon: Users, title: 'Red de expertos', description: 'Profesionales verificados de distintos oficios.' },
+    { icon: Award, title: 'Mejor precio', description: 'Compara propuestas y elige la que mejor se ajuste.' },
   ]
-
-  const services = [
-    { name: "Plomería", slug: "plomeria", icon: "🔧" },
-    { name: "Electricidad", slug: "electricidad", icon: "⚡" },
-    { name: "Limpieza", slug: "limpieza-hogar", icon: "🧹" },
-    { name: "Belleza", slug: "manicure-pedicure", icon: "💅" },
-    { name: "Carpintería", slug: "carpinteria", icon: "🪚" },
-    { name: "Pintura", slug: "pintura", icon: "🎨" },
-    { name: "Jardinería", slug: "jardineria", icon: "🌱" },
-    { name: "Mudanzas", slug: "mudanzas", icon: "📦" },
-    { name: "Masajes", slug: "masajes", icon: "💆" },
-    { name: "Cerrajería", slug: "cerrajeria", icon: "🔑" },
-    { name: "Aire Acondicionado", slug: "reparacion-aires", icon: "❄️" },
-    { name: "Tecnología", slug: "soporte-tecnico", icon: "💻" }
-  ]
-
-  const steps = [
-    {
-      number: "1",
-      title: "Solicita el servicio",
-      description: "Describe lo que necesitas en menos de 2 minutos",
-      icon: <MessageCircle className="w-8 h-8" />
-    },
-    {
-      number: "2",
-      title: "Recibe propuestas",
-      description: "Profesionales verificados te envían sus ofertas",
-      icon: <Users className="w-8 h-8" />
-    },
-    {
-      number: "3",
-      title: "Elige y agenda",
-      description: "Compara, elige el mejor y agenda cuando quieras",
-      icon: <Calendar className="w-8 h-8" />
-    },
-    {
-      number: "4",
-      title: "Disfruta el servicio",
-      description: "Profesional llega a tu puerta, tú solo relájate",
-      icon: <Heart className="w-8 h-8" />
-    }
-  ]
-
-  // Real numbers only, each above its minimum; the block disappears when none qualifies.
-  // Counts are shown only for an active city: in a coming-soon city they would be another city's numbers.
-  const stats = [
-    cityIsActive && trust.stats.completedServices !== null && { value: fmtCount(trust.stats.completedServices), label: "Servicios completados" },
-    cityIsActive && trust.stats.verifiedPartners !== null && { value: fmtCount(trust.stats.verifiedPartners), label: "Profesionales verificados" },
-    trust.stats.rating !== null && { value: trust.stats.rating.value.toFixed(1), label: `Calificación promedio (${fmtCount(trust.stats.rating.reviews)} reseñas)` },
-  ].filter((x): x is { value: string; label: string } => Boolean(x))
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-primary-50 via-white to-secondary-50">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-secondary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-accent-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className={`text-center mb-16 transition-all duration-1000 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-full mb-6 shadow-lg animate-bounce">
-            <Sparkles className="w-5 h-5" />
+      <div className="relative mx-auto max-w-5xl px-4 py-14 sm:px-6 lg:px-8">
+        <header className="mb-12 text-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-3 text-white shadow-lg">
+            <Sparkles className="h-5 w-5" />
             <span className="text-sm font-bold">¡Próximamente en tu ciudad!</span>
           </div>
-          
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-6 bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500 bg-clip-text text-transparent animate-gradient">
-            {city.name}
+          <h1 className="mb-4 bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500 bg-clip-text text-5xl font-black text-transparent sm:text-7xl">
+            LoHaggo llega a {city.name}
           </h1>
-
           {city.launchDate && (
-            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-6 py-3 rounded-full mb-4 shadow-lg border-2 border-primary-200">
-              <Calendar className="w-5 h-5 text-primary-600" />
-              <span className="text-lg font-bold text-gray-800">
-                Lanzamiento: {new Date(city.launchDate).toLocaleDateString('es-ES', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </span>
-            </div>
-          )}
-
-          <p className="text-2xl sm:text-3xl text-gray-700 mb-4 max-w-3xl mx-auto font-bold">
-            ¡La revolución de servicios está llegando! 🚀
-          </p>
-          
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Estamos preparando algo increíble para ti. Pronto podrás contratar servicios profesionales
-            con solo un clic desde {city.name}.
-          </p>
-        </div>
-
-        {stats.length > 0 && <div className={`grid grid-cols-2 ${stats.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-6 mb-16`}>
-          {stats.map((stat, index) => (
-            <div
-              key={index}
-              className={`bg-white rounded-2xl p-6 text-center shadow-xl border-2 border-primary-100 hover:border-primary-300 transition-all duration-500 transform hover:scale-105 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
-              style={{ transitionDelay: `${index * 100}ms` }}
-            >
-              <div className="text-4xl font-black bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent mb-2">
-                {stat.value}
-              </div>
-              <div className="text-sm text-gray-600 font-semibold">{stat.label}</div>
-            </div>
-          ))}
-        </div>}
-
-        <div className={`bg-gradient-to-br from-white to-primary-50 rounded-3xl shadow-2xl p-8 sm:p-12 mb-16 border-2 border-primary-200 transition-all duration-1000 delay-300 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full mb-4 animate-pulse">
-              <Bell className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-4xl font-black text-gray-900 mb-3">
-              ¡Sé el primero en saberlo! 🎉
-            </h2>
-            <p className="text-lg text-gray-600">
-              Déjanos tu correo y te avisamos cuando lleguemos a {city.name}
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-primary-200 bg-white/80 px-5 py-2.5 text-lg font-bold text-gray-800 shadow">
+              <Calendar className="h-5 w-5 text-primary-600" />
+              Lanzamiento: {new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' }).format(city.launchDate)}
             </p>
-          </div>
-
-          <div className="max-w-md mx-auto">
-            {formState === 'done' ? (
-              <div className="rounded-3xl bg-white border-2 border-green-200 p-6 text-center" role="status">
-                <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                <p className="text-lg font-bold text-gray-900">¡Listo! Te avisaremos</p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Te escribiremos a {email.trim().toLowerCase()} cuando LoHaggo llegue a {city.name}.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                <div className="grid grid-cols-2 gap-2 rounded-full bg-white p-1 border-2 border-primary-100" role="radiogroup" aria-label="Quién eres">
-                  {([
-                    ['client', 'Soy cliente'],
-                    ['partner', 'Quiero ser socio'],
-                  ] as const).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={role === value}
-                      onClick={() => setRole(value)}
-                      className={`rounded-full px-3 py-2.5 text-sm font-bold transition-all ${
-                        role === value
-                          ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <div>
-                  <label htmlFor="waitlist-email" className="block text-sm font-semibold text-gray-700 mb-1">
-                    Correo electrónico
-                  </label>
-                  <input
-                    id="waitlist-email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    inputMode="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tucorreo@ejemplo.com"
-                    className="w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base focus:border-primary-400 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="waitlist-name" className="block text-sm font-semibold text-gray-700 mb-1">
-                    Nombre <span className="font-normal text-gray-400">(opcional)</span>
-                  </label>
-                  <input
-                    id="waitlist-name"
-                    type="text"
-                    autoComplete="name"
-                    maxLength={120}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base focus:border-primary-400 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="waitlist-phone" className="block text-sm font-semibold text-gray-700 mb-1">
-                    WhatsApp <span className="font-normal text-gray-400">(opcional)</span>
-                  </label>
-                  <input
-                    id="waitlist-phone"
-                    type="tel"
-                    autoComplete="tel-national"
-                    inputMode="tel"
-                    maxLength={30}
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="300 123 4567"
-                    className="w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base focus:border-primary-400 focus:outline-none"
-                  />
-                  {phone.trim() && (
-                    <label className="mt-2 flex items-start gap-2 text-sm text-gray-600">
-                      <input type="checkbox" checked={phoneConsent} onChange={(e) => setPhoneConsent(e.target.checked)} className="mt-1" />
-                      <span>Autorizo que me avisen por WhatsApp cuando LoHaggo abra en {city.name}. Solo ese aviso.</span>
-                    </label>
-                  )}
-                </div>
-
-                <div className="absolute -left-[9999px] w-px h-px overflow-hidden" aria-hidden="true">
-                  <label htmlFor="waitlist-website">Sitio web</label>
-                  <input
-                    id="waitlist-website"
-                    type="text"
-                    tabIndex={-1}
-                    autoComplete="off"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                  />
-                </div>
-
-                <label className="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    required
-                    checked={consent}
-                    onChange={(e) => setConsent(e.target.checked)}
-                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span>
-                    Acepto que LoHaggo me contacte sobre el lanzamiento según la{' '}
-                    <Link href="/privacy" className="font-semibold text-primary-600 underline" target="_blank">
-                      política de privacidad
-                    </Link>
-                    .
-                  </span>
-                </label>
-
-                {formState === 'error' && formError && (
-                  <p className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700" role="alert">
-                    {formError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={formState === 'sending' || !email.trim() || !consent}
-                  className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-full font-bold hover:shadow-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {formState === 'sending' ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Enviando…
-                    </>
-                  ) : (
-                    <>
-                      Avísame
-                      <Bell className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            <a
-              href={notifyHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 w-full border-2 border-primary-200 bg-white text-primary-700 px-6 py-3 rounded-full font-semibold hover:bg-primary-50 transition-all flex items-center justify-center gap-2"
-            >
-              {trust.whatsappPhone ? 'O escríbenos por WhatsApp' : 'O escríbenos por correo'}
-              <MessageCircle className="w-5 h-5" />
-            </a>
-            {trust.launchBenefits.length > 0 && (
-              <div className="mt-6 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-2xl p-4 border-2 border-primary-200">
-                <div className="flex items-start gap-3">
-                  <Gift className="w-6 h-6 text-primary-600 flex-shrink-0 mt-1" />
-                  <div>
-                    <p className="font-bold text-primary-900 mb-1">Beneficios de lanzamiento:</p>
-                    <ul className="text-sm text-primary-800 space-y-1">
-                      {trust.launchBenefits.map((b) => <li key={b}>{b}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mb-16">
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mb-8">
-            <button
-              onClick={() => setActiveTab('benefits')}
-              className={`px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base rounded-xl font-bold transition-all ${
-                activeTab === 'benefits'
-                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              ¿Por qué LoHaggo?
-            </button>
-            <button
-              onClick={() => setActiveTab('services')}
-              className={`px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base rounded-xl font-bold transition-all ${
-                activeTab === 'services'
-                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Servicios
-            </button>
-            <button
-              onClick={() => setActiveTab('how')}
-              className={`px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base rounded-xl font-bold transition-all ${
-                activeTab === 'how'
-                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              ¿Cómo funciona?
-            </button>
-          </div>
-
-          {activeTab === 'benefits' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {benefits.map((benefit, index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-2 border-gray-100 hover:border-primary-300 group"
-                >
-                  <div className={`bg-gradient-to-br ${benefit.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-4 text-white transform group-hover:scale-110 group-hover:rotate-6 transition-all`}>
-                    {benefit.icon}
-                  </div>
-                  <h3 className="text-xl font-black text-gray-900 mb-3">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    {benefit.description}
-                  </p>
-                </div>
-              ))}
-            </div>
           )}
+          <p className="mx-auto max-w-2xl text-xl leading-relaxed text-gray-600">
+            Estamos preparando la plataforma para {city.name}. Pronto podrás contratar servicios a domicilio con socios verificados.
+            Déjanos tu correo y te avisamos cuando abramos.
+          </p>
+        </header>
 
-          {activeTab === 'services' && (
-            <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-primary-100">
-              <h3 className="text-3xl font-black text-center mb-8 bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
-                Algunos de nuestros servicios
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {services.map((service, index) => (
-                  <div
-                    key={index}
-                    className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-4 text-center hover:shadow-lg transition-all transform hover:scale-105 border-2 border-primary-100 hover:border-primary-300"
-                  >
-                    <div className="flex justify-center mb-2"><ServiceIcon slug={service.slug} size="lg" /></div>
-                    <div className="text-sm font-bold text-gray-700">{service.name}</div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-center text-gray-500 mt-6 text-lg">
-                ¡Y muchos más! 🎯
-              </p>
-            </div>
-          )}
+        <section aria-labelledby="avisame" className="mb-14 rounded-3xl border-2 border-primary-200 bg-gradient-to-br from-white to-primary-50 p-6 shadow-2xl sm:p-10">
+          <h2 id="avisame" className="mb-6 text-center text-3xl font-black text-gray-900">¡Sé el primero en saberlo!</h2>
+          <WaitlistCard citySlug={city.slug} cityName={city.name} whatsappPhone={contact.whatsappPhone} launchBenefits={contact.launchBenefits} />
+        </section>
 
-          {activeTab === 'how' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-2xl p-8 shadow-xl border-2 border-primary-100 hover:border-primary-300 transition-all relative"
-                >
-                  <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg">
-                    {step.number}
-                  </div>
-                  <div className="text-primary-500 mb-4 mt-4">
-                    {step.icon}
-                  </div>
-                  <h3 className="text-xl font-black text-gray-900 mb-3">
-                    {step.title}
-                  </h3>
-                  <p className="text-gray-600">
-                    {step.description}
-                  </p>
+        <section aria-labelledby="por-que" className="mb-14">
+          <h2 id="por-que" className="mb-6 text-center text-3xl font-black text-gray-900">¿Por qué LoHaggo?</h2>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {benefits.map((b) => (
+              <div key={b.title} className="rounded-2xl border-2 border-gray-100 bg-white p-6 shadow-lg">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-500 text-white">
+                  <b.icon className="h-6 w-6" />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className={`bg-gradient-to-r from-primary-500 via-secondary-500 to-red-500 rounded-3xl p-12 text-center text-white shadow-2xl transition-all duration-1000 delay-700 relative overflow-hidden ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <Rocket className="w-20 h-20 mx-auto mb-6 animate-bounce" />
-            <h2 className="text-4xl sm:text-5xl font-black mb-4">
-              ¿No puedes esperar? 🔥
-            </h2>
-            <p className="text-2xl mb-8 max-w-2xl mx-auto font-semibold">
-              Explora todos los servicios que pronto estarán en {city.name}
-            </p>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-3 bg-white text-primary-600 px-10 py-5 rounded-2xl font-black text-xl hover:shadow-2xl transform hover:scale-105 transition-all"
-            >
-              Ver todos los servicios
-              <ArrowRight className="w-6 h-6" />
-            </Link>
+                <h3 className="mb-2 text-lg font-black text-gray-900">{b.title}</h3>
+                <p className="leading-relaxed text-gray-600">{b.description}</p>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
 
-        <div className="mt-16 text-center space-y-6">
-          <div className="flex justify-center gap-8 text-gray-600">
-            <a href="mailto:hola@lohaggo.com" className="flex items-center gap-2 hover:text-primary-500 transition-colors">
-              <Mail className="w-5 h-5" />
-              <span className="font-semibold">hola@lohaggo.com</span>
-            </a>
+        <section aria-labelledby="servicios-pronto" className="mb-14 rounded-3xl border-2 border-primary-100 bg-white p-6 shadow-xl sm:p-8">
+          <h2 id="servicios-pronto" className="mb-6 text-center text-3xl font-black text-gray-900">Algunos de nuestros servicios</h2>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {SOON_SERVICES.map((s) => (
+              <li key={s.slug} className="rounded-xl border-2 border-primary-100 bg-gradient-to-br from-primary-50 to-secondary-50 p-4 text-center">
+                <div className="mb-2 flex justify-center"><ServiceIcon slug={s.slug} size="lg" /></div>
+                <div className="text-sm font-bold text-gray-700">{s.name}</div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-center text-gray-500">Y muchos más.</p>
+        </section>
+
+        <HowItWorksCity />
+
+        <div className="mt-14 space-y-4 text-center">
+          <a href="mailto:hola@lohaggo.com" className="inline-flex items-center gap-2 font-semibold text-gray-600 hover:text-primary-500">
+            <Mail className="h-5 w-5" /> hola@lohaggo.com
+          </a>
+          <div>
+            <Link href="/servicios" className="font-bold text-primary-600 hover:underline">Ver los servicios disponibles hoy</Link>
           </div>
-          <Link
-            href="/"
-            className="inline-block text-primary-600 hover:text-primary-700 font-bold text-lg hover:underline"
-          >
-            ← Volver al inicio
-          </Link>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(20px, -50px) scale(1.1); }
-          50% { transform: translate(-20px, 20px) scale(0.9); }
-          75% { transform: translate(50px, 50px) scale(1.05); }
-        }
-        
-        @keyframes gradient {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-        
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-      `}</style>
     </div>
   )
 }

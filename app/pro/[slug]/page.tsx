@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import ProfileClient from './ProfileClient'
+import { partnerIsIndexable } from '@/lib/seo/indexing'
+import { defaultOgImages, SITE_URL } from '@/lib/seo/site'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -105,35 +107,30 @@ async function fetchPartner(slug: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const partner = await fetchPartner(slug)
-  if (!partner) return { title: 'Perfil no encontrado — LoHaggo' }
+  if (!partner) return { title: 'Perfil no encontrado', robots: { index: false, follow: true } }
 
-  const title = `${partner.name} · Socio en ${partner.cityName} | LoHaggo`
+  // The root layout's title template adds « | LoHaggo»
+  const title = `${partner.name} · Socio en ${partner.cityName}`
+  const serviceNames = partner.services.slice(0, 3).map((s) => s.name.toLowerCase()).join(', ')
+  const reviewsLine = partner.totalReviews > 0 ? ` ${partner.totalReviews} reseñas · ${partner.rating.toFixed(1)}★.` : ''
   const description =
     partner.profileHeadline ||
     partner.bio ||
-    `${partner.name} ofrece servicios profesionales en ${partner.cityName}. ${partner.totalReviews} reseñas · ${partner.rating.toFixed(1)}★`
-  const image = partner.image ?? 'https://www.lohaggo.com/og-default.png'
+    `${partner.name} ofrece ${serviceNames || 'servicios profesionales'} en ${partner.cityName} con LoHaggo.${reviewsLine}`
+  const hasPhoto = Boolean(partner.image)
+  const images = hasPhoto
+    ? [{ url: partner.image as string, width: 400, height: 400, alt: partner.name ?? 'Socio LoHaggo' }]
+    : defaultOgImages(partner.name ?? 'Socio LoHaggo')
+  const url = `${SITE_URL}/pro/${partner.slug}`
 
   return {
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      url: `https://www.lohaggo.com/pro/${partner.slug}`,
-      siteName: 'LoHaggo',
-      locale: 'es_CO',
-      type: 'profile',
-      images: [{ url: image, width: 400, height: 400, alt: partner.name ?? 'Socio LoHaggo' }],
-    },
-    twitter: {
-      card: 'summary',
-      title,
-      description,
-      images: [image],
-    },
-    alternates: { canonical: `https://www.lohaggo.com/pro/${partner.slug}` },
-      robots: (partner.totalReviews > 0 || partner.services.length > 0) ? undefined : { index: false, follow: true },  
+    openGraph: { title, description, url, siteName: 'LoHaggo', locale: 'es_CO', type: 'profile', images },
+    twitter: { card: hasPhoto ? 'summary' : 'summary_large_image', title, description, images: images.map((i) => i.url) },
+    alternates: { canonical: url },
+    // Thin profiles (no reviews, and no bio plus photo) stay out of Google
+    robots: partnerIsIndexable({ totalReviews: partner.totalReviews, bio: partner.bio, image: partner.image }) ? undefined : { index: false, follow: true },
   }
 }
 
@@ -158,15 +155,6 @@ export default async function ProProfilePage({ params }: Props) {
       addressLocality: partner!.cityName,
       addressCountry: 'CO',
     },
-  }
-  if (partner!.totalReviews > 0) {
-    jsonLd.aggregateRating = {
-      '@type': 'AggregateRating',
-      ratingValue: partner!.rating.toFixed(1),
-      reviewCount: partner!.totalReviews.toString(),
-      bestRating: '5',
-      worstRating: '1',
-    }
   }
 
   return (

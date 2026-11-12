@@ -109,6 +109,7 @@ interface InitialServicesResult {
 
 export function ServiciosContent({
   showHeading = true,
+  headingRenderedByServer = false,
   interleaveSlot,
   interleaveAfter = 6,
   initialResult,
@@ -117,6 +118,8 @@ export function ServiciosContent({
   homeLimit,
 }: {
   showHeading?: boolean
+  /** /servicios renders its H1 on the server (crawlable); the island keeps the «servicios» tracking source but skips its own heading. */
+  headingRenderedByServer?: boolean
   interleaveSlot?: ReactNode
   interleaveAfter?: number
   initialResult?: InitialServicesResult
@@ -595,7 +598,7 @@ export function ServiciosContent({
     <div className="min-h-screen bg-slate-50">
       {pathname === '/servicios' && <ServicesTour />}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
-        {showHeading && (
+        {showHeading && !headingRenderedByServer && (
           <div className="mb-6 md:mb-8">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-2 md:mb-3 text-gray-900">
               Todos los servicios

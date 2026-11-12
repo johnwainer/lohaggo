@@ -2,6 +2,8 @@ import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
 import { sitemapArticles } from '@/lib/marketing/blog'
 import { focusPairs, serviceZonePath } from '@/lib/public/serviceZones'
+import { cityIsIndexable, partnerIsIndexable } from '@/lib/seo/indexing'
+import { getPricesSafe, PRICE_PAGE_LIMIT } from '@/lib/seo/data'
 
 export const revalidate = 3600
 
@@ -20,6 +22,12 @@ const staticPages: MetadataRoute.Sitemap = [
     lastModified: new Date(),
     changeFrequency: 'daily',
     priority: 0.9,
+  },
+  {
+    url: `${baseUrl}/precios`,
+    lastModified: new Date(),
+    changeFrequency: 'daily',
+    priority: 0.8,
   },
   {
     url: `${baseUrl}/about`,
@@ -90,7 +98,7 @@ const staticPages: MetadataRoute.Sitemap = [
   ]
 
 try {
-  const [services, cities, partners, articles] = await Promise.all([
+  const [services, cities, partners, articles, prices] = await Promise.all([
     prisma.service.findMany({
       select: {
         slug: true,
@@ -98,11 +106,13 @@ try {
         partners: { where: { active: true, partner: { verified: true, isActive: true } }, select: { id: true }, take: 1 },
       },
     }),
-    prisma.cityConfig.findMany({ where: { status: { in: ['ACTIVE', 'COMING_SOON'] } }, select: { slug: true, updatedAt: true } }),
+    prisma.cityConfig.findMany({ where: { status: 'ACTIVE' }, select: { slug: true, status: true, updatedAt: true } }),
     prisma.partnerProfile.findMany({
         where: { isPublicProfile: true, isActive: true, verified: true, slug: { not: null } },
-        select: { slug: true, updatedAt: true, totalReviews: true, services: { where: { active: true }, select: { id: true }, take: 1 } },    }),
+        select: { slug: true, updatedAt: true, totalReviews: true, bio: true, user: { select: { image: true } } },
+      }),
     sitemapArticles().catch(() => []),
+    getPricesSafe(),
     ])
 
   const servicePages: MetadataRoute.Sitemap = services
@@ -125,7 +135,8 @@ try {
       priority: 0.8,
     }))
 
-  const cityPages: MetadataRoute.Sitemap = cities.map((c) => ({
+  // Coming-soon cities are noindex pages: not listed
+  const cityPages: MetadataRoute.Sitemap = cities.filter((c) => cityIsIndexable(c.status)).map((c) => ({
     url: `${baseUrl}/ciudad/${c.slug}`,
     lastModified: c.updatedAt,
     changeFrequency: 'weekly',
@@ -133,12 +144,20 @@ try {
   }))
 
   const partnerPages: MetadataRoute.Sitemap = partners
-      .filter((p) => p.slug && (p.totalReviews > 0 || p.services.length > 0))
+      .filter((p) => p.slug && partnerIsIndexable({ totalReviews: p.totalReviews, bio: p.bio, image: p.user.image }))
     .map((p) => ({
     url: `${baseUrl}/pro/${p.slug}`,
     lastModified: p.updatedAt,
     changeFrequency: 'weekly' as const,
     priority: 0.8,
+  }))
+
+  // Price references of the top services (same list as the /precios/[servicio] pages)
+  const pricePages: MetadataRoute.Sitemap = (prices?.items.slice(0, PRICE_PAGE_LIMIT) ?? []).map((s) => ({
+    url: `${baseUrl}/precios/${s.slug}`,
+    lastModified: prices?.updatedAt,
+    changeFrequency: 'daily' as const,
+    priority: 0.7,
   }))
 
   // Blog: the index plus every published, indexable article
@@ -149,7 +168,7 @@ try {
 
   // One entry per URL (a /pro slug or a blog slug can't repeat, but never let the sitemap list one twice)
   const seen = new Set<string>()
-  return [...staticPages, ...servicePages, ...zonePages, ...cityPages, ...partnerPages, ...blogPages].filter((e) => !seen.has(e.url) && seen.add(e.url))
+  return [...staticPages, ...servicePages, ...zonePages, ...cityPages, ...partnerPages, ...pricePages, ...blogPages].filter((e) => !seen.has(e.url) && seen.add(e.url))
 } catch (error) {
   console.error('Error generating sitemap:', error)
   return staticPages

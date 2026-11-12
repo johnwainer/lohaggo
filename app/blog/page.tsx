@@ -1,3 +1,4 @@
+import { defaultOgImages } from '@/lib/seo/site'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { BLOG_PAGE_SIZE, listArticles } from '@/lib/marketing/blog'
@@ -19,7 +20,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     title,
     description,
     alternates: { canonical, types: { 'application/rss+xml': `${SITE_URL}/blog/rss.xml` } },
-    openGraph: { title, description, url: canonical, siteName: 'LoHaggo', locale: 'es_CO', type: 'website', images: [{ url: `${SITE_URL}/icon-512.png`, width: 512, height: 512 }] },
+    openGraph: { title, description, url: canonical, siteName: 'LoHaggo', locale: 'es_CO', type: 'website', images: defaultOgImages() },
   }
 }
 

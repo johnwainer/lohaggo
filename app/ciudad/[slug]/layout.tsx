@@ -1,27 +1,23 @@
 import type { Metadata } from 'next'
-import { prisma } from '@/lib/prisma'
+import { loadCity } from '@/lib/seo/city'
+import { cityIsIndexable } from '@/lib/seo/indexing'
+import { defaultOgImages, SITE_URL as BASE_URL } from '@/lib/seo/site'
 
 type Props = { params: Promise<{ slug: string }>; children: React.ReactNode }
 
-const BASE_URL = 'https://www.lohaggo.com'
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
+  const city = await loadCity(slug)
+  if (!city) return { title: 'Ciudad no encontrada', robots: { index: false, follow: true } }
 
-  const city = await prisma.cityConfig.findUnique({
-    where: { slug },
-    select: { name: true, slug: true, status: true },
-  })
-
-  const cityName = city?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1)
-  const isActive = city?.status === 'ACTIVE'
+  const cityName = city.name
+  const isActive = cityIsIndexable(city.status)
   const url = `${BASE_URL}/ciudad/${slug}`
 
-  const title = isActive
-    ? `Servicios Profesionales en ${cityName} – LoHaggo`
-    : `LoHaggo llega pronto a ${cityName} – Regístrate`
+  // The root layout's title template adds « | LoHaggo»
+  const title = isActive ? `Servicios a domicilio en ${cityName}` : `LoHaggo llega pronto a ${cityName}`
   const description = isActive
-    ? `Contrata plomeros, electricistas, limpieza y más en ${cityName}. Profesionales verificados con precios transparentes. ¡Reserva en minutos con LoHaggo!`
+    ? `Contrata plomeros, electricistas, limpieza y más en ${cityName}. Profesionales verificados que te envían propuestas con precio. Pide en línea o por WhatsApp.`
     : `LoHaggo está llegando a ${cityName}. Regístrate para ser de los primeros en acceder a servicios profesionales verificados en tu ciudad.`
 
   return {
@@ -38,6 +34,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       'servicios profesionales Colombia',
     ],
     alternates: { canonical: url },
+    // Coming-soon cities show their content to people but stay out of Google until they open
+    robots: isActive ? undefined : { index: false, follow: true },
     openGraph: {
       title,
       description,
@@ -45,12 +43,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: 'LoHaggo',
       locale: 'es_CO',
       type: 'website',
-      images: [{ url: `${BASE_URL}/icon-512.png`, width: 512, height: 512, alt: `LoHaggo ${cityName}` }],
+      images: defaultOgImages(`LoHaggo ${cityName}`),
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
+      images: defaultOgImages().map((i) => i.url),
       creator: '@lohaggo',
     },
   }
@@ -58,21 +57,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CitySlugLayout({ params, children }: Props) {
   const { slug } = await params
+  const city = await loadCity(slug)
+  if (!city) return <>{children}</>
 
-  const city = await prisma.cityConfig.findUnique({
-    where: { slug },
-    select: { name: true, slug: true, latitude: true, longitude: true, status: true },
-  })
-
-  const cityName = city?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1)
+  const cityName = city.name
   const url = `${BASE_URL}/ciudad/${slug}`
+  const isActive = cityIsIndexable(city.status)
 
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: `Servicios Profesionales en ${cityName} – LoHaggo`,
+    name: isActive ? `Servicios a domicilio en ${cityName}` : `LoHaggo llega pronto a ${cityName}`,
     url,
-    description: `Contrata plomeros, electricistas, limpieza y más en ${cityName} con LoHaggo.`,
+    description: isActive
+      ? `Contrata plomeros, electricistas, limpieza y más en ${cityName} con LoHaggo.`
+      : `LoHaggo está llegando a ${cityName}.`,
     provider: {
       '@type': 'Organization',
       name: 'LoHaggo',
@@ -88,7 +87,7 @@ export default async function CitySlugLayout({ params, children }: Props) {
     },
   }
 
-  if (city?.latitude && city?.longitude) {
+  if (city.latitude && city.longitude) {
     jsonLd.spatialCoverage = {
       '@type': 'Place',
       name: cityName,
@@ -99,10 +98,7 @@ export default async function CitySlugLayout({ params, children }: Props) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       {children}
     </>
   )

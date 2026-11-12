@@ -1,9 +1,11 @@
+import { defaultOgImages } from '@/lib/seo/site'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Descargar App iOS - LoHaggo | Instala la PWA en tu iPhone o iPad',
+  title: 'Descargar la app para iPhone y iPad',
   description: 'Descarga e instala la app de LoHaggo en tu iPhone o iPad. Instalación desde Safari, acceso rápido a servicios profesionales y experiencia optimizada para iOS.',
   openGraph: {
+    images: defaultOgImages(),
     title: 'Instala LoHaggo en iOS - App Progresiva (PWA)',
     description: 'Instala la app de LoHaggo en tu iPhone o iPad desde Safari. Sin App Store, instalación directa.',
     url: 'https://www.lohaggo.com/download/ios',

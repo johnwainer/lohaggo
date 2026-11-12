@@ -1,9 +1,10 @@
+import { defaultOgImages } from '@/lib/seo/site'
 import type { Metadata } from 'next'
 
 const BASE_URL = 'https://www.lohaggo.com'
 
 export const metadata: Metadata = {
-  title: 'Contacto – LoHaggo',
+  title: 'Contacto',
   description: 'Contáctanos para soporte, alianzas o consultas. Estamos disponibles por WhatsApp, email y redes sociales. LoHaggo – Servicios profesionales en Colombia.',
   keywords: [
     'contacto LoHaggo',
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     siteName: 'LoHaggo',
     locale: 'es_CO',
     type: 'website',
-    images: [{ url: `${BASE_URL}/icon-512.png`, width: 512, height: 512, alt: 'Contacto LoHaggo' }],
+    images: defaultOgImages('Contacto LoHaggo'),
   },
   twitter: {
     card: 'summary',

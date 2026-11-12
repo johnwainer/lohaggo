@@ -10,11 +10,15 @@ import { queryServices } from '@/lib/services/queryServices'
 import { prisma } from '@/lib/prisma'
 import { getPublicTrustSafe, publicContactExtras, realTestimonials } from '@/lib/public/trust'
 import { STAT_MINIMUMS } from '@/lib/public/claims'
+import { WhatIsLoHaggo } from '@/components/public/WhatIsLoHaggo'
+import { defaultOgImages } from '@/lib/seo/site'
 
-export const dynamic = 'force-dynamic'
+// Everything personal (session banner, selected city, tour) is a client island; the server part is public
+// catalogue and trust data, so the page is regenerated every 5 minutes instead of rendered per request.
+export const revalidate = 300
 
 export const metadata: Metadata = {
-  title: 'LoHaggo – Contrata Servicios Profesionales en Medellín | Plomeros, Electricistas y Más',
+  title: { absolute: 'LoHaggo – Contrata Servicios Profesionales en Medellín | Plomeros, Electricistas y Más' },
   description: 'LoHaggo: contrata plomeros, electricistas, limpieza, carpinteros, jardineros y más en Medellín. Profesionales verificados con precios transparentes. ¡Reserva en minutos y paga al finalizar!',
   keywords: [
     // Marca y variaciones
@@ -35,6 +39,7 @@ export const metadata: Metadata = {
     siteName: 'LoHaggo',
     locale: 'es_CO',
     type: 'website',
+    images: defaultOgImages(),
   },
   alternates: {
     canonical: 'https://www.lohaggo.com',
@@ -136,6 +141,8 @@ export default async function Home() {
           {testimonials.length >= STAT_MINIMUMS.testimonials && (
             <HomePublicTestimonials testimonials={testimonials} />
           )}
+
+          <WhatIsLoHaggo trust={trust} />
         </div>
       </HomeClientWrapper>
     </>

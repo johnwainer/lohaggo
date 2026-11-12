@@ -1,3 +1,4 @@
+import { defaultOgImages } from '@/lib/seo/site'
 import type { Metadata } from 'next'
 import { getPublicTrustSafe, type PublicTrust } from '@/lib/public/trust'
 import { commissionFaq, partnerPayout } from '@/lib/public/copy'
@@ -7,7 +8,7 @@ export const revalidate = 600
 const BASE_URL = 'https://www.lohaggo.com'
 
 export const metadata: Metadata = {
-  title: 'Preguntas Frecuentes – LoHaggo',
+  title: 'Preguntas frecuentes sobre servicios a domicilio',
   description: 'Resuelve tus dudas sobre LoHaggo: cómo reservar servicios, cómo unirse como socio, métodos de pago, cancelaciones y más. Encuentra respuestas rápidas aquí.',
   keywords: [
     'preguntas frecuentes LoHaggo',
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
     siteName: 'LoHaggo',
     locale: 'es_CO',
     type: 'website',
-    images: [{ url: `${BASE_URL}/icon-512.png`, width: 512, height: 512, alt: 'LoHaggo FAQ' }],
+    images: defaultOgImages('Preguntas frecuentes de LoHaggo'),
   },
   twitter: {
     card: 'summary',

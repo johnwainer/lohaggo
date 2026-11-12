@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import TermsAcceptBanner from '@/components/legal/TermsAcceptBanner'
+import { NOINDEX_METADATA } from '@/lib/seo/noindex'
+
+export const metadata = NOINDEX_METADATA
 
 export default async function DashboardLayout({
   children,

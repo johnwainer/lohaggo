@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { defaultOgImages } from '@/lib/seo/site'
 
 export const metadata: Metadata = {
   title: 'Todos los servicios en Medellín',
@@ -8,6 +9,10 @@ export const metadata: Metadata = {
     title: 'Todos los servicios en Medellín | LoHaggo',
     description: 'Servicios a domicilio en Medellín con profesionales verificados.',
     url: 'https://www.lohaggo.com/servicios',
+    siteName: 'LoHaggo',
+    locale: 'es_CO',
+    type: 'website',
+    images: defaultOgImages(),
   },
 }
 
