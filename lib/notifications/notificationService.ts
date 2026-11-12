@@ -945,10 +945,19 @@ export async function notifyBookingStatusChange(bookingId: string, status: strin
  */
 async function notifyBookingCompleted(booking: { id: string; userId: string; serviceId: string; totalPrice: number; service: { name: string }; user: { name: string }; partner: { id: string; userId: string; user: { name: string } } | null }) {
   const { FOLLOWUP_MARK, completionNotices, isNight } = await import('@/lib/bookings/followups-core')
-  const done = await prisma.bookingEvent.findFirst({ where: { bookingId: booking.id, type: 'followup', detail: FOLLOWUP_MARK.completionNotices }, select: { id: true } })
-  if (done) return
-  const { APP_ORIGIN, originColumns } = await import('@/lib/ops/origin')
-  await prisma.bookingEvent.create({ data: { bookingId: booking.id, type: 'followup', actorType: 'system', ...originColumns(APP_ORIGIN), detail: FOLLOWUP_MARK.completionNotices } })
+  const marked = await prisma.bookingEvent.findFirst({ where: { bookingId: booking.id, type: 'followup', detail: FOLLOWUP_MARK.completionNotices }, select: { id: true } })
+  // Each side is checked by its own stored notice, not by the mark alone: the mark is written first, so a
+  // request that died after telling the client used to leave the partner without a notice forever
+  const [clientHas, partnerHas] = await Promise.all([
+    hasCompletionNotice(booking.userId, booking.id, 'COMPLETED_PAY_AND_RATE'),
+    booking.partner ? hasCompletionNotice(booking.partner.userId, booking.id, 'COMPLETED_CONFIRM_PAYMENT') : Promise.resolve(true),
+  ])
+  if (!booking.partner) logger.warn('Completion notice to partner skipped: the booking has no partner', { bookingId: booking.id })
+  if (clientHas && partnerHas) return
+  if (!marked) {
+    const { APP_ORIGIN, originColumns } = await import('@/lib/ops/origin')
+    await prisma.bookingEvent.create({ data: { bookingId: booking.id, type: 'followup', actorType: 'system', ...originColumns(APP_ORIGIN), detail: FOLLOWUP_MARK.completionNotices } })
+  }
   const [config, bank] = await Promise.all([
     prisma.platformConfig.findFirst({ select: { cashEnabled: true, transferEnabled: true, mercadoPagoEnabled: true } }),
     booking.partner
@@ -965,16 +974,42 @@ async function notifyBookingCompleted(booking: { id: string; userId: string; ser
     methods: { cash: config?.cashEnabled ?? true, transfer: config?.transferEnabled ?? true, mercadoPago: Boolean(config?.mercadoPagoEnabled) },
     bank: bank ? { bankName: bank.bankName, accountType: bank.accountType, masked: maskAccountNumber(bank.accountNumber) ?? '' } : null,
   })
-  // Each notice on its own: one failing never drops the other (the mark already keeps it to one)
-  await createNotification({
+  // Both at once and each on its own: a slow WhatsApp dispatch to one never delays or drops the other
+  const sends: Promise<unknown>[] = []
+  if (clientHas) logger.info('Completion notice to client skipped: already sent', { bookingId: booking.id })
+  else sends.push(createNotification({
     userId: booking.userId, type: 'BOOKING_COMPLETED', ...notices.client,
     data: { bookingId: booking.id, serviceId: booking.serviceId, kind: 'COMPLETED_PAY_AND_RATE', url: '/dashboard?tab=bookings' },
     ...(isNight(Date.now()) ? { channels: ['PUSH' as const] } : {}),
-  }).catch((err) => logger.error('Completion notice to client failed', { bookingId: booking.id, err: err instanceof Error ? err.message : err }))
+  }).catch((err) => logger.error('Completion notice to client failed', { bookingId: booking.id, err: err instanceof Error ? err.message : err })))
   if (booking.partner) {
-    await createNotification({
+    if (partnerHas) logger.info('Completion notice to partner skipped: already sent', { bookingId: booking.id })
+    else sends.push(createNotification({
       userId: booking.partner.userId, type: 'BOOKING_COMPLETED', ...notices.partner,
       data: { bookingId: booking.id, serviceId: booking.serviceId, kind: 'COMPLETED_CONFIRM_PAYMENT', url: '/partner?tab=bookings' },
-    }).catch((err) => logger.error('Completion notice to partner failed', { bookingId: booking.id, err: err instanceof Error ? err.message : err }))
+    }).catch((err) => logger.error('Completion notice to partner failed', { bookingId: booking.id, err: err instanceof Error ? err.message : err })))
   }
+  await Promise.all(sends)
+}
+
+async function hasCompletionNotice(userId: string, bookingId: string, kind: string) {
+  const row = await prisma.notification.findFirst({
+    where: { userId, type: 'BOOKING_COMPLETED', AND: [{ data: { contains: `"bookingId":"${bookingId}"` } }, { data: { contains: `"kind":"${kind}"` } }] },
+    select: { id: true },
+  })
+  return Boolean(row)
+}
+
+/**
+ * Safety net for the completion notices (the follow-up cron calls it for completed, unpaid bookings): sends
+ * the one a recipient is missing, never a second one.
+ */
+export async function ensureCompletionNotices(bookingId: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, userId: true, serviceId: true, totalPrice: true, status: true, service: { select: { name: true } }, user: { select: { name: true } }, partner: { select: { id: true, userId: true, user: { select: { name: true } } } } },
+  })
+  if (!booking || booking.status !== 'COMPLETED') return false
+  await notifyBookingCompleted(booking)
+  return true
 }

@@ -20,6 +20,7 @@ import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 import { parseButtonReply, withButtonMark, type ButtonMark } from '@/lib/messaging/wa-format'
 import { handleFollowupButton, handlePartnerOnWayText, handleTextYes, isFollowupButton, isPlainYes } from '@/lib/bookings/followup-buttons'
+import { handlePaymentButton, handlePaymentText } from '@/lib/bookings/payment-chat'
 import { partnerOnWaySignal } from '@/lib/bookings/partner-unavailable-core'
 import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import type { Prisma } from '@prisma/client'
@@ -254,10 +255,20 @@ export async function POST(request: NextRequest) {
     const handled = await handleFollowupButton({ conversationId, userId: user?.id ?? null, button: buttonMark }).catch(() => false)
     if (handled) return twiml()
   }
+  // Payment, «recibido» and rating quick replies (B14/B15/B16/B18/C20/C21): applied by the server, with or without a person on the chat
+  if (buttonMark) {
+    const handled = await handlePaymentButton({ conversationId, userId: user?.id ?? null, channel, button: buttonMark }).catch(() => false)
+    if (handled) return twiml()
+  }
   // A typed «sí» confirms the appointment (SMS always; WhatsApp right after a confirmation template)
   if (!button && !media.length && isPlainYes(body)) {
     const fields = (await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true } }))?.customFields as { lastTemplate?: { name?: string; at?: string } } | null
     const handled = await handleTextYes({ conversationId, userId: user?.id ?? null, channel, body, lastTemplate: fields?.lastTemplate ?? null }).catch(() => false)
+    if (handled) return twiml()
+  }
+  // «efectivo» / «transferencia» / «recibido» typed after a payment prompt, or the rating typed after we asked for it
+  if (!button && !media.length && body.trim()) {
+    const handled = await handlePaymentText({ conversationId, userId: user?.id ?? null, channel, body }).catch(() => false)
     if (handled) return twiml()
   }
   // A partner's «voy en camino» / «llego en 20» / «voy tarde» around the hour: the client hears it with the time
@@ -285,6 +296,8 @@ async function recordButtonPress(conversationId: string, button: { id: string; t
     if (!conv) return null
     const optOut = button.id === 'optout_soft'
     const fields = withButtonMark(conv.customFields, button, repliedSid)
+    // No column keeps the id on the message: the conversation's history shows which button was pressed
+    await prisma.conversationEvent.create({ data: { conversationId, type: 'button', actorType: 'contact', detail: `${button.id} · «${button.text}»${(fields.lastButton as ButtonMark | undefined)?.template ? ` → ${(fields.lastButton as ButtonMark).template!.name}` : ''}`.slice(0, 300) } }).catch(() => null)
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {

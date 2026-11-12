@@ -32,11 +32,12 @@
  */
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { paymentReplyStale } from '@/lib/bookings/payment-chat-core'
 import { emitUserDataBroadcast } from '@/lib/supabase-admin'
 import { bookingWhen, formatBookingWhen } from '@/lib/bookings/when'
 import { WA } from '@/lib/messaging/wa-specs'
 import { sendWaToAdmins, sendWaToUser } from '@/lib/messaging/wa-send'
-import { createNotification, notifyBookingStatusChange } from '@/lib/notifications/notificationService'
+import { createNotification, ensureCompletionNotices, notifyBookingStatusChange } from '@/lib/notifications/notificationService'
 import { APP_ORIGIN, OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 import { addBookingEvent, assertBookingAccess, reopenRequestAfterPartnerCancel, systemTransition, transitionBooking } from '@/lib/bookings/ops'
 import type { OfflineMethod } from '@/lib/payments/ops'
@@ -489,6 +490,10 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
     })) as Row[]
     const ids = rows.map((b) => b.id)
     const [marks, completed] = await Promise.all([marksFor(ids), enteredAt(ids, 'COMPLETED')])
+    // The last button each client pressed in their WhatsApp chat: a payment answer that never became a report is flagged
+    const unreported = Array.from(new Set(rows.filter((b) => (b.payment?.confirmationStatus ?? 'NONE') === 'NONE').map((b) => b.userId)))
+    const chats = unreported.length ? await prisma.conversation.findMany({ where: { userId: { in: unreported }, channel: 'WHATSAPP' }, select: { userId: true, customFields: true } }) : []
+    const lastButton = new Map(chats.map((c) => [c.userId, (c.customFields as { lastButton?: { id?: string; at?: string; template?: { entityId?: string | null } | null } } | null)?.lastButton ?? null]))
     for (const b of rows) {
       const doneAt = (completed.get(b.id) ?? b.updatedAt).getTime()
       if (doneAt < at - 10 * DAY || !live(doneAt)) continue
@@ -499,6 +504,8 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
       }
       const m = marks.get(b.id) ?? new Map<FollowupMark, Date>()
       const age = at - doneAt
+      // The completion notice a side never got (the request that completed it died halfway) is sent now, once
+      if (age >= 10 * 60_000 && age <= 2 * DAY) await ensureCompletionNotices(b.id).catch((err) => logger.warn('Completion notices not healed', { bookingId: b.id, err: err instanceof Error ? err.message : err }))
       const cs = b.payment?.confirmationStatus ?? 'NONE'
       if (cs === 'DISPUTED') {
         if (age >= T.escalateDisputedMs) await escalate('cliente y socio no coinciden en el medio de pago')
@@ -508,6 +515,10 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
         const reported = b.payment?.clientReportedAt?.getTime() ?? doneAt
         if (at >= reported + T.escalateReportedMs) await escalate('el cliente reportó el pago y el socio no lo confirma')
         continue
+      }
+      const lb = lastButton.get(b.userId)
+      if (lb?.template?.entityId === b.id && paymentReplyStale({ lastButtonId: lb.id ?? null, lastButtonAt: lb.at ?? null, now: at, completedAt: doneAt, confirmationStatus: cs })) {
+        await escalate('el cliente respondió al aviso de pago por WhatsApp y el pago sigue sin registrarse')
       }
       if (m.has('partnerNotPaid') || age >= T.escalateUnpaidMs) {
         await escalate(m.has('partnerNotPaid') ? 'el socio dice que el cliente no le ha pagado' : 'pasaron 5 días sin pago ni reporte')
