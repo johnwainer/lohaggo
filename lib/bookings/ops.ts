@@ -113,7 +113,7 @@ const AUTOMATION_TRIGGER: Partial<Record<BookingStatus, 'BOOKING_CONFIRMED' | 'B
 }
 
 /** Everything the app always did after a status change: notifications, PWA prompt context, automations. */
-async function afterStatusChange(actor: Actor, booking: { id: string; userId: string; partnerId: string | null }, to: BookingStatus) {
+export async function afterStatusChange(actor: Actor, booking: { id: string; userId: string; partnerId: string | null }, to: BookingStatus) {
   await notifyBookingStatusChange(booking.id, to)
 
   if (actor.role === 'PARTNER') {

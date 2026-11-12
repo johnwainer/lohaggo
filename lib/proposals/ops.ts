@@ -10,6 +10,7 @@ import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 import { loadPlatformConfig, preferredDateOnly } from '@/lib/service-requests/ops'
 import { DEFAULT_BOOKING_TIME, bogotaClockTime, bookingWhen, dateOnlyUtc } from '@/lib/bookings/when'
+import { FOLLOWUP_MARK, reconfirmAskAt } from '@/lib/bookings/followups-core'
 import { effectiveRates } from '@/lib/payments/commission'
 import { shouldAutoConfirm } from '@/lib/proposals/auto-confirm'
 import { clientCityMismatchMessage, partnerCityMismatchMessage, serviceCityMismatch } from '@/lib/proposals/city-match'
@@ -221,6 +222,14 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
       include: bookingInclude,
     })
 
+    // The client just accepted this exact day and hour: the appointment guarantee must not ask them to re-confirm
+    // it right away (a same-day acceptance after 18:00 of the day before would otherwise be on hold within minutes)
+    if (initialStatus === 'CONFIRMED' && reconfirmAskAt(bookingWhen({ scheduledDate, scheduledTime })).getTime() <= Date.now()) {
+      await tx.bookingEvent.create({
+        data: { bookingId: booking.id, type: 'followup', actorType: actorTypeOf(actor, origin), actorId: actor.userId, ...originColumns(origin), detail: FOLLOWUP_MARK.clientReconfirmed },
+      })
+    }
+
     await tx.bookingEvent.create({
       data: {
         bookingId: booking.id,
@@ -263,6 +272,11 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   scheduleAutomationsForUser(booking.userId, 'BOOKING_CREATED', { targetRole: 'CLIENT', contextId: booking.id }).catch(() => null)
   if (booking.partner?.user?.id) {
     scheduleAutomationsForUser(booking.partner.user.id, 'BOOKING_CREATED', { targetRole: 'PARTNER', contextId: booking.id }).catch(() => null)
+  }
+  // Created already confirmed: the same notices and automations as a confirmation by the partner
+  if (initialStatus === 'CONFIRMED') {
+    const { afterStatusChange } = await import('@/lib/bookings/ops')
+    await afterStatusChange(actor, { id: booking.id, userId: booking.userId, partnerId: booking.partnerId }, 'CONFIRMED').catch((err) => logger.warn('Confirmation notices after auto-confirm failed (non-fatal)', { bookingId: booking.id, err }))
   }
 
   return booking
