@@ -1,3 +1,4 @@
+import { defaultOgImages } from '@/lib/seo/site'
 import Link from 'next/link'
 import { Metadata } from 'next'
 import {
@@ -17,12 +18,14 @@ import {
   DollarSign
 } from 'lucide-react'
 import { getPublicTrustSafe } from '@/lib/public/trust'
+import { WhatIsLoHaggo } from '@/components/public/WhatIsLoHaggo'
 import { fmtCount } from '@/lib/public/claims'
 
 export const metadata: Metadata = {
-  title: 'Acerca de Nosotros - LoHaggo | Plataforma de Servicios Profesionales en Colombia',
+  title: 'Acerca de LoHaggo: plataforma de servicios profesionales en Colombia',
   description: 'Descubre LoHaggo, la plataforma en Colombia para contratar servicios profesionales. Conectamos clientes con expertos verificados en plomería, electricidad, limpieza y más.',
   openGraph: {
+    images: defaultOgImages(),
     title: 'Acerca de LoHaggo - Conectando Profesionales con Clientes',
     description: 'Conoce cómo LoHaggo está revolucionando la forma de contratar servicios profesionales en Colombia.',
     url: 'https://www.lohaggo.com/about',
@@ -125,6 +128,8 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
+
+      <WhatIsLoHaggo trust={trust} />
 
       {/* Stats Section: real numbers only */}
       {showStats && <section className="py-20 bg-white">

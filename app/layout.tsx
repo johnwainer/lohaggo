@@ -15,6 +15,8 @@ import AcquisitionTracker from '@/components/analytics/AcquisitionTracker'
 import InAppNotificationToast from '@/components/InAppNotificationToast'
 import { prisma } from '@/lib/prisma'
 import { getTopServicesSafe } from '@/lib/public/topServices'
+import { publicWhatsappPhone } from '@/lib/public/trust'
+import { defaultOgImages } from '@/lib/seo/site'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
@@ -95,20 +97,13 @@ export const metadata: Metadata = {
     description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza y más. Expertos verificados en Medellín con precios transparentes. ¡Reserva en minutos!',
     locale: 'es_CO',
     url: 'https://www.lohaggo.com',
-    images: [
-      {
-        url: '/icon-512.png',
-        width: 512,
-        height: 512,
-        alt: 'LoHaggo - Plataforma de Servicios Profesionales en Colombia',
-      },
-    ],
+    images: defaultOgImages('LoHaggo - Plataforma de Servicios Profesionales en Colombia'),
   },
   twitter: {
     card: 'summary_large_image',
     title: 'LoHaggo - Servicios Profesionales en Colombia',
     description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza y más. Expertos verificados en Medellín con precios transparentes. ¡Reserva en minutos!',
-    images: ['/icon-512.png'],
+    images: defaultOgImages().map((i) => i.url),
     creator: '@lohaggo',
   },
   robots: {
@@ -123,9 +118,8 @@ export const metadata: Metadata = {
     },
   },
   category: 'business',
-  verification: {
-    google: 'google-site-verification-code',
-  },
+  // Search Console: solo se emite la etiqueta cuando NEXT_PUBLIC_GSC_VERIFICATION está definida
+  ...(process.env.NEXT_PUBLIC_GSC_VERIFICATION ? { verification: { google: process.env.NEXT_PUBLIC_GSC_VERIFICATION } } : {}),
 }
 
 export const viewport: Viewport = {
@@ -152,6 +146,9 @@ export default async function RootLayout({
   } catch { /* default to true if DB unreachable */ }
   const footerServices = await getTopServicesSafe(6)
   const metaPixelId = await metaPixelIdForPage()
+  // Same public number as the floating WhatsApp button; omitted from the schema when it is off
+  const whatsappPhone = await publicWhatsappPhone().catch(() => null)
+  const telephone = whatsappPhone ? `+${whatsappPhone}` : undefined
 
   return (
     <html lang="es-CO" translate="no" className={inter.variable}>
@@ -183,6 +180,7 @@ export default async function RootLayout({
               "logo": "https://www.lohaggo.com/icon-512.png",
               "image": "https://www.lohaggo.com/icon-512.png",
               "email": "hola@lohaggo.com",
+              ...(telephone ? { "telephone": telephone } : {}),
               "address": {
                 "@type": "PostalAddress",
                 "addressCountry": "CO",
@@ -195,11 +193,6 @@ export default async function RootLayout({
                 "longitude": "-75.5812"
               },
               "priceRange": "$$",
-              "sameAs": [
-                "https://facebook.com/lohaggo",
-                "https://twitter.com/lohaggo",
-                "https://instagram.com/lohaggo"
-              ],
               "areaServed": {
                 "@type": "City",
                 "name": "Medellín",
@@ -231,12 +224,6 @@ export default async function RootLayout({
               "logo": "https://www.lohaggo.com/icon-512.png",
               "description": "Plataforma en Colombia para contratar servicios profesionales verificados. Plomeros, electricistas, limpieza, carpinteros y más en Medellín.",
               "foundingDate": "2024",
-              "founders": [
-                {
-                  "@type": "Person",
-                  "name": "LoHaggo Team"
-                }
-              ],
               "address": {
                 "@type": "PostalAddress",
                 "addressCountry": "CO",
@@ -247,13 +234,9 @@ export default async function RootLayout({
                 "@type": "ContactPoint",
                 "contactType": "customer service",
                 "email": "hola@lohaggo.com",
+                ...(telephone ? { "telephone": telephone } : {}),
                 "availableLanguage": ["Spanish"]
-              },
-              "sameAs": [
-                "https://facebook.com/lohaggo",
-                "https://twitter.com/lohaggo",
-                "https://instagram.com/lohaggo"
-              ]
+              }
             })
           }}
         />

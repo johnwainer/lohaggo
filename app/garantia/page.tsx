@@ -1,3 +1,4 @@
+import { defaultOgImages } from '@/lib/seo/site'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ArrowLeft, CheckCircle2, Clock, Info, Mail, MessageCircle, ShieldCheck, UserX, Wrench } from 'lucide-react'
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
   title: 'Garantía: qué hacemos si el socio no llega o el trabajo queda mal',
   description: 'La Garantía LoHaggo: si el socio no llega o el trabajo queda incompleto, te conseguimos otro socio con prioridad, cancelamos sin costo o el mismo socio corrige. Tiempos, límites y cómo reclamar.',
   openGraph: {
+    images: defaultOgImages(),
     title: 'Garantía LoHaggo',
     description: POLICY_SUMMARY,
     url: 'https://www.lohaggo.com/garantia',

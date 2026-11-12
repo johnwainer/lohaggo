@@ -19,10 +19,10 @@ type Props = { params: Promise<{ slug: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const a = await getArticle(slug)
-  if (!a) return { title: 'Artículo no encontrado – LoHaggo', robots: { index: false } }
+  if (!a) return { title: 'Artículo no encontrado', robots: { index: false } }
   const title = a.seoTitle || a.post.title
   const description = a.seoDescription || a.excerpt || makeExcerpt(a.body, 158)
-  const image = ogImageUrl(a.coverUrl || a.post.media[0]?.url || null) || `${SITE_URL}/icon-512.png`
+  const image = ogImageUrl(a.coverUrl || a.post.media[0]?.url || null) || `${SITE_URL}/og-default.png`
   const url = a.canonicalUrl || articleUrl(slug)
   return {
     title,

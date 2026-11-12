@@ -8,6 +8,7 @@ import { jsonLdScript, SITE_URL } from '@/lib/marketing/seo'
 import { firstNameInitial, getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
 import { withRef } from '@/lib/public/whatsapp'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { defaultOgImages } from '@/lib/seo/site'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import {
@@ -78,20 +79,20 @@ const loadLanding = cache(async (slug: string, zona: string) => {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, zona } = await params
   const data = await loadLanding(slug, zona)
-  if (!data) return { title: 'Página no encontrada – LoHaggo', robots: { index: false } }
+  if (!data) return { title: 'Página no encontrada', robots: { index: false } }
   const { service, zone } = data
-  const title = `${service.name} en ${zone.name}, Medellín | LoHaggo`
+  const title = `${service.name} en ${zone.name}, Medellín`
   const description = `Pide ${service.name.toLowerCase()} en ${zone.name} con LoHaggo: recibe propuestas de socios verificados y elige. Desde ${pesos(service.basePrice)} COP.`
   const url = `${SITE_URL}${serviceZonePath(slug, zona)}`
   return {
-    title: { absolute: title },
+    title,
     description,
     alternates: { canonical: url },
     openGraph: {
       title, description, url, siteName: 'LoHaggo', locale: 'es_CO', type: 'website',
-      images: [{ url: `${SITE_URL}/icon-512.png`, width: 512, height: 512, alt: `${service.name} en ${zone.name} – LoHaggo` }],
+      images: defaultOgImages(`${service.name} en ${zone.name} – LoHaggo`),
     },
-    twitter: { card: 'summary', title, description },
+    twitter: { card: 'summary_large_image', title, description, images: defaultOgImages().map((i) => i.url) },
   }
 }
 

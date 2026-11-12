@@ -8,24 +8,12 @@ import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } fr
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import { STAT_MINIMUMS } from '@/lib/public/claims'
 import { citiesLine, clientPayment, verificationLong, verificationShort } from '@/lib/public/copy'
+import { ServiceLinksSection } from '@/components/public/ServiceLinksSection'
+import { defaultOgImages, pesosCO } from '@/lib/seo/site'
 
 type Props = { params: Promise<{ slug: string }>; children: React.ReactNode }
 
 const BASE_URL = 'https://www.lohaggo.com'
-
-// Map service icon emoji / name → schema type
-function getServiceSchemaType(name: string, category: string): string {
-  const n = name.toLowerCase()
-  const c = category.toLowerCase()
-  if (c.includes('plo') || n.includes('plo') || n.includes('agua') || n.includes('tube')) return 'PlumbingService'
-  if (c.includes('elec') || n.includes('elec')) return 'ElectricalContractor'
-  if (c.includes('limp') || n.includes('limp') || n.includes('aseo')) return 'HouseCleaning'
-  if (c.includes('pint') || n.includes('pint')) return 'PaintingContractor'
-  if (c.includes('carp') || n.includes('carp') || n.includes('mader')) return 'Carpenter'
-  if (c.includes('jard') || n.includes('jard') || n.includes('poda')) return 'LandscapingBusiness'
-  if (c.includes('segur') || n.includes('segur') || n.includes('cerraj')) return 'Locksmith'
-  return 'HomeAndConstructionBusiness'
-}
 
 function buildKeywords(name: string, category: string): string[] {
   const base = [
@@ -80,10 +68,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!service) return notFound()
 
-  const { verifiedPartners } = await serviceTrust(service.id).catch(() => ({ verifiedPartners: 0 }))
+  const [{ verifiedPartners }, trust] = await Promise.all([
+    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0 })),
+    getPublicTrustSafe(),
+  ])
 
-  const title = verifiedPartners > 0 ? `${service.name} en Medellín – Profesionales Verificados` : `${service.name} en Medellín – Próximamente en LoHaggo`
-  const description = `Contrata ${service.name.toLowerCase()} en Medellín con LoHaggo. ${service.description}${verifiedPartners > 0 ? ` ${verifiedPartners} profesionales verificados disponibles.` : ''} Precios desde $${Math.round(service.basePrice).toLocaleString('es-CO')}. Reserva fácil y paga al terminar.`
+  // The root layout's title template adds « | LoHaggo»
+  const lower = service.name.toLowerCase()
+  const title = verifiedPartners > 0
+    ? `${service.name} a domicilio en Medellín · desde ${pesosCO(service.basePrice)}`
+    : `${service.name} en Medellín: próximamente`
+  const showCount = trust.claims.trust_real_stats && verifiedPartners >= STAT_MINIMUMS.verifiedPartners
+  const intro = service.description.trim().replace(/[.\s]+$/, '')
+  const description = [
+    `Contrata ${lower} a domicilio en Medellín con profesionales verificados.`,
+    intro ? `${intro}.` : '',
+    showCount ? `${verifiedPartners} socios verificados disponibles.` : '',
+    `Desde ${pesosCO(service.basePrice)} COP.`,
+    `${clientPayment(trust)} Pide en línea.`,
+  ].filter(Boolean).join(' ')
   const url = `${BASE_URL}/servicios/${slug}`
 
   return {
@@ -99,12 +102,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: 'LoHaggo',
       locale: 'es_CO',
       type: 'website',
-      images: [{ url: `${BASE_URL}/icon-512.png`, width: 512, height: 512, alt: `${service.name} – LoHaggo` }],
+      images: defaultOgImages(`${service.name} a domicilio en Medellín – LoHaggo`),
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
+      images: defaultOgImages().map((i) => i.url),
       creator: '@lohaggo',
     },
   }
@@ -135,13 +139,15 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
   const shownRating = trust.claims.trust_real_stats ? rating : null
   const coverage = citiesLine(trust)
 
-  const schemaType = getServiceSchemaType(service.name, service.category.name)
   const url = `${BASE_URL}/servicios/${slug}`
 
+  // A Service offered by LoHaggo (an Organization), not a LocalBusiness: the business schema lives in the root layout
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': schemaType === 'HomeAndConstructionBusiness' ? 'LocalBusiness' : [schemaType, 'LocalBusiness'],
-    name: `${service.name} en Medellín – LoHaggo`,
+    '@type': 'Service',
+    name: `${service.name} a domicilio en Medellín`,
+    serviceType: service.name,
+    category: service.category.name,
     description: service.description,
     url,
     provider: {
@@ -157,8 +163,8 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
     },
     offers: {
       '@type': 'Offer',
-      price: service.basePrice,
       priceCurrency: 'COP',
+      priceSpecification: { '@type': 'PriceSpecification', minPrice: service.basePrice, priceCurrency: 'COP' },
       availability: 'https://schema.org/InStock',
       url,
     },
@@ -294,6 +300,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
           </div>
         </section>
       )}
+      {verifiedPartners > 0 && <ServiceLinksSection serviceId={service.id} serviceName={service.name} />}
     </>
   )
 }

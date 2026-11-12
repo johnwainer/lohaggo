@@ -1,3 +1,4 @@
+import { defaultOgImages } from '@/lib/seo/site'
 import { Metadata } from 'next'
 import UneteClient from './UneteClient'
 import { getPublicTrustSafe } from '@/lib/public/trust'
@@ -31,14 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
             description: `${social} Regístrate gratis y recibe solicitudes de clientes en tu ciudad. Sin suscripciones.`,
             url: 'https://www.lohaggo.com/unete',
             siteName: 'LoHaggo',
-            images: [
-                {
-                    url: 'https://www.lohaggo.com/icon-512.png',
-                    width: 512,
-                    height: 512,
-                    alt: 'Únete a LoHaggo como profesional y recibe clientes',
-                },
-            ],
+            images: defaultOgImages('Únete a LoHaggo como profesional y recibe clientes'),
             locale: 'es_CO',
             type: 'website',
         },
@@ -46,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
             card: 'summary_large_image',
             title: '¿Eres profesional? Únete a LoHaggo y recibe clientes hoy',
             description: `${social} Regístrate gratis.`,
-            images: ['https://www.lohaggo.com/icon-512.png'],
+            images: defaultOgImages().map((i) => i.url),
         },
         alternates: {
             canonical: 'https://www.lohaggo.com/unete',
