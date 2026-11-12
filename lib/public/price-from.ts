@@ -1,14 +1,16 @@
 /**
  * ONE «desde» value for a service everywhere (header, partner list, sticky bar, budget hint):
- * the cheapest price an available partner offers in the city; when no partner offers it yet, the
- * service's base price (the minimum any proposal can have). The client fee is shown next to it.
+ * the cheapest price an available partner offers in the city, never below the service's base price (the
+ * minimum any proposal can have); when no partner is above it, the base price. The client fee is shown next to it.
  */
 
 export type FeeInfo = { enabled: boolean; rate: number }
 
 export function priceFrom(service: { basePrice: number }, partnerPrices: number[]): { amount: number; source: 'partners' | 'base' } {
   const valid = partnerPrices.filter((p) => Number.isFinite(p) && p > 0)
-  if (valid.length > 0) return { amount: Math.min(...valid), source: 'partners' }
+  // Never below the base price: a proposal cannot be lower than it, and some partner prices predate that rule
+  const cheapest = valid.length > 0 ? Math.max(Math.min(...valid), service.basePrice) : null
+  if (cheapest !== null && cheapest > service.basePrice) return { amount: cheapest, source: 'partners' }
   return { amount: service.basePrice, source: 'base' }
 }
 

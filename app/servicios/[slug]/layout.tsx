@@ -10,6 +10,7 @@ import { STAT_MINIMUMS } from '@/lib/public/claims'
 import { citiesLine, clientPayment, verificationLong, verificationShort } from '@/lib/public/copy'
 import { ServiceLinksSection } from '@/components/public/ServiceLinksSection'
 import { defaultOgImages, pesosCO } from '@/lib/seo/site'
+import { priceFrom } from '@/lib/public/price-from'
 
 type Props = { params: Promise<{ slug: string }>; children: React.ReactNode }
 
@@ -33,7 +34,7 @@ function buildKeywords(name: string, category: string): string[] {
 /** Verified, active partners offering the service, and the rating from their real reviews of it. */
 const serviceTrust = cache(async (serviceId: string) => {
   const partnerWhere = { verified: true, isActive: true }
-  const [verifiedPartners, medellinPartners, rating] = await Promise.all([
+  const [verifiedPartners, medellinPartners, rating, cheapest] = await Promise.all([
     prisma.partnerService.count({ where: { serviceId, active: true, partner: partnerWhere } }),
     prisma.partnerService.count({ where: { serviceId, active: true, partner: { ...partnerWhere, city: 'MEDELLIN' } } }),
     prisma.review.aggregate({
@@ -41,12 +42,15 @@ const serviceTrust = cache(async (serviceId: string) => {
       _avg: { clientToPartnerRating: true },
       _count: { clientToPartnerRating: true },
     }),
+    // The same «desde» the page shows (lib/public/price-from.ts): the cheapest price an available partner offers in Medellín
+    prisma.partnerService.aggregate({ where: { serviceId, active: true, city: 'MEDELLIN', partner: { ...partnerWhere, isAvailable: true } }, _min: { price: true } }),
   ])
   const reviews = rating._count.clientToPartnerRating
   const avg = rating._avg.clientToPartnerRating
   return {
     verifiedPartners,
     medellinPartners,
+    minPartnerPrice: cheapest._min.price ?? null,
     rating: avg && reviews >= STAT_MINIMUMS.reviewsForRating ? { value: (Math.round(avg * 10) / 10).toFixed(1), reviews } : null,
   }
 })
@@ -68,15 +72,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!service) return notFound()
 
-  const [{ verifiedPartners }, trust] = await Promise.all([
-    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0 })),
+  const [{ verifiedPartners, minPartnerPrice }, trust] = await Promise.all([
+    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0, minPartnerPrice: null as number | null })),
     getPublicTrustSafe(),
   ])
 
   // The root layout's title template adds « | LoHaggo»
   const lower = service.name.toLowerCase()
+  const fromAmount = priceFrom(service, minPartnerPrice ? [minPartnerPrice] : []).amount
   const title = verifiedPartners > 0
-    ? `${service.name} a domicilio en Medellín · desde ${pesosCO(service.basePrice)}`
+    ? `${service.name} a domicilio en Medellín · desde ${pesosCO(fromAmount)}`
     : `${service.name} en Medellín: próximamente`
   const showCount = trust.claims.trust_real_stats && verifiedPartners >= STAT_MINIMUMS.verifiedPartners
   const intro = service.description.trim().replace(/[.\s]+$/, '')
@@ -84,7 +89,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `Contrata ${lower} a domicilio en Medellín con profesionales verificados.`,
     intro ? `${intro}.` : '',
     showCount ? `${verifiedPartners} socios verificados disponibles.` : '',
-    `Desde ${pesosCO(service.basePrice)} COP.`,
+    `Desde ${pesosCO(fromAmount)} COP.`,
     `${clientPayment(trust)} Pide en línea.`,
   ].filter(Boolean).join(' ')
   const url = `${BASE_URL}/servicios/${slug}`
@@ -130,8 +135,8 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
 
   if (!service) return <>{children}</>
 
-  const [{ verifiedPartners, medellinPartners, rating }, trust, whatsappPhone] = await Promise.all([
-    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0, medellinPartners: 0, rating: null })),
+  const [{ verifiedPartners, medellinPartners, rating, minPartnerPrice }, trust, whatsappPhone] = await Promise.all([
+    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0, medellinPartners: 0, rating: null, minPartnerPrice: null as number | null })),
     getPublicTrustSafe(),
     publicWhatsappPhone().catch(() => null),
   ])
@@ -185,7 +190,8 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
     },
   }
 
-  const priceFormatted = Math.round(service.basePrice).toLocaleString('es-CO')
+  const fromAmount = priceFrom(service, minPartnerPrice ? [minPartnerPrice] : []).amount
+  const priceFormatted = Math.round(fromAmount).toLocaleString('es-CO')
 
   // Crawlable guide (how it works, zones, FAQ): only for services with verified partners, as the sitemap
   const zoneLinks = isFocusService(slug)
@@ -263,7 +269,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
             {[
               { icon: '✅', title: 'Profesionales verificados', desc: trust.claims.trust_background_check ? verificationShort(trust) : 'Identidad verificada por nuestro equipo' },
-              { icon: '💰', title: 'Precio transparente', desc: `Desde $${Math.round(service.basePrice).toLocaleString('es-CO')} COP` },
+              { icon: '💰', title: 'Precio transparente', desc: `Desde $${priceFormatted} COP` },
               ...(shownRating ? [{ icon: '⭐', title: `${shownRating.value}/5 calificación`, desc: `Basada en ${shownRating.reviews} reseñas reales` }] : []),
               { icon: '📅', title: 'Reserva en línea', desc: 'Sin llamadas ni esperas innecesarias' },
               { icon: '🔒', title: trust.claims.trust_online_payment_protection ? 'Pago protegido' : 'Pagas al terminar', desc: clientPayment(trust) },

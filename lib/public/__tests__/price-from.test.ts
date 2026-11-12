@@ -4,6 +4,11 @@ import { clientFee, feeNote, priceFrom, priceFromLabel } from '@/lib/public/pric
 const money = (n: number) => `$${n}`
 
 describe('priceFrom', () => {
+  it('nunca baja del precio base (precios de socios anteriores a esa regla)', () => {
+    expect(priceFrom({ basePrice: 100000 }, [70000, 120000])).toEqual({ amount: 100000, source: 'base' })
+    expect(priceFrom({ basePrice: 100000 }, [70000])).toEqual({ amount: 100000, source: 'base' })
+    expect(priceFrom({ basePrice: 100000 }, [130000, 110000])).toEqual({ amount: 110000, source: 'partners' })
+  })
   it('con socios usa el precio más bajo; sin socios, el base', () => {
     expect(priceFrom({ basePrice: 50000 }, [90000, 70000, 80000])).toEqual({ amount: 70000, source: 'partners' })
     expect(priceFrom({ basePrice: 50000 }, [])).toEqual({ amount: 50000, source: 'base' })
