@@ -17,6 +17,7 @@ const PARTNER_RECEIVED_TEMPLATES = new Set(['lh_socio_pago_reportado_v2', 'lh_so
 const RATE_TEMPLATES = new Set(['lh_cliente_pago_confirmado_v2', 'lh_cliente_recordatorio_calificar_v2'])
 /** Templates a typed «efectivo» / «transferencia» answers (the client's B14/B15; the partner's C39 and C20/C21) */
 export const CLIENT_PAY_PROMPTS = CLIENT_PAY_TEMPLATES
+export const RATE_PROMPTS = RATE_TEMPLATES
 export const PARTNER_PAY_PROMPTS = new Set(Array.from(PARTNER_RECEIVED_TEMPLATES).concat('lh_socio_te_pagaron'))
 
 /** The quick-reply id, only when it was pressed on a template that asks that question. Pure. */
@@ -82,6 +83,25 @@ export function promptedBookingIds(fields: unknown, names: ReadonlySet<string>, 
   return Array.from(ids)
 }
 
+/** A template and its OUTBOUND message are written with the same instant; anything later is something else we (or a person) said. */
+export const SAME_MESSAGE_MS = 5_000
+
+/**
+ * The booking a typed answer may act on: the one the conversation's LAST outbound message asked about, and only
+ * when that message is itself one of `names` (the template mark and the last outbound row are the same message),
+ * is younger than `windowMs`, and nothing visible (a person, the agent, another template or reply) came after it.
+ * Internal notes do not count as outbound. Null otherwise. Pure.
+ */
+export function lastPromptBookingId(fields: unknown, names: ReadonlySet<string>, lastOutboundAt: number | null, now: number, windowMs: number): string | null {
+  if (lastOutboundAt == null || !Number.isFinite(lastOutboundAt)) return null
+  const m = ((fields && typeof fields === 'object' ? fields : {}) as { lastTemplate?: PromptMark }).lastTemplate
+  if (!m?.name || !names.has(m.name) || m.entityType !== 'Booking' || !m.entityId || !m.at) return null
+  const at = Date.parse(m.at)
+  if (!Number.isFinite(at) || now - at > windowMs || at > now + 60_000) return null
+  if (Math.abs(lastOutboundAt - at) > SAME_MESSAGE_MS) return null
+  return m.entityId
+}
+
 /** The one booking to act on: exactly one candidate, never a guess between several. */
 export function onlyCandidate<T extends { id: string }>(candidates: T[]): T | null {
   return candidates.length === 1 ? candidates[0] : null
@@ -97,11 +117,13 @@ export function isUnpaidCompleted(b: { status: string; payment: { status?: strin
  * The client answered a payment prompt (pay_cash / pay_transfer / typed method) and, `staleAfterMs` later, the
  * booking is still completed and unpaid with nothing reported: it needs a person. Pure.
  */
-export function paymentReplyStale(p: { lastButtonId: string | null; lastButtonAt: string | null; now: number; completedAt: number; confirmationStatus: string; staleAfterMs?: number }) {
+export function paymentReplyStale(p: { lastButtonId: string | null; lastButtonAt: string | null; now: number; completedAt: number; confirmationStatus: string; rejectedAt?: number | null; staleAfterMs?: number }) {
   if (p.confirmationStatus !== 'NONE' && p.confirmationStatus !== 'REJECTED_BY_PARTNER') return false
   if (!p.lastButtonId || !/^pay_(cash|transfer)$/.test(p.lastButtonId) || !p.lastButtonAt) return false
   const at = Date.parse(p.lastButtonAt)
   if (!Number.isFinite(at) || at < p.completedAt) return false
+  // The button predates the partner's rejection: the client already answered, the team has the case
+  if (p.confirmationStatus === 'REJECTED_BY_PARTNER' && p.rejectedAt != null && at <= p.rejectedAt) return false
   return p.now - at >= (p.staleAfterMs ?? 2 * 3600_000)
 }
 

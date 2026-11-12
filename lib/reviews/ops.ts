@@ -51,11 +51,21 @@ export async function leaveReview(actor: Actor, input: ReviewInput, origin: Orig
     if (existing?.clientToPartnerRating) throw new OpsError('Ya has calificado este servicio', 400)
     if (!booking.partner || !booking.partnerId) throw new OpsError('La reserva no tiene socio asignado', 400)
 
-    const review = await prisma.review.upsert({
-      where: { bookingId },
-      create: { bookingId, clientToPartnerRating: rating, clientToPartnerComment: comment, clientReviewedAt: now, ...originColumns(origin) },
-      update: { clientToPartnerRating: rating, clientToPartnerComment: comment, clientReviewedAt: now },
-    })
+    // First rating: create, and let the unique bookingId decide a race (the loser gets «ya calificaste», no double notice).
+    // The partner already rated first: fill the client's side only while it is still empty.
+    let review
+    if (!existing) {
+      try {
+        review = await prisma.review.create({
+          data: { bookingId, clientToPartnerRating: rating, clientToPartnerComment: comment, clientReviewedAt: now, ...originColumns(origin) },
+        })
+      } catch (err) {
+        if ((err as { code?: string })?.code !== 'P2002') throw err
+        review = await fillClientSide(bookingId, rating, comment, now)
+      }
+    } else {
+      review = await fillClientSide(bookingId, rating, comment, now)
+    }
 
     const agg = await prisma.review.aggregate({
       where: { clientToPartnerRating: { not: null }, booking: { partnerId: booking.partnerId } },
@@ -98,6 +108,15 @@ export async function leaveReview(actor: Actor, input: ReviewInput, origin: Orig
 
   await notifyRated(booking.userId, booking.partner?.user.name ?? 'El socio', rating, bookingId, 'CLIENT')
   return review
+}
+
+async function fillClientSide(bookingId: string, rating: number, comment: string | null, now: Date) {
+  const r = await prisma.review.updateMany({
+    where: { bookingId, clientToPartnerRating: null },
+    data: { clientToPartnerRating: rating, clientToPartnerComment: comment, clientReviewedAt: now },
+  })
+  if (r.count === 0) throw new OpsError('Ya has calificado este servicio', 400)
+  return prisma.review.findUniqueOrThrow({ where: { bookingId } })
 }
 
 async function notifyRated(receiverUserId: string, raterName: string, rating: number, bookingId: string, targetRole: 'CLIENT' | 'PARTNER') {

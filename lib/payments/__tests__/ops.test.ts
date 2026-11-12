@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   bookingFindUnique: vi.fn(),
   eventCreate: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'e', ...a.data })),
-  paymentUpsert: vi.fn<(a: any) => Promise<any>>(),
+  paymentCreate: vi.fn<(a: any) => Promise<any>>(),
+  paymentUpdateMany: vi.fn<(a: any) => Promise<any>>(),
+  paymentFindUniqueOrThrow: vi.fn<(a: any) => Promise<any>>(),
   paymentUpdate: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'pay1', ...a.data })),
   paymentFindUnique: vi.fn(),
   configFindFirst: vi.fn(),
@@ -18,7 +20,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     booking: { findUnique: m.bookingFindUnique },
     bookingEvent: { create: m.eventCreate },
-    payment: { upsert: m.paymentUpsert, update: m.paymentUpdate, findUnique: m.paymentFindUnique },
+    payment: { create: m.paymentCreate, updateMany: m.paymentUpdateMany, findUniqueOrThrow: m.paymentFindUniqueOrThrow, update: m.paymentUpdate, findUnique: m.paymentFindUnique },
     platformConfig: { findFirst: m.configFindFirst },
     payout: { findUnique: m.payoutFindUnique, create: m.payoutCreate },
     partnerBankAccount: { findFirst: m.bankFindFirst },
@@ -47,7 +49,9 @@ const booking = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks()
   m.configFindFirst.mockResolvedValue({ cashEnabled: true, transferEnabled: true, partnerCommissionRate: 10, mercadoPagoEnabled: false })
-  m.paymentUpsert.mockImplementation(async (a: { create: Record<string, unknown> }) => ({ id: 'pay1', ...a.create }))
+  m.paymentCreate.mockImplementation(async (a: { data: Record<string, unknown> }) => ({ id: 'pay1', ...a.data }))
+  m.paymentUpdateMany.mockResolvedValue({ count: 1 })
+  m.paymentFindUniqueOrThrow.mockImplementation(async () => ({ id: 'pay1', serviceAmount: 130000, totalAmount: 130000, ...m.paymentUpdateMany.mock.calls.at(-1)?.[0]?.data }))
   m.payoutFindUnique.mockResolvedValue(null)
   m.bankFindFirst.mockResolvedValue({ id: 'bank1' })
 })
@@ -57,8 +61,7 @@ describe('reportClientPayment', () => {
     m.bookingFindUnique.mockResolvedValue(booking())
     const payment = await reportClientPayment(client, 'bk1', { method: 'CASH', note: 'en la puerta' }, chat)
     expect(payment).toMatchObject({ confirmationStatus: 'CLIENT_REPORTED', status: 'PENDING', clientReportedMethod: 'CASH' })
-    expect(m.paymentUpsert.mock.calls[0][0].create).toMatchObject({ origin: 'chat', originChannel: 'WHATSAPP', originConversationId: 'conv1', originAgentId: 'ag1', totalAmount: 130000 })
-    expect(m.paymentUpsert.mock.calls[0][0].update).not.toHaveProperty('origin')
+    expect(m.paymentCreate.mock.calls[0][0].data).toMatchObject({ origin: 'chat', originChannel: 'WHATSAPP', originConversationId: 'conv1', originAgentId: 'ag1', totalAmount: 130000 })
     expect(m.eventCreate.mock.calls[0][0].data).toMatchObject({ type: 'payment', actorType: 'ai', origin: 'chat', detail: 'Cliente reportó pago en efectivo' })
     expect(m.createNotification.mock.calls[0][0]).toMatchObject({ userId: 'partner-user', type: 'PAYMENT_REPORTED_BY_CLIENT' })
     expect(m.payoutCreate).not.toHaveBeenCalled()
@@ -67,7 +70,7 @@ describe('reportClientPayment', () => {
   it('desde la app el origen es app y el actor es client', async () => {
     m.bookingFindUnique.mockResolvedValue(booking())
     await reportClientPayment(client, 'bk1', { method: 'DIRECT_TRANSFER' }, APP_ORIGIN)
-    expect(m.paymentUpsert.mock.calls[0][0].create).toMatchObject({ origin: 'app', originChannel: null })
+    expect(m.paymentCreate.mock.calls[0][0].data).toMatchObject({ origin: 'app', originChannel: null })
     expect(m.eventCreate.mock.calls[0][0].data).toMatchObject({ actorType: 'client', detail: 'Cliente reportó pago en transferencia' })
   })
 
@@ -80,7 +83,7 @@ describe('reportClientPayment', () => {
     m.configFindFirst.mockResolvedValue({ cashEnabled: false, transferEnabled: true })
     m.bookingFindUnique.mockResolvedValue(booking())
     await expect(reportClientPayment(client, 'bk1', { method: 'CASH' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: /efectivo no está habilitado/ })
-    expect(m.paymentUpsert).not.toHaveBeenCalled()
+    expect(m.paymentCreate).not.toHaveBeenCalled()
   })
 
   it('un pago ya confirmado no se vuelve a reportar → 409', async () => {
@@ -160,7 +163,7 @@ describe('confirmPartnerPayment', () => {
     m.configFindFirst.mockResolvedValue({ cashEnabled: true, transferEnabled: true })
     m.bookingFindUnique.mockResolvedValue(booking({ payment: { confirmationStatus: 'CONFIRMED', status: 'APPROVED' } }))
     await expect(confirmPartnerPayment(partner, 'bk1', { method: 'CASH' }, APP_ORIGIN)).rejects.toMatchObject({ status: 409 })
-    expect(m.paymentUpsert).not.toHaveBeenCalled()
+    expect(m.paymentCreate).not.toHaveBeenCalled()
   })
 })
 
@@ -214,5 +217,33 @@ describe('paymentSummaryForChat', () => {
     expect(paymentSummaryForChat({ totalPrice: 130000, payment: { status: 'PENDING', confirmationStatus: 'CLIENT_REPORTED', clientReportedMethod: 'CASH', totalAmount: 130000 } })).toBe('Pago: $130.000 · reportado por el cliente (efectivo)')
     expect(paymentSummaryForChat({ totalPrice: 130000, payment: { status: 'APPROVED', confirmationStatus: 'CONFIRMED', totalAmount: 136500 } })).toBe('Pago: $136.500 · confirmado')
     expect(paymentSummaryForChat({ totalPrice: 130000, payment: { status: 'PENDING', confirmationStatus: 'DISPUTED' } })).toBe('Pago: $130.000 · en disputa')
+  })
+})
+
+describe('carrera entre un reporte y un pago recién aprobado', () => {
+  const existing = { id: 'pay1', confirmationStatus: 'CLIENT_REPORTED', status: 'PENDING', clientReportedMethod: 'CASH', partnerConfirmedMethod: null }
+  it('el reporte del cliente actualiza solo mientras el pago no esté confirmado ni aprobado', async () => {
+    m.bookingFindUnique.mockResolvedValue(booking({ payment: existing }))
+    await reportClientPayment(client, 'bk1', { method: 'CASH' }, APP_ORIGIN)
+    expect(m.paymentUpdateMany.mock.calls[0][0].where).toEqual({ bookingId: 'bk1', confirmationStatus: { not: 'CONFIRMED' }, status: { not: 'APPROVED' } })
+    expect(m.paymentCreate).not.toHaveBeenCalled()
+  })
+  it('si el socio lo aprobó entre la lectura y la escritura → 409 y nada más se dispara', async () => {
+    m.bookingFindUnique.mockResolvedValue(booking({ payment: existing }))
+    m.paymentUpdateMany.mockResolvedValue({ count: 0 })
+    await expect(reportClientPayment(client, 'bk1', { method: 'DIRECT_TRANSFER' }, APP_ORIGIN)).rejects.toMatchObject({ status: 409 })
+    expect(m.createNotification).not.toHaveBeenCalled()
+    expect(m.eventCreate).not.toHaveBeenCalled()
+  })
+  it('lo mismo al confirmar el socio', async () => {
+    m.bookingFindUnique.mockResolvedValue(booking({ payment: existing }))
+    m.paymentUpdateMany.mockResolvedValue({ count: 0 })
+    await expect(confirmPartnerPayment(partner, 'bk1', { method: 'CASH' }, APP_ORIGIN)).rejects.toMatchObject({ status: 409 })
+    expect(m.payoutCreate).not.toHaveBeenCalled()
+  })
+  it('dos reportes que crean a la vez: el segundo pierde con 409, no sobrescribe', async () => {
+    m.bookingFindUnique.mockResolvedValue(booking())
+    m.paymentCreate.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }))
+    await expect(reportClientPayment(client, 'bk1', { method: 'CASH' }, APP_ORIGIN)).rejects.toMatchObject({ status: 409 })
   })
 })

@@ -91,7 +91,7 @@ const bookingSelect = {
   service: { select: { name: true, duration: true } },
   user: { select: { name: true } },
   partner: { select: { id: true, userId: true, rating: true, totalReviews: true, user: { select: { name: true } } } },
-  payment: { select: { status: true, confirmationStatus: true, clientReportedAt: true } },
+  payment: { select: { status: true, confirmationStatus: true, clientReportedAt: true, partnerRejectedAt: true } },
   proposal: { select: { serviceRequestId: true, notes: true, serviceRequest: { select: { status: true } } } },
 } as const
 type Row = {
@@ -99,7 +99,7 @@ type Row = {
   totalPrice: number; address: string; city: string; createdAt: Date; updatedAt: Date
   service: { name: string; duration?: number | null } | null; user: { name: string } | null
   partner: { id: string; userId: string; rating?: number | null; totalReviews?: number | null; user: { name: string } | null } | null
-  payment: { status: string; confirmationStatus: string; clientReportedAt: Date | null } | null
+  payment: { status: string; confirmationStatus: string; clientReportedAt: Date | null; partnerRejectedAt?: Date | null } | null
   proposal: { serviceRequestId: string; notes?: string | null; serviceRequest: { status: string } } | null
 }
 /** «Carlos (★ 4.8)»: the partner's first name and rating, when they have reviews. */
@@ -517,7 +517,7 @@ export async function runBookingFollowups(now = new Date()): Promise<Tally> {
         continue
       }
       const lb = lastButton.get(b.userId)
-      if (lb?.template?.entityId === b.id && paymentReplyStale({ lastButtonId: lb.id ?? null, lastButtonAt: lb.at ?? null, now: at, completedAt: doneAt, confirmationStatus: cs })) {
+      if (lb?.template?.entityId === b.id && paymentReplyStale({ lastButtonId: lb.id ?? null, lastButtonAt: lb.at ?? null, now: at, completedAt: doneAt, confirmationStatus: cs, rejectedAt: b.payment?.partnerRejectedAt?.getTime() ?? null })) {
         await escalate('el cliente respondió al aviso de pago por WhatsApp y el pago sigue sin registrarse')
       }
       if (m.has('partnerNotPaid') || age >= T.escalateUnpaidMs) {

@@ -9,6 +9,9 @@ const db = vi.hoisted(() => {
       review: {
         findUnique: vi.fn(async () => state.review),
         upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({ id: 'r1', ...create })),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'r1', ...data })),
+        updateMany: vi.fn(async (_a: unknown) => ({ count: 1 })),
+        findUniqueOrThrow: vi.fn(async () => ({ id: 'r1' })),
         aggregate: vi.fn(async () => ({ _avg: { clientToPartnerRating: 4.5, partnerToClientRating: 4 }, _count: { clientToPartnerRating: 2, partnerToClientRating: 1 } })),
       },
       partnerProfile: { update: vi.fn(async () => ({})) },
@@ -49,7 +52,7 @@ describe('leaveReview', () => {
   it('reserva no completada → 400', async () => {
     db.state.booking = { ...completed(), status: 'CONFIRMED' }
     expect(await failsWith(leaveReview(client, { bookingId: 'b1', rating: 5 }, APP_ORIGIN), 400)).toMatch(/completados/)
-    expect(db.prisma.review.upsert).not.toHaveBeenCalled()
+    expect(db.prisma.review.create).not.toHaveBeenCalled()
   })
 
   it('segundo rating del mismo lado → 400; el otro lado sí puede', async () => {
@@ -67,9 +70,8 @@ describe('leaveReview', () => {
   it('el origen chat queda en el create y se recalcula el promedio con aggregate', async () => {
     const origin = chatOrigin({ channel: 'WHATSAPP', conversationId: 'c1', agentId: 'a1', agentName: 'Sofía' })
     await leaveReview(client, { bookingId: 'b1', rating: 5, comment: ' Excelente ' }, origin)
-    const call = db.prisma.review.upsert.mock.calls[0][0] as { create: Record<string, unknown>; update: Record<string, unknown> }
-    expect(call.create).toMatchObject({ origin: 'chat', originChannel: 'WHATSAPP', originConversationId: 'c1', originAgentId: 'a1', clientToPartnerRating: 5, clientToPartnerComment: 'Excelente' })
-    expect(call.update).not.toHaveProperty('origin')
+    const call = db.prisma.review.create.mock.calls[0][0] as { data: Record<string, unknown> }
+    expect(call.data).toMatchObject({ origin: 'chat', originChannel: 'WHATSAPP', originConversationId: 'c1', originAgentId: 'a1', clientToPartnerRating: 5, clientToPartnerComment: 'Excelente' })
     expect(db.prisma.review.aggregate).toHaveBeenCalledTimes(1)
     expect(db.prisma.partnerProfile.update).toHaveBeenCalledWith(expect.objectContaining({ data: { rating: 4.5, totalReviews: 2 } }))
   })
@@ -84,6 +86,26 @@ describe('leaveReview', () => {
     expect(notify.createNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u-client', type: 'RATING_RECEIVED' }))
     expect(notify.scheduleAutomationsForUser).toHaveBeenCalledWith('u-client', 'REVIEW_RECEIVED', { targetRole: 'CLIENT', contextId: 'b1' })
     expect(db.prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ data: { clientRating: 4, clientTotalReviews: 1 } }))
+  })
+})
+
+describe('leaveReview: carrera entre dos calificaciones', () => {
+  const unique = () => Object.assign(new Error('unique'), { code: 'P2002' })
+  it('si otra calificación ganó la creación, esta solo completa su lado vacío y no sobrescribe', async () => {
+    db.prisma.review.create.mockRejectedValueOnce(unique())
+    await leaveReview(client, { bookingId: 'b1', rating: 5 }, APP_ORIGIN)
+    expect(db.prisma.review.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { bookingId: 'b1', clientToPartnerRating: null } }))
+  })
+  it('si el lado del cliente ya estaba lleno → 400 y no se avisa dos veces', async () => {
+    db.prisma.review.create.mockRejectedValueOnce(unique())
+    db.prisma.review.updateMany.mockResolvedValueOnce({ count: 0 })
+    expect(await failsWith(leaveReview(client, { bookingId: 'b1', rating: 5 }, APP_ORIGIN), 400)).toMatch(/Ya has calificado/)
+    expect(notify.createNotification).not.toHaveBeenCalled()
+    expect(db.prisma.review.aggregate).not.toHaveBeenCalled()
+  })
+  it('un error distinto de unicidad se propaga', async () => {
+    db.prisma.review.create.mockRejectedValueOnce(new Error('db down'))
+    await expect(leaveReview(client, { bookingId: 'b1', rating: 5 }, APP_ORIGIN)).rejects.toThrow('db down')
   })
 })
 

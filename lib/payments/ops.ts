@@ -7,7 +7,7 @@ import { createLogger } from '@/lib/logger'
 import { APP_ORIGIN, OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 import { addBookingEvent, formatCOP } from '@/lib/bookings/ops'
 import { bookingRates, clientBreakdown, loadEffectiveRates, rateOrEffective } from '@/lib/payments/commission'
-import type { OfflinePaymentMethod, PaymentConfirmationStatus, PaymentStatus } from '@prisma/client'
+import type { OfflinePaymentMethod, PaymentConfirmationStatus, PaymentStatus, Prisma } from '@prisma/client'
 import { validReceiptUrl, withReceipt } from '@/lib/payments/receipt'
 
 /**
@@ -99,6 +99,33 @@ const offlineCreateBase = (booking: { id: string; userId: string; totalPrice: nu
 })
 
 /**
+ * Writes an offline payment without ever overwriting one that was approved in the meantime: an existing row is
+ * updated only while it is not CONFIRMED / APPROVED (conditional update); a missing row is created and a
+ * concurrent creation loses with a 409 instead of being overwritten.
+ */
+async function writeOfflinePayment(
+  booking: { id: string; payment: unknown },
+  create: Prisma.PaymentUncheckedCreateInput,
+  update: Prisma.PaymentUncheckedUpdateManyInput,
+) {
+  const already = () => new OpsError('El pago ya está confirmado', 409)
+  if (booking.payment) {
+    const r = await prisma.payment.updateMany({
+      where: { bookingId: booking.id, confirmationStatus: { not: 'CONFIRMED' }, status: { not: 'APPROVED' } },
+      data: update,
+    })
+    if (r.count === 0) throw already()
+    return prisma.payment.findUniqueOrThrow({ where: { bookingId: booking.id } })
+  }
+  try {
+    return await prisma.payment.create({ data: create })
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') throw new OpsError('El pago ya fue registrado, vuelve a intentarlo', 409)
+    throw err
+  }
+}
+
+/**
  * The client says they paid in cash or by transfer. Normally the payment waits for the partner
  * (CLIENT_REPORTED). If the partner had already recorded a method, matching it confirms the payment and a
  * different one opens a dispute for the admins.
@@ -125,9 +152,7 @@ export async function reportClientPayment(actor: Actor, bookingId: string, input
   // A new report replaces the receipt: re-reporting in cash must not keep showing an old transfer
   const metadata = booking.payment || receipt ? withReceipt(booking.payment?.metadata ?? null, receipt) : undefined
 
-  const payment = await prisma.payment.upsert({
-    where: { bookingId: booking.id },
-    create: {
+  const payment = await writeOfflinePayment(booking, {
       ...offlineCreateBase(booking),
       status: paymentStatus,
       confirmationStatus,
@@ -137,8 +162,7 @@ export async function reportClientPayment(actor: Actor, bookingId: string, input
       paidAt,
       ...(metadata ? { metadata } : {}),
       ...originColumns(origin),
-    },
-    update: {
+  }, {
       confirmationStatus,
       status: paymentStatus,
       clientReportedMethod: input.method,
@@ -148,7 +172,6 @@ export async function reportClientPayment(actor: Actor, bookingId: string, input
       partnerRejectedAt: null,
       rejectionReason: null,
       ...(metadata !== undefined ? { metadata } : {}),
-    },
   })
 
   await addBookingEvent({ bookingId, type: 'payment', actor, origin, detail: `Cliente reportó pago en ${METHOD_LABEL[input.method]}${receipt ? ' con comprobante' : ''}` })
@@ -217,9 +240,7 @@ export async function confirmPartnerPayment(actor: Actor, bookingId: string, inp
   const now = new Date()
   const paidAt = disputed ? undefined : now
 
-  const payment = await prisma.payment.upsert({
-    where: { bookingId: booking.id },
-    create: {
+  const payment = await writeOfflinePayment(booking, {
       ...offlineCreateBase(booking),
       status: paymentStatus,
       confirmationStatus,
@@ -227,8 +248,7 @@ export async function confirmPartnerPayment(actor: Actor, bookingId: string, inp
       partnerConfirmedAt: now,
       paidAt,
       ...originColumns(origin),
-    },
-    update: {
+  }, {
       confirmationStatus,
       status: paymentStatus,
       partnerConfirmedMethod: input.method,
@@ -236,7 +256,6 @@ export async function confirmPartnerPayment(actor: Actor, bookingId: string, inp
       paidAt,
       partnerRejectedAt: null,
       rejectionReason: null,
-    },
   })
 
   await addBookingEvent({

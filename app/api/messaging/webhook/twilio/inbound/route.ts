@@ -20,7 +20,7 @@ import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 import { parseButtonReply, withButtonMark, type ButtonMark } from '@/lib/messaging/wa-format'
 import { handleFollowupButton, handlePartnerOnWayText, handleTextYes, isFollowupButton, isPlainYes } from '@/lib/bookings/followup-buttons'
-import { handlePaymentButton, handlePaymentText } from '@/lib/bookings/payment-chat'
+import { clearPaymentStep, handlePaymentButton, handlePaymentText } from '@/lib/bookings/payment-chat'
 import { partnerOnWaySignal } from '@/lib/bookings/partner-unavailable-core'
 import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import type { Prisma } from '@prisma/client'
@@ -277,6 +277,8 @@ export async function POST(request: NextRequest) {
     const handled = await handlePartnerOnWayText({ conversationId, userId: user?.id ?? null, channel, body, lastTemplate: fields?.lastTemplate ?? null }).catch(() => false)
     if (handled) return twiml()
   }
+  // Nothing above took this message: a pending «waiting for a rating» step ends
+  await clearPaymentStep(conversationId).catch(() => null)
   after(async () => {
     scheduleInboundAgent(conversationId, lastMessageId)
     await drainAgentTasks()

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CLIENT_PAY_PROMPTS, PARTNER_PAY_PROMPTS, isPartnerPaidYes, isUnpaidCompleted, onlyCandidate, paymentButtonIntent, paymentMethodFromText,
-  paymentReplyStale, promptedBookingIds, ratingFromText,
+  lastPromptBookingId, paymentReplyStale, promptedBookingIds, ratingFromText,
 } from '@/lib/bookings/payment-chat-core'
 
 describe('botón → acción', () => {
@@ -83,4 +83,22 @@ describe('respuesta de pago sin registrar tras 2 h', () => {
     expect(paymentReplyStale({ ...base, completedAt: Date.parse('2026-11-11T21:00:00Z') })).toBe(false)
     expect(paymentReplyStale({ ...base, lastButtonId: 'rate_5' })).toBe(false)
   })
+})
+
+describe('botón anterior al rechazo del socio', () => {
+  const base = { lastButtonId: 'pay_cash', lastButtonAt: '2026-11-11T20:00:00Z', now: Date.parse('2026-11-11T23:00:00Z'), completedAt: Date.parse('2026-11-11T19:00:00Z'), confirmationStatus: 'REJECTED_BY_PARTNER' }
+  it('no se marca si el botón es anterior al rechazo', () => expect(paymentReplyStale({ ...base, rejectedAt: Date.parse('2026-11-11T21:00:00Z') })).toBe(false))
+  it('sí si el cliente volvió a responder después del rechazo', () => expect(paymentReplyStale({ ...base, rejectedAt: Date.parse('2026-11-11T19:30:00Z') })).toBe(true))
+})
+
+describe('lastPromptBookingId', () => {
+  const now = Date.parse('2026-11-11T22:00:00Z')
+  const f = { lastTemplate: { name: 'lh_socio_te_pagaron', entityType: 'Booking', entityId: 'b1', at: '2026-11-11T21:00:00.000Z' } }
+  const names = new Set(['lh_socio_te_pagaron'])
+  const at = Date.parse(f.lastTemplate.at)
+  it('es el último mensaje saliente', () => expect(lastPromptBookingId(f, names, at, now, 24 * 3600_000)).toBe('b1'))
+  it('algo posterior lo invalida', () => expect(lastPromptBookingId(f, names, at + 60_000, now, 24 * 3600_000)).toBeNull())
+  it('sin mensaje saliente conocido no actúa', () => expect(lastPromptBookingId(f, names, null, now, 24 * 3600_000)).toBeNull())
+  it('vencido', () => expect(lastPromptBookingId(f, names, at, now + 24 * 3600_000, 24 * 3600_000)).toBeNull())
+  it('otra plantilla', () => expect(lastPromptBookingId(f, new Set(['otra']), at, now, 24 * 3600_000)).toBeNull())
 })

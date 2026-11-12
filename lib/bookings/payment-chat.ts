@@ -2,7 +2,7 @@
  * The client's «¿Cómo le pagaste?» (B14/B15), the partner's «¿Lo recibiste?» (C20/C21, C39) and the rating
  * quick replies (B16/B18) are applied by the server, never left to the AI agent: they work with no agent on the
  * conversation and with a person assigned to it. The same answers typed as text («efectivo», «sí, recibido»)
- * count when exactly one booking was asked about in the last 48 h. Ownership is checked on every action.
+ * count only right after the prompt (it is the conversation's last outbound message), for that one booking. Ownership is checked on every action.
  */
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -14,7 +14,7 @@ import type { ButtonMark } from '@/lib/messaging/wa-format'
 import type { OfflineMethod } from '@/lib/payments/ops'
 import {
   CLIENT_PAY_PROMPTS, PARTNER_PAY_PROMPTS, PARTNER_REJECT_REASON, isPartnerPaidYes, isUnpaidCompleted, methodWord, onlyCandidate,
-  paymentButtonIntent, paymentMethodFromText, promptedBookingIds, ratingFromText, type PaymentIntent,
+  lastPromptBookingId, paymentButtonIntent, paymentMethodFromText, ratingFromText, RATE_PROMPTS, type PaymentIntent,
 } from '@/lib/bookings/payment-chat-core'
 
 const logger = createLogger('payment-chat')
@@ -170,17 +170,21 @@ export async function handlePaymentButton(p: { conversationId: string; userId: s
   }
 }
 
-/** The bookings of this person a payment prompt of ours was about in the last 48 h and that are still unpaid. */
-async function candidates(user: ChatUser, channel: string, fields: unknown, now: number) {
-  const names = user.role === 'PARTNER' ? PARTNER_PAY_PROMPTS : CLIENT_PAY_PROMPTS
-  let ids = promptedBookingIds(fields, names, now)
-  if (channel === 'SMS') {
-    const rows = await prisma.notification.findMany({
-      where: { userId: user.id, createdAt: { gte: new Date(now - 48 * 3600_000) }, type: { in: ['BOOKING_COMPLETED', 'PAYMENT_PENDING_REMINDER', 'PAYMENT_REPORTED_BY_CLIENT'] } },
-      select: { data: true },
-    })
-    ids = Array.from(new Set(ids.concat(rows.map((r) => { try { return (JSON.parse(r.data ?? '{}') as { bookingId?: string }).bookingId ?? '' } catch { return '' } }).filter(Boolean))))
-  }
+const PROMPT_WINDOW_PARTNER_MS = 24 * 3600_000
+const PROMPT_WINDOW_CLIENT_MS = 48 * 3600_000
+const SMS_SEND_TOLERANCE_MS = 60_000
+
+/** The last visible message we (or a person) sent in the conversation; internal notes are not messages to the person. */
+const lastOutbound = (conversationId: string) =>
+  prisma.conversationMessage.findFirst({
+    where: { conversationId, direction: 'OUTBOUND', isInternal: false },
+    orderBy: { sentAt: 'desc' },
+    select: { sentAt: true, body: true, sentById: true },
+  })
+type LastOut = Awaited<ReturnType<typeof lastOutbound>>
+
+/** The unpaid, completed bookings of this person among `ids`. */
+async function unpaidAmong(user: ChatUser, ids: string[]) {
   if (!ids.length) return []
   const rows = await prisma.booking.findMany({
     where: { id: { in: ids }, ...(user.role === 'PARTNER' ? { partnerId: user.partnerProfile?.id ?? '__none__' } : { userId: user.id }) },
@@ -190,34 +194,84 @@ async function candidates(user: ChatUser, channel: string, fields: unknown, now:
 }
 
 /**
- * «efectivo» / «transferencia» (and «sí, recibido» from a partner) typed after our payment prompt, or a
- * rating digit typed after we asked for one. False when it does not apply or is ambiguous (the agent or the
- * team takes the message).
+ * The bookings a typed payment answer may act on. WhatsApp: only the one the conversation's last outbound message
+ * (a payment prompt, under 24 h for a partner, 48 h for a client) asked about. SMS (client only): bookings a
+ * payment SMS was actually sent to this person for in the last 48 h, with nothing sent in the chat since.
+ */
+async function candidates(user: ChatUser, channel: string, fields: unknown, last: LastOut, now: number) {
+  if (channel === 'SMS') {
+    if (user.role !== 'CLIENT') return []
+    const logs = await prisma.notificationDispatchLog.findMany({
+      where: {
+        userId: user.id, channel: 'SMS', status: { in: ['SENT', 'DELIVERED'] }, createdAt: { gte: new Date(now - PROMPT_WINDOW_CLIENT_MS) },
+        notificationType: { in: ['BOOKING_COMPLETED', 'PAYMENT_PENDING_REMINDER'] },
+      },
+      select: { createdAt: true, notification: { select: { data: true } } },
+    })
+    const floor = last ? last.sentAt.getTime() - SMS_SEND_TOLERANCE_MS : 0
+    const ids = logs.filter((l) => l.createdAt.getTime() >= floor).map((l) => {
+      try { return (JSON.parse(l.notification?.data ?? '{}') as { bookingId?: string }).bookingId ?? '' } catch { return '' }
+    }).filter(Boolean)
+    return unpaidAmong(user, Array.from(new Set(ids)))
+  }
+  const id = lastPromptBookingId(fields, user.role === 'PARTNER' ? PARTNER_PAY_PROMPTS : CLIENT_PAY_PROMPTS, last?.sentAt.getTime() ?? null, now, user.role === 'PARTNER' ? PROMPT_WINDOW_PARTNER_MS : PROMPT_WINDOW_CLIENT_MS)
+  return id ? unpaidAmong(user, [id]) : []
+}
+
+/** The booking a bare rating digit answers: the rating ask we just sent (in-chat after a payment report, or the rating template). */
+function ratingBookingId(fields: unknown, last: LastOut, now: number): string | null {
+  if (!last || now - last.sentAt.getTime() > RATING_WINDOW_MS) return null
+  const fromTemplate = lastPromptBookingId(fields, RATE_PROMPTS, last.sentAt.getTime(), now, RATING_WINDOW_MS)
+  if (fromTemplate) return fromTemplate
+  const chat = (fields as { paymentChat?: { bookingId?: string; step?: string; at?: string } } | null)?.paymentChat
+  const fresh = chat?.step === 'rate' && chat.bookingId && chat.at && now - Date.parse(chat.at) < RATING_WINDOW_MS
+  return fresh && !last.sentById && last.body.includes(RATE_ASK) ? chat!.bookingId! : null
+}
+
+/** An inbound message that was not a handled reply ends the «waiting for a rating» step. */
+export async function clearPaymentStep(conversationId: string) {
+  const conv = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true } })
+  if ((conv?.customFields as { paymentChat?: unknown } | null)?.paymentChat) await setPaymentChat(conversationId, null)
+}
+
+/**
+ * «efectivo» / «transferencia» (and «sí, recibido» from a partner) typed right after our payment prompt, or a
+ * rating digit typed right after we asked for one. Each needs that prompt to be the conversation's last outbound
+ * message (nothing from a person or the agent after it), so a generic «sí» to something else never moves money.
+ * Over SMS only the client's payment report applies. False when it does not apply or is ambiguous (the agent or
+ * the team takes the message).
  */
 export async function handlePaymentText(p: { conversationId: string; userId: string | null; channel: string; body: string }, now = Date.now()): Promise<boolean> {
   if (p.channel !== 'WHATSAPP' && p.channel !== 'SMS') return false
+  const conv = await prisma.conversation.findUnique({ where: { id: p.conversationId }, select: { customFields: true } })
+  const fields = conv?.customFields ?? null
+  const hadStep = Boolean((fields as { paymentChat?: unknown } | null)?.paymentChat)
+  const finish = async (handled: boolean) => {
+    if (!handled && hadStep) await setPaymentChat(p.conversationId, null)
+    return handled
+  }
   const method = paymentMethodFromText(p.body)
   const stars = ratingFromText(p.body)
   const partnerYes = isPartnerPaidYes(p.body)
-  if (!method && !stars && !partnerYes) return false
+  if (!method && !stars && !partnerYes) return finish(false)
   const user = await loadUser(p.userId)
-  if (!user) return false
-  const conv = await prisma.conversation.findUnique({ where: { id: p.conversationId }, select: { customFields: true } })
-  const fields = conv?.customFields ?? null
+  if (!user) return finish(false)
+  const sms = p.channel === 'SMS'
+  if (sms && (user.role !== 'CLIENT' || !method)) return finish(false)
   try {
+    const last = await lastOutbound(p.conversationId)
     let result: { reply: string; note: string } | null = null
     if (stars && user.role === 'CLIENT') {
-      const chat = (fields as { paymentChat?: { bookingId?: string; step?: string; at?: string } } | null)?.paymentChat
-      const fresh = chat?.step === 'rate' && chat.bookingId && chat.at && now - Date.parse(chat.at) < RATING_WINDOW_MS
-      if (fresh) result = await apply(user, p.conversationId, p.channel, chat!.bookingId!, { kind: 'rate', stars })
+      const bookingId = ratingBookingId(fields, last, now)
+      if (bookingId) result = await apply(user, p.conversationId, p.channel, bookingId, { kind: 'rate', stars })
     } else if (method || (partnerYes && user.role === 'PARTNER')) {
-      const only = onlyCandidate(await candidates(user, p.channel, fields, now))
+      const only = onlyCandidate(await candidates(user, p.channel, fields, last, now))
       if (only) {
         const intent = user.role === 'PARTNER' ? (method ? { kind: 'partner_method' as const, method } : { kind: 'partner_yes' as const }) : method ? { kind: 'client_report' as const, method } : null
         if (intent) result = await apply(user, p.conversationId, p.channel, only.id, intent)
       }
     }
-    if (!result) return false
+    if (!result) return finish(false)
     await deliver(p.conversationId, result, `texto «${p.body.trim().slice(0, 60)}»`)
     return true
   } catch (err) {

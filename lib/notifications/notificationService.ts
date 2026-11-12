@@ -952,7 +952,7 @@ async function notifyBookingCompleted(booking: { id: string; userId: string; ser
     hasCompletionNotice(booking.userId, booking.id, 'COMPLETED_PAY_AND_RATE'),
     booking.partner ? hasCompletionNotice(booking.partner.userId, booking.id, 'COMPLETED_CONFIRM_PAYMENT') : Promise.resolve(true),
   ])
-  if (!booking.partner) logger.warn('Completion notice to partner skipped: the booking has no partner', { bookingId: booking.id })
+  if (!booking.partner) logger.debug('Completion notice to partner skipped: the booking has no partner', { bookingId: booking.id })
   if (clientHas && partnerHas) return
   if (!marked) {
     const { APP_ORIGIN, originColumns } = await import('@/lib/ops/origin')
