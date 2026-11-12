@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientIpFromHeaders } from '@/lib/security/bot-protection'
 import { recordError } from '@/lib/system/errors'
+import { rateLimitResponse } from '@/lib/rate-limit-route'
 
 export const dynamic = 'force-dynamic'
-
-const hits = new Map<string, { n: number; reset: number }>()
 
 /** Browser errors (uncaught exceptions and rejections) for Salud del sistema. Few per visitor, no personal data. */
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-real-ip') || getClientIpFromHeaders(request.headers)
-  const now = Date.now()
-  const h = hits.get(ip)
-  if (!h || now > h.reset) hits.set(ip, { n: 1, reset: now + 10 * 60_000 })
-  else if (++h.n > 10) return NextResponse.json({ ok: false }, { status: 429 })
-  if (hits.size > 5000) hits.clear()
+  const limited = await rateLimitResponse([{ key: `telemetry-errors:${ip}`, windowMs: 10 * 60_000, max: 10 }])
+  if (limited) return NextResponse.json({ ok: false }, { status: 429, headers: limited.headers })
 
   const body = await request.json().catch(() => ({}))
   const message = typeof body.message === 'string' ? body.message.slice(0, 500) : ''
