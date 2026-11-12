@@ -5,7 +5,6 @@
  * step, skip and exit is an AdminAuditLog row (PARTNER_REACTIVATION_STEP, entityType User), which is also
  * the data of the report. Runs from the hourly automations cron, Monday to Saturday in the configured hours.
  */
-import { hasMarketingConsent } from '@/lib/privacy/consent'
 import type { Deadline } from '@/lib/system/deadline'
 import type { City } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -61,8 +60,8 @@ export async function loadSnapshots(): Promise<PartnerSnapshot[]> {
     slug: p.slug,
     verified: p.verified,
     active: p.isActive && p.user.isActive,
-    // Partners who joined before the consent rule are grandfathered (lib/privacy/consent.ts): the running campaign keeps its audience
-    excludedFromMarketing: p.user.excludedFromMarketing || !hasMarketingConsent(p.user),
+    // Operational nudges about the partner's own account (C46-C49): STOP/BAJA applies, marketing consent does not (not promotional)
+    excludedFromMarketing: p.user.excludedFromMarketing,
     createdAt: p.createdAt,
     docs: p.documents.map((d) => ({ type: d.type, status: d.status, createdAt: d.createdAt })),
     services: p.services.map((s) => ({ serviceId: s.serviceId, name: s.service.name, active: s.active, city: s.city, createdAt: s.createdAt })),

@@ -47,3 +47,21 @@ export function qualifiesReferral(b: QualifyInput): boolean {
 export function rewardFor(role: string, currentCount: number) {
   return { qualifiedCount: currentCount + 1, priorityNotifications: role === 'PARTNER' }
 }
+
+/**
+ * Self-dealing: a referral does not qualify when both accounts share a phone, or when the qualifying booking is
+ * between the referrer's own accounts/counterparts (the referrer is the partner of the referred client's booking,
+ * or the referred is the partner of a booking of the referrer's).
+ */
+export function isSelfDealingReferral(p: {
+  referrerPhoneKey: string | null
+  referredPhoneKey: string | null
+  qualifyingBookingPartnerId: string | null
+  referrerPartnerProfileId: string | null
+  referrerIsClientOfReferredPartner: boolean
+}): 'shared_phone' | 'referrer_is_partner' | 'referred_is_partner_of_referrer' | null {
+  if (p.referrerPhoneKey && p.referrerPhoneKey === p.referredPhoneKey) return 'shared_phone'
+  if (p.referrerPartnerProfileId && p.qualifyingBookingPartnerId === p.referrerPartnerProfileId) return 'referrer_is_partner'
+  if (p.referrerIsClientOfReferredPartner) return 'referred_is_partner_of_referrer'
+  return null
+}

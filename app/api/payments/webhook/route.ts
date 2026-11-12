@@ -4,7 +4,7 @@ import { getMercadoPagoClient } from '@/lib/mercadopago';
 import { Payment } from 'mercadopago';
 import { createLogger } from '@/lib/logger';
 import { webhookRateLimiter } from '@/lib/rate-limit';
-import { verifyMercadoPagoSignature } from '@/lib/payments/mp-signature';
+import { mercadoPagoIdsMatch, verifyMercadoPagoSignature } from '@/lib/payments/mp-signature';
 import { handleApiError } from '@/lib/errors';
 import { env } from '@/lib/env';
 import { createNotification } from '@/lib/notifications/notificationService';
@@ -47,6 +47,12 @@ async function handlePOST(req: NextRequest) {
 
     const body = JSON.parse(bodyText);
     const { type, data } = body;
+
+    // The signature covers the query-string data.id; the body must refer to the same payment.
+    if (!mercadoPagoIdsMatch(req.nextUrl.searchParams.get('data.id'), data?.id)) {
+      logger.error('Webhook body data.id differs from the signed query data.id');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
 
     if (type === 'payment') {
       const paymentId = data?.id;

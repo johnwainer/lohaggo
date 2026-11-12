@@ -34,6 +34,11 @@ export type WaSpec = {
   dedupeWindowMs?: number
   /** Promotional by nature: respects `excludedFromMarketing` and quiet hours even if Meta approved it as UTILITY */
   marketing?: boolean
+  /**
+   * Commercial promotion (B23/B24/B25/C33): needs marketing consent (Ley 1581). Operational nudges about the
+   * person's own account or service activity (C29, C30, C46-C49) are `marketing` (STOP and quiet hours apply) but not promotional.
+   */
+  promotional?: boolean
 }
 
 export type WaRecipient = {
@@ -86,7 +91,7 @@ export async function deliverWa(recipient: WaRecipient, spec: WaSpec, now = new 
     if (!phone) return { ok: false, skipped: 'no_phone', requested }
 
     // Ley 1581: marketing needs consent or the grandfathered basis (lib/privacy/consent.ts). A recipient without an account (userId null) is not checked here.
-    const consented = !spec.marketing || !recipient.userId || (await userHasMarketingConsent(recipient.userId))
+    const consented = !spec.promotional || !recipient.userId || (await userHasMarketingConsent(recipient.userId))
     const allowMarketing = consented && !recipient.excludedFromMarketing && !isMarketingQuietHour(now) && !(await marketingOptedOut(recipient, phone))
     if (spec.marketing && !allowMarketing) return { ok: false, skipped: 'marketing_blocked', requested }
 

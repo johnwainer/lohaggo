@@ -6,18 +6,19 @@
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 
 // Magic byte signatures for allowed types
-const SIGNATURES: { mime: string; bytes: number[]; offset?: number }[] = [
+const SIGNATURES: { mime: string; bytes: number[]; offset?: number; also?: { bytes: number[]; offset: number } }[] = [
   { mime: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
   { mime: 'image/png',  bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
-  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46], offset: 0 }, // "RIFF"
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46], offset: 0, also: { bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 } }, // "RIFF" at 0-3 and "WEBP" at 8-11 (RIFF alone is also WAV/AVI)
   { mime: 'application/pdf', bytes: [0x25, 0x50, 0x44, 0x46] }, // "%PDF"
 ]
 
-function detectMimeFromBytes(buf: Uint8Array): string | null {
+export function detectMimeFromBytes(buf: Uint8Array): string | null {
   for (const sig of SIGNATURES) {
     const off = sig.offset ?? 0
     const match = sig.bytes.every((b, i) => buf[off + i] === b)
-    if (match) return sig.mime
+    const extra = !sig.also || sig.also.bytes.every((b, i) => buf[sig.also!.offset + i] === b)
+    if (match && extra) return sig.mime
   }
   return null
 }

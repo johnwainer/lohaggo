@@ -8,6 +8,7 @@ import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { deliverWa } from '@/lib/messaging/wa-send'
 import { WA } from '@/lib/messaging/wa-specs'
+import { canWhatsappWaitlistEntry, phoneKey } from '@/lib/waitlist/phone-policy'
 import { isPlaceholderEmail } from '@/lib/accounts/phone-login-core'
 
 const logger = createLogger('waitlist-notify')
@@ -19,13 +20,22 @@ export async function notifyWaitlistOpened(citySlug: string, opts: { limit?: num
   if (!city) throw new Error('Ciudad no encontrada')
   if (city.status !== 'ACTIVE') throw new Error(`${city.name} todavía no está activa: el aviso diría algo falso`)
   const entries = await prisma.cityWaitlist.findMany({ where: { citySlug, notifiedAt: null, NOT: { source: { startsWith: 'service:' } } }, orderBy: { createdAt: 'asc' }, take: opts.limit ?? 500 })
+  // The number typed in the form is unverified: B25 only goes to numbers that wrote to us on WhatsApp.
+  const phones = entries.map((e) => e.phone).filter((p): p is string => Boolean(p))
+  const inbound = phones.length
+    ? await prisma.conversation.findMany({
+        where: { channel: 'WHATSAPP', contactPhone: { in: [...phones, ...phones.map((p) => p.replace(/^\+/, ''))] }, messages: { some: { direction: 'INBOUND' } } },
+        select: { contactPhone: true },
+      })
+    : []
+  const verifiedPhones = new Set(inbound.map((c) => phoneKey(c.contactPhone)))
   const runtime = await getMessagingProviderRuntimeConfig()
   let whatsapp = 0
   let email = 0
   let failed = 0
   for (const e of entries) {
     let sent = false
-    if (e.phone && e.phoneConsentAt) {
+    if (canWhatsappWaitlistEntry(e, verifiedPhones)) {
       const r = await deliverWa({ userId: null, phone: e.phone, name: e.name }, WA.B25({ entryId: e.id, name: e.name, city: city.name })).catch(() => null)
       if (r?.ok) { sent = true; whatsapp++ }
     }

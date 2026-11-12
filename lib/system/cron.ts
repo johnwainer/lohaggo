@@ -83,7 +83,7 @@ async function resolveTimeoutIncident(job: string) {
 /**
  * Overlap lock on CronRun rows: another run of the same job still «running» and younger than the stale
  * window means this one skips. After creating our row we re-check that no older live run exists, so two
- * runs that start together do not both proceed (the later one gives up).
+ * runs that start together do not both proceed (the later one gives up). Only a live run that sorts BEFORE ours counts, so two simultaneous invocations cannot both back off.
  */
 export async function acquireCronRun(job: string, maxDurationS = DEFAULT_MAX_DURATION_S, now = Date.now()): Promise<{ run: { id: string } | null; skipped: boolean }> {
   const since = new Date(now - staleAfterMs(maxDurationS))
@@ -91,7 +91,7 @@ export async function acquireCronRun(job: string, maxDurationS = DEFAULT_MAX_DUR
   if (live) return { run: null, skipped: true }
   const run = await prisma.cronRun.create({ data: { job } }).catch(() => null)
   if (!run) return { run: null, skipped: false }
-  const older = await prisma.cronRun.findFirst({ where: { job, status: 'running', startedAt: { gte: since }, id: { not: run.id } }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }], select: { id: true } })
+  const older = await prisma.cronRun.findFirst({ where: { job, status: 'running', startedAt: { gte: since }, id: { not: run.id }, OR: [{ startedAt: { lt: run.startedAt } }, { startedAt: run.startedAt, id: { lt: run.id } }] }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }], select: { id: true } })
   if (older) {
     await prisma.cronRun.delete({ where: { id: run.id } }).catch(() => null)
     return { run: null, skipped: true }

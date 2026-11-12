@@ -4,6 +4,8 @@
  */
 
 export const MIN_PRICE_SAMPLE = 5
+/** Y de al menos tantos socios distintos: un solo socio con muchas propuestas no es «el precio típico». */
+export const MIN_PRICE_PARTNERS = 3
 
 export type PriceInfo =
   | { source: 'proposals'; sample: number; low: number; high: number; median: number }
@@ -33,8 +35,8 @@ export function computePriceRange(prices: Array<number | null | undefined>, minS
 }
 
 /** El rango real si hay muestra; si no, el «desde» del catálogo. */
-export function resolvePriceInfo(prices: Array<number | null | undefined>, catalogFrom: number): PriceInfo {
-  const r = computePriceRange(prices)
+export function resolvePriceInfo(prices: Array<number | null | undefined>, catalogFrom: number, distinctPartners: number): PriceInfo {
+  const r = distinctPartners >= MIN_PRICE_PARTNERS ? computePriceRange(prices) : null
   return r ? { source: 'proposals', ...r } : { source: 'catalog', from: Math.round(catalogFrom) }
 }
 

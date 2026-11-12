@@ -5,6 +5,7 @@ import { createRateLimiter } from '@/lib/rate-limit'
 import { cityAcceptsWaitlist, parseWaitlist } from '@/lib/waitlist/schema'
 import { normalizePhone } from '@/lib/phone'
 import { toE164 } from '@/lib/inbox/contacts'
+import { waitlistPhoneUpdate } from '@/lib/waitlist/phone-policy'
 import { placeholderEmail } from '@/lib/accounts/phone-login-core'
 
 const logger = createLogger('public-waitlist')
@@ -44,10 +45,11 @@ async function handlePOST(request: NextRequest) {
     }
 
     const now = new Date()
+    const existing = await prisma.cityWaitlist.findUnique({ where: { citySlug_email: { citySlug, email } }, select: { phone: true, phoneConsentAt: true } })
     await prisma.cityWaitlist.upsert({
       where: { citySlug_email: { citySlug, email } },
       create: { citySlug, email, name, role, consentAt: now, source, ...(phone ? { phone, phoneConsentAt: now } : {}) },
-      update: { ...(name ? { name } : {}), role, consentAt: now, ...(serviceSlug ? { source } : {}), ...(phone ? { phone, phoneConsentAt: now } : {}) },
+      update: { ...(name ? { name } : {}), role, consentAt: now, ...(serviceSlug ? { source } : {}), ...waitlistPhoneUpdate(existing, phone, now) },
     })
 
     return NextResponse.json({ ok: true })

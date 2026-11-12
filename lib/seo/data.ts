@@ -73,20 +73,24 @@ async function loadPrices(): Promise<{ items: ServicePrice[]; updatedAt: string 
     loadCatalog(),
     prisma.proposal.findMany({
       where: { price: { gt: 0 }, createdAt: { gte: since } },
-      select: { price: true, serviceRequest: { select: { serviceId: true } } },
+      select: { price: true, partnerId: true, serviceRequest: { select: { serviceId: true } } },
       take: 50000,
     }),
   ])
   const byService = new Map<string, number[]>()
+  const partnersByService = new Map<string, Set<string>>()
   for (const p of proposals) {
     const id = p.serviceRequest.serviceId
+    const set = partnersByService.get(id) ?? new Set<string>()
+    set.add(p.partnerId)
+    partnersByService.set(id, set)
     const arr = byService.get(id)
     if (arr) arr.push(p.price)
     else byService.set(id, [p.price])
   }
   const items = catalog
     .filter((s) => s.partners > 0)
-    .map((s) => ({ ...s, info: resolvePriceInfo(byService.get(s.id) ?? [], s.from) }))
+    .map((s) => ({ ...s, info: resolvePriceInfo(byService.get(s.id) ?? [], s.from, partnersByService.get(s.id)?.size ?? 0) }))
     .sort((a, b) => Number(b.popular) - Number(a.popular) || b.partners - a.partners || a.name.localeCompare(b.name, 'es'))
   return { items, updatedAt: new Date().toISOString() }
 }

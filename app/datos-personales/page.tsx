@@ -22,7 +22,9 @@ export default function DatosPersonalesPage() {
         </div>
         <section className="mt-8 space-y-2 text-sm text-gray-600">
           <h2 className="text-base font-bold text-gray-900">Qué pasa cuando pides eliminar tus datos</h2>
-          <p>Desactivamos tu cuenta y borramos tu nombre, teléfono, correo, direcciones guardadas y fotos. Por obligaciones contables y tributarias conservamos, sin tus datos de contacto, los registros de reservas y pagos.</p>
+          <p>Antes de eliminar verificamos tu identidad. No podemos eliminar la cuenta mientras tengas reservas activas (pendientes, confirmadas o en curso) o pagos sin liquidar; te avisamos y lo hacemos cuando terminen.</p>
+          <p><strong>Eliminamos o reemplazamos:</strong> tu nombre, correo, teléfono y foto; tus direcciones y tarjetas guardadas; tu contraseña y accesos; en conversaciones de WhatsApp o chat, tu nombre, tu número y los mensajes que escribiste; y, si eres socio, tu perfil público, las fotos de tus trabajos, los archivos de tus documentos de verificación y los datos del titular de tu cuenta bancaria (el número queda enmascarado, solo los últimos 4 dígitos).</p>
+          <p><strong>Conservamos por obligación legal:</strong> los registros de reservas, pagos, liquidaciones a socios y calificaciones, que exigen las normas contables y tributarias. Quedan sin tu nombre ni tus datos de contacto, desvinculados de tu identidad.</p>
           <p>También puedes escribirnos a <strong>hola@lohaggo.com</strong> con el asunto «Datos personales». Más información en la <Link href="/privacy" className="font-semibold text-primary-600 underline">Política de privacidad</Link>.</p>
         </section>
       </div>

@@ -69,7 +69,7 @@ export const WA = {
   B2: (p: { tokenId: string; name: string; suffix: string }) => spec('B2', [['lh_cliente_acceso_enlace_v2', { 1: client(p.name), 2: p.suffix }]], E('MagicToken', p.tokenId)),
   C2: (p: { tokenId: string; name: string; suffix: string }) => spec('C2', [['lh_socio_acceso_enlace', { 1: partner(p.name), 2: p.suffix }]], E('MagicToken', p.tokenId)),
   /** The city of a waitlist entry opened: promotional (only with the entry's WhatsApp consent) */
-  B25: (p: { entryId: string; name: string | null; city: string }) => spec('B25', [['lh_lista_espera_ciudad_abierta', { 1: client(p.name ?? ''), 2: p.city }]], E('CityWaitlist', p.entryId), { marketing: true }),
+  B25: (p: { entryId: string; name: string | null; city: string }) => spec('B25', [['lh_lista_espera_ciudad_abierta', { 1: client(p.name ?? ''), 2: p.city }]], E('CityWaitlist', p.entryId), { marketing: true, promotional: true }),
   /** Refund of a cancelled paid booking changed state (one message per state) */
   B22: (p: { refundId: string; clientName: string; amount: number; service: string; state: string }) =>
     spec('B22', [['lh_cliente_reembolso_estado', { 1: client(p.clientName), 2: waMoney(p.amount), 3: p.service, 4: p.state }]], E('RefundCase', p.refundId), { dedupeKey: `B22:RefundCase:${p.refundId}:${p.state}` }),
@@ -107,9 +107,9 @@ export const WA = {
   B21: (p: { claimId: string; clientName: string; remedy: string }) =>
     spec('B21', [['lh_cliente_garantia_resuelta', { 1: client(p.clientName), 2: waRef(p.claimId), 3: GUARANTEE_REMEDY_TEXT[p.remedy] ?? 'el equipo lo resolvió' }]], E('GuaranteeClaim', p.claimId)),
   B23: (p: { userId: string; clientName: string; service: string; partnerName: string; bookingId: string }) =>
-    spec('B23', [['lh_cliente_volver_a_pedir', { 1: client(p.clientName), 2: p.service.toLowerCase(), 3: partner(p.partnerName) }]], E('Booking', p.bookingId), { marketing: true, dedupeKey: `B23:User:${p.userId}`, dedupeWindowMs: 60 * DAY }),
+    spec('B23', [['lh_cliente_volver_a_pedir', { 1: client(p.clientName), 2: p.service.toLowerCase(), 3: partner(p.partnerName) }]], E('Booking', p.bookingId), { marketing: true, promotional: true, dedupeKey: `B23:User:${p.userId}`, dedupeWindowMs: 60 * DAY }),
   B24: (p: { conversationId: string; name: string | null; service: string }) =>
-    spec('B24', [['lh_cliente_solicitud_sin_terminar', { 1: client(p.name), 2: p.service }]], E('Conversation', p.conversationId), { marketing: true, dedupeWindowMs: 14 * DAY }),
+    spec('B24', [['lh_cliente_solicitud_sin_terminar', { 1: client(p.name), 2: p.service }]], E('Conversation', p.conversationId), { marketing: true, promotional: true, dedupeWindowMs: 14 * DAY }),
 
   /** The platform transferred the partner's net amount of a paid booking */
   C28: (p: { payoutId: string; partnerName: string; amount: number; service: string; last4: string }) =>
@@ -120,7 +120,7 @@ export const WA = {
     spec('C3', [['lh_socio_falta_documento', { 1: partner(p.name), 2: 'partner/verification' }]], E('User', p.userId), { dedupeKey: `C3:User:${p.userId}:d${p.day}` }),
   /** Invite a verified partner to share their public profile (at most once a month) */
   C33: (p: { partnerId: string; name: string; slug: string }) =>
-    spec('C33', [['lh_socio_compartir_perfil', { 1: partner(p.name), 2: `pro/${p.slug}?utm_source=whatsapp&utm_medium=socio&utm_campaign=compartir_perfil` }]], E('PartnerProfile', p.partnerId), { marketing: true, dedupeKey: `C33:PartnerProfile:${p.partnerId}`, dedupeWindowMs: 30 * DAY }),
+    spec('C33', [['lh_socio_compartir_perfil', { 1: partner(p.name), 2: `pro/${p.slug}?utm_source=whatsapp&utm_medium=socio&utm_campaign=compartir_perfil` }]], E('PartnerProfile', p.partnerId), { marketing: true, promotional: true, dedupeKey: `C33:PartnerProfile:${p.partnerId}`, dedupeWindowMs: 30 * DAY }),
   /** Partner reactivation campaign (lib/partners/reactivation.ts): one key per partner and step, so a step is never sent twice */
   C46: (p: { userId: string; name: string; service: string; city: string; step: string }) =>
     spec('C46', [['lh_socio_reactivar_documentos', { 1: partner(p.name), 2: p.service, 3: p.city, 4: 'partner/verification?utm_source=whatsapp&utm_medium=socio&utm_campaign=reactivar_socios' }]], E('User', p.userId), { marketing: true, dedupeKey: `C46:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),

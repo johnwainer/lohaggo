@@ -46,7 +46,8 @@ export const authOptions: NextAuthOptions = {
         const accountLimit = await overLimit(`login:${loginLimitKey}`, LOGIN_LIMIT_WINDOW_MS, LOGIN_LIMIT_MAX_ATTEMPTS)
         const ipLimit = await overLimit(`login-ip:${clientIp}`, LOGIN_LIMIT_WINDOW_MS, LOGIN_IP_MAX_ATTEMPTS)
         if (accountLimit.blocked || ipLimit.blocked) {
-          throw new Error("Demasiados intentos. Intenta nuevamente en unos minutos.")
+          const waitMin = Math.max(1, Math.ceil(Math.max(accountLimit.blocked ? accountLimit.retryAfterSec : 0, ipLimit.blocked ? ipLimit.retryAfterSec : 0) / 60))
+          throw new Error(`Demasiados intentos. Intenta nuevamente en ${waitMin} minuto${waitMin === 1 ? "" : "s"}.`)
         }
 
         const hasBotSignals = Boolean(
@@ -88,7 +89,9 @@ export const authOptions: NextAuthOptions = {
           throw new Error(INVALID_CREDENTIALS_MESSAGE)
         }
 
+        // Only failures count: a successful login gives back both hits so shared IPs (offices, mobile carriers) are not locked out
         await unhit(`login:${loginLimitKey}`, LOGIN_LIMIT_WINDOW_MS)
+        await unhit(`login-ip:${clientIp}`, LOGIN_LIMIT_WINDOW_MS)
 
         return {
           id: user.id,

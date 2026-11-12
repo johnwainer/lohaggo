@@ -55,14 +55,20 @@ describe('computePriceRange', () => {
 
 describe('resolvePriceInfo / priceLabel', () => {
   it('cae al «desde» del catálogo sin muestra', () => {
-    const info = resolvePriceInfo([50000], 45000)
+    const info = resolvePriceInfo([50000], 45000, 1)
     expect(info).toEqual({ source: 'catalog', from: 45000 })
     expect(priceLabel(info)).toContain('desde $45.000')
   })
   it('usa las propuestas con muestra suficiente', () => {
-    const info = resolvePriceInfo([50000, 55000, 60000, 65000, 70000], 45000)
+    const info = resolvePriceInfo([50000, 55000, 60000, 65000, 70000], 45000, 3)
     expect(info.source).toBe('proposals')
     expect(priceLabel(info)).toMatch(/\$\d.* a \$\d.* COP/)
+  })
+})
+
+describe('resolvePriceInfo con pocos socios', () => {
+  it('con 5 propuestas de solo 2 socios cae al «desde» del catálogo', () => {
+    expect(resolvePriceInfo([50000, 55000, 60000, 65000, 70000], 45000, 2)).toEqual({ source: 'catalog', from: 45000 })
   })
 })
 

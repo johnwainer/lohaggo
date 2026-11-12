@@ -114,6 +114,7 @@ export async function integrations(now = new Date()): Promise<Integration[]> {
         : tracking?.lastGroupWriteAt ? `última escritura hace ${ago(new Date(tracking.lastGroupWriteAt))}` : 'sin errores registrados',
     },
     { key: 'cron-secret', name: 'Tareas automáticas autorizadas', level: process.env.CRON_SECRET ? 'ok' : 'error', detail: process.env.CRON_SECRET ? 'CRON_SECRET configurado' : 'falta CRON_SECRET: ninguna tarea automática corre' },
+    { key: 'internal-token', name: 'Webhook de correo (SendGrid)', level: process.env.SECURITY_INTERNAL_TOKEN ? 'ok' : 'warning', detail: process.env.SECURITY_INTERNAL_TOKEN ? 'SECURITY_INTERNAL_TOKEN configurado' : 'falta SECURITY_INTERNAL_TOKEN: los estados de entrega del correo se rechazan (503)' },
   ]
   return out
 }

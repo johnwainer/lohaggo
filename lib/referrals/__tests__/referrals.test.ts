@@ -36,3 +36,13 @@ describe('rewards and links', () => {
     expect(referralShareText('Ana López', 'https://x', 'CLIENT')).toMatch(/^Ana te invita/)
   })
 })
+
+import { isSelfDealingReferral } from '@/lib/referrals/core'
+
+describe('self-dealing referrals', () => {
+  const base = { referrerPhoneKey: '3001112222', referredPhoneKey: '3003334444', qualifyingBookingPartnerId: 'p1', referrerPartnerProfileId: null, referrerIsClientOfReferredPartner: false }
+  it('a clean referral is fine', () => expect(isSelfDealingReferral(base)).toBeNull())
+  it('shared phone blocks', () => expect(isSelfDealingReferral({ ...base, referredPhoneKey: '3001112222' })).toBe('shared_phone'))
+  it('referrer being the partner of the booking blocks', () => expect(isSelfDealingReferral({ ...base, referrerPartnerProfileId: 'p1' })).toBe('referrer_is_partner'))
+  it('referred being the partner of a booking of the referrer blocks', () => expect(isSelfDealingReferral({ ...base, referrerIsClientOfReferredPartner: true })).toBe('referred_is_partner_of_referrer'))
+})

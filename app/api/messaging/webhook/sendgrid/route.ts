@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { MessagingDeliveryStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
+import { createLogger } from '@/lib/logger'
+import { warnInternalTokenUnset } from '@/lib/security/internal-token'
 import { sameSecret } from '@/lib/security/same-secret'
+
+const logger = createLogger('sendgrid-webhook')
 
 function mapSendgridEvent(event: string): MessagingDeliveryStatus | null {
   const value = event.toLowerCase()
@@ -15,7 +19,10 @@ function mapSendgridEvent(event: string): MessagingDeliveryStatus | null {
 
 export async function POST(request: NextRequest) {
   // Fails closed: without the shared token nobody can be told apart from SendGrid
-  if (!env.SECURITY_INTERNAL_TOKEN) return NextResponse.json({ error: 'Webhook no configurado' }, { status: 503 })
+  if (!env.SECURITY_INTERNAL_TOKEN) {
+    warnInternalTokenUnset(logger)
+    return NextResponse.json({ error: 'Webhook no configurado' }, { status: 503 })
+  }
   if (!sameSecret(request.nextUrl.searchParams.get('token'), env.SECURITY_INTERNAL_TOKEN)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

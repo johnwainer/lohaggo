@@ -10,4 +10,4 @@ export const maxDuration = 120
 export const GET = cronRoute('growth-nightly', async () => {
   const [fraud, referrals] = await Promise.all([runFraudScan(), qualifyReferrals()])
   return NextResponse.json({ ok: true, fraud, referrals })
-})
+}, { maxDuration: 120 })

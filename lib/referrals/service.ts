@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-import { generateReferralCode, normalizeReferralCode, qualifiesReferral, rewardFor } from '@/lib/referrals/core'
+import { phoneKey } from '@/lib/fraud/core'
+import { generateReferralCode, isSelfDealingReferral, normalizeReferralCode, qualifiesReferral, rewardFor } from '@/lib/referrals/core'
 
 const logger = createLogger('referrals')
 
@@ -40,15 +41,29 @@ export async function attachReferral(referredId: string, rawCode: unknown) {
  * PENDING rows move, with a status-guarded update.
  */
 export async function qualifyReferrals(now = new Date(), limit = 200) {
-  const pending = await prisma.referral.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' }, take: limit, select: { id: true, referrerId: true, referredId: true, referrer: { select: { role: true, name: true } } } })
+  const pending = await prisma.referral.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' }, take: limit, select: { id: true, referrerId: true, referredId: true, referrer: { select: { role: true, name: true, phone: true, partnerProfile: { select: { id: true } } } }, referred: { select: { phone: true, partnerProfile: { select: { id: true } } } } } })
   let qualified = 0
   for (const r of pending) {
     const first = await prisma.booking.findFirst({
       where: { userId: r.referredId },
       orderBy: { createdAt: 'asc' },
-      select: { status: true, payment: { select: { status: true, confirmationStatus: true } } },
+      select: { status: true, partnerId: true, payment: { select: { status: true, confirmationStatus: true } } },
     })
     if (!first || !qualifiesReferral({ bookingStatus: first.status, payment: first.payment })) continue
+    const referredPartnerId = r.referred.partnerProfile?.id ?? null
+    const reverse = referredPartnerId ? await prisma.booking.count({ where: { userId: r.referrerId, partnerId: referredPartnerId } }) : 0
+    const selfDealing = isSelfDealingReferral({
+      referrerPhoneKey: phoneKey(r.referrer.phone),
+      referredPhoneKey: phoneKey(r.referred.phone),
+      qualifyingBookingPartnerId: first.partnerId,
+      referrerPartnerProfileId: r.referrer.partnerProfile?.id ?? null,
+      referrerIsClientOfReferredPartner: reverse > 0,
+    })
+    if (selfDealing) {
+      // Stays PENDING (never rewarded); the nightly fraud scan already flags shared phones for the team
+      logger.warn('Referral not qualified: self-dealing', { referralId: r.id, reason: selfDealing })
+      continue
+    }
     const claimed = await prisma.referral.updateMany({ where: { id: r.id, status: 'PENDING' }, data: { status: 'QUALIFIED', qualifiedAt: now } })
     if (claimed.count !== 1) continue
     const code = await ensureReferralCode(r.referrerId)
