@@ -30,6 +30,10 @@ describe('marketing prompts receive the SEO context', () => {
     expect(planTask({ ...plan, seo: 'Atacar: plomero en Laureles' })).toContain('Atacar: plomero en Laureles')
   })
   const idea = { pillar: 'Guías', service: 'Plomería', angle: 'a', hypothesis: null, channels: ['WEB' as const], formats: { WEB: 'guía' }, rationale: null }
+  it('draftTask tells the writer the platform adds the WhatsApp line (so it is not written twice)', () => {
+    expect(draftTask({ idea, utmNote: 'u' })).not.toContain('agrega sola')
+    expect(draftTask({ idea, utmNote: 'u', platformCta: true })).toContain('No escribas tú una línea de WhatsApp')
+  })
   it('draftTask adds the brief or the short web rules', () => {
     expect(draftTask({ idea, utmNote: 'u' })).not.toContain('brief SEO')
     expect(draftTask({ idea, utmNote: 'u', seo: briefText(brief) })).toContain('Plan del agente de SEO')

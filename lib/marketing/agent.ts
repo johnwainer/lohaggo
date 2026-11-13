@@ -775,7 +775,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     const utmNote = 'Los enlaces a lohaggo.com escríbelos sin parámetros: la plataforma les añade el seguimiento de la campaña (UTM).'
     const ask = async (corrections: string[] | null, prev: string | null, editor: string[] | null = null) => callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_draft', system: ctx.system, tool: DRAFT_TOOL, maxTokens: channels.includes('WEB') ? 9000 : 4000, effort: 'medium',
-      task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev, editor, seo: seoText }),
+      task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev, editor, seo: seoText, platformCta: config.cta.whatsapp }),
     }, meter)
 
     // A new version asked to apply the editor's last review starts from its asks

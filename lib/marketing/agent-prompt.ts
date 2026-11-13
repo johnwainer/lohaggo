@@ -346,7 +346,7 @@ export function planTask(p: { gaps: Array<{ channel: MarketingChannel; needed: n
   ].filter(Boolean).join('\n\n')
 }
 
-export function draftTask(p: { idea: { pillar: string; service: string | null; angle: string; hypothesis: string | null; channels: MarketingChannel[]; formats: Partial<Record<MarketingChannel, string>>; rationale: string | null }; utmNote: string; instruction?: string | null; corrections?: string[] | null; previous?: string | null; editor?: string[] | null; seo?: string | null }) {
+export function draftTask(p: { idea: { pillar: string; service: string | null; angle: string; hypothesis: string | null; channels: MarketingChannel[]; formats: Partial<Record<MarketingChannel, string>>; rationale: string | null }; utmNote: string; instruction?: string | null; corrections?: string[] | null; previous?: string | null; editor?: string[] | null; seo?: string | null; platformCta?: boolean }) {
   const i = p.idea
   return [
     'Redacta esta pieza con la herramienta redactar_pieza, una versión por canal pedido.',
@@ -357,6 +357,7 @@ export function draftTask(p: { idea: { pillar: string; service: string | null; a
       : '',
     p.seo ? `Plan del agente de SEO para el artículo web (síguelo: estructura, palabra clave, preguntas frecuentes y enlaces internos; no inventes más datos que los que trae):\n<datos tipo="brief SEO">\n${p.seo}\n</datos>` : '',
     p.utmNote,
+    p.platformCta ? 'La plataforma agrega sola, al final de cada pieza, la línea de WhatsApp («Escríbenos por WhatsApp…»). No escribas tú una línea de WhatsApp ni «enlace en la bio»: escribe UN solo llamado a la acción propio (pedir el servicio, guardar, comentar) y deja la de WhatsApp a la plataforma.' : '',
     p.instruction ? `<datos tipo="indicación del equipo para esta versión">${p.instruction}</datos>` : '',
     p.previous ? `<datos tipo="versión anterior">\n${p.previous.slice(0, 4000)}\n</datos>` : '',
     p.corrections?.length ? `La versión anterior no pasó las revisiones. Corrige exactamente esto y conserva lo demás:\n${p.corrections.map((c) => `- ${c}`).join('\n')}` : '',
