@@ -19,7 +19,7 @@ import { RelatedGuides } from '@/components/public/RelatedGuides'
 export const revalidate = 300
 
 export const metadata: Metadata = {
-  title: { absolute: 'LoHaggo – Contrata Servicios Profesionales en Medellín | Plomeros, Electricistas y Más' },
+  title: { absolute: 'LoHaggo: plomeros, electricistas y más en Medellín' },
   description: 'LoHaggo: contrata plomeros, electricistas, limpieza, carpinteros, jardineros y más en Medellín. Profesionales verificados con precios transparentes. ¡Reserva en minutos y paga al finalizar!',
   keywords: [
     // Marca y variaciones

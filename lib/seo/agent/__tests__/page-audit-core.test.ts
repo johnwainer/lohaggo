@@ -44,3 +44,16 @@ describe('auditHtml', () => {
     expect(a.issues.some((i) => i.code === 'title_long')).toBe(true)
   })
 })
+
+describe('auditHtml: nested structured data and decorative images', () => {
+  it('finds types nested inside another object (breadcrumb of a WebPage)', () => {
+    const ld = '<script type="application/ld+json">{"@type":"WebPage","breadcrumb":{"@type":"BreadcrumbList"}}</script>'
+    const a = auditHtml(page(GOOD.replace(/<script[\s\S]*<\/script>/, '') + ld), { url: 'u', path: '/ciudad/medellin', status: 200 })
+    expect(a.jsonLd).toEqual(expect.arrayContaining(['WebPage', 'BreadcrumbList']))
+    expect(a.issues.some((i) => i.code === 'structured_data')).toBe(false)
+  })
+  it('does not count alt="" (decorative) as missing', () => {
+    const a = auditHtml(page(GOOD, '<h1>x</h1><img src="a" alt=""><img src="b">'), { url: 'u', path: '/servicios/plomeria', status: 200 })
+    expect(a.imagesWithoutAlt).toBe(1)
+  })
+})

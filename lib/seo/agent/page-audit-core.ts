@@ -20,6 +20,7 @@ function jsonLdTypes(html: string): string[] {
   let m: RegExpExecArray | null
   while ((m = re.exec(html))) {
     try {
+      // Types can sit nested («breadcrumb» inside a WebPage): walk every value
       const walk = (n: unknown) => {
         if (Array.isArray(n)) return n.forEach(walk)
         if (n && typeof n === 'object') {
@@ -27,7 +28,7 @@ function jsonLdTypes(html: string): string[] {
           const t = o['@type']
           if (typeof t === 'string') out.push(t)
           else if (Array.isArray(t)) out.push(...t.filter((x): x is string => typeof x === 'string'))
-          if (o['@graph']) walk(o['@graph'])
+          Object.values(o).forEach(walk)
         }
       }
       walk(JSON.parse(m[1]))
@@ -54,7 +55,7 @@ export function pageKindOf(path: string): PageKind {
 const EXPECTED_LD: Partial<Record<PageKind, string[]>> = {
   home: ['Organization', 'WebSite'],
   service: ['Service', 'FAQPage', 'BreadcrumbList'],
-  city: ['BreadcrumbList'],
+  city: ['BreadcrumbList', 'WebPage', 'FAQPage'],
   article: ['BlogPosting', 'Article'],
 }
 
@@ -65,7 +66,8 @@ export function auditHtml(html: string, input: { url: string; path: string; stat
   const canonical = html.match(/<link[^>]+rel=["']canonical["'][^>]*>/i)?.[0]?.match(/href=["']([^"']*)["']/i)?.[1] ?? null
   const h1Count = (html.match(/<h1[\s>]/gi) ?? []).length
   const imgs = html.match(/<img\b[^>]*>/gi) ?? []
-  const imagesWithoutAlt = imgs.filter((t) => !/\balt=["'][^"']+["']/i.test(t)).length
+  // alt="" is valid for decorative images; only a missing attribute counts
+  const imagesWithoutAlt = imgs.filter((t) => !/\balt=/i.test(t)).length
   const ld = jsonLdTypes(html)
   const text = decode(html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' '))
   const words = text ? text.split(' ').length : 0

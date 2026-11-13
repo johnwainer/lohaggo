@@ -1,12 +1,15 @@
 import Link from 'next/link'
 import { guidesFor } from '@/lib/marketing/blog'
 
+/** Services whose guides also help each other (a locksmith and a blacksmith share clients and keywords). */
+export const RELATED_TOPICS: Record<string, string[]> = { herreria: ['Cerrajería'], cerrajeria: ['Herrería'] }
+
 /**
  * «Guías» block, rendered on the server: links to the blog articles from the pages Google visits most (home,
  * services, cities). A new article is linked from all of them as soon as it is published, which is what makes
  * Google find and index it. Matching guides first, the newest ones to complete. Renders nothing without articles.
  */
-export async function RelatedGuides({ serviceName, title = 'Guías para tu hogar', max = 4, className = '' }: { serviceName?: string; title?: string; max?: number; className?: string }) {
+export async function RelatedGuides({ serviceName, title = 'Guías para tu hogar', max = 4, className = '' }: { serviceName?: string | string[]; title?: string; max?: number; className?: string }) {
   const guides = await guidesFor(serviceName, max).catch(() => [])
   if (!guides.length) return null
   return (

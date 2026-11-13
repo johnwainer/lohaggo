@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
 import { jsonLdScript } from '@/lib/marketing/seo'
-import { RelatedGuides } from '@/components/public/RelatedGuides'
+import { RelatedGuides, RELATED_TOPICS } from '@/components/public/RelatedGuides'
 import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } from '@/lib/public/serviceZones'
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import { STAT_MINIMUMS } from '@/lib/public/claims'
@@ -81,8 +81,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // The root layout's title template adds « | LoHaggo»
   const lower = service.name.toLowerCase()
   const fromAmount = priceFrom(service, minPartnerPrice ? [minPartnerPrice] : []).amount
+  // The visible title is this plus « | LoHaggo»: Google cuts it at ~60 characters
+  const fitTitle = (...options: string[]) => options.find((o) => o.length <= 50) ?? options[options.length - 1]
   const title = verifiedPartners > 0
-    ? `${service.name} a domicilio en Medellín · desde ${pesosCO(fromAmount)}`
+    ? fitTitle(`${service.name} a domicilio en Medellín · desde ${pesosCO(fromAmount)}`, `${service.name} en Medellín · desde ${pesosCO(fromAmount)}`, `${service.name} en Medellín`)
     : `${service.name} en Medellín: próximamente`
   const showCount = trust.claims.trust_real_stats && verifiedPartners >= STAT_MINIMUMS.verifiedPartners
   const intro = service.description.trim().replace(/[.\s]+$/, '')
@@ -308,7 +310,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
         </section>
       )}
       {verifiedPartners > 0 && <ServiceLinksSection serviceId={service.id} serviceName={service.name} />}
-      <RelatedGuides serviceName={service.name} title={`Guías de ${service.name.toLowerCase()} y del hogar`} max={4} />
+      <RelatedGuides serviceName={[service.name, ...(RELATED_TOPICS[slug] ?? [])]} title={`Guías de ${service.name.toLowerCase()} y del hogar`} max={4} />
     </>
   )
 }

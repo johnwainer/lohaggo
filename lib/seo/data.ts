@@ -63,7 +63,7 @@ export function groupByCategory(services: CatalogService[]): CategoryGroup[] {
 }
 
 /** Cuántos servicios tienen página propia en /precios/[servicio] (los principales primero). */
-export const PRICE_PAGE_LIMIT = 12
+export const PRICE_PAGE_LIMIT = 30
 
 export type ServicePrice = CatalogService & { info: PriceInfo }
 

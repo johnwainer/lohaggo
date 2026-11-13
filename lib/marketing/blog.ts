@@ -28,14 +28,14 @@ export async function listArticles(opts: { page?: number; category?: string | nu
  * Guides to link from a page: the ones about the service first (by title, category or tag), the newest to
  * complete up to `max`. Every page that shows them links the newest articles, so Google finds them quickly.
  */
-export async function guidesFor(serviceName: string | undefined, max = 4) {
+export async function guidesFor(serviceName: string | string[] | undefined, max = 4) {
   const now = new Date()
   const select = { slug: true, excerpt: true, post: { select: { title: true } } } as const
   const base = { ...liveWhere, webPublishedAt: { not: null, lte: now }, noindex: false }
-  const name = serviceName?.trim()
-  const about = name
+  const names = (Array.isArray(serviceName) ? serviceName : [serviceName]).map((n) => n?.trim()).filter((n): n is string => Boolean(n))
+  const about = names.length
     ? await prisma.marketingPostVariant.findMany({
-        where: { ...base, OR: [{ category: { contains: name, mode: 'insensitive' } }, { tags: { has: name } }, { post: { title: { contains: name, mode: 'insensitive' } } }] },
+        where: { ...base, OR: names.flatMap((name) => [{ category: { contains: name, mode: 'insensitive' as const } }, { tags: { has: name } }, { post: { title: { contains: name, mode: 'insensitive' as const } } }]) },
         orderBy: { webPublishedAt: 'desc' }, take: max, select,
       })
     : []
