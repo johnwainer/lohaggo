@@ -88,6 +88,7 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Resultados de marketing: solicitudes, reservas y ventas por canal, pauta y pieza; gasto y costo por solicitud (meta < $25.000); conversiones a Meta y Google', tools: ['resultados_marketing'] },
   { area: 'Marketing: publicaciones, revisión humana y editorial (corrector y editor), fallos, agentes de marketing y publicidad', tools: ['marketing', 'agentes_marketing', 'publicidad'] },
   { area: 'SEO: salud del sitio, Search Console, oportunidades (artículos y arreglos), fallas técnicas de páginas públicas, informe semanal y gasto del agente de SEO', tools: ['seo'] },
+  { area: 'Equipo de agentes: estado en vivo de cada agente, tablón de notas entre agentes (notas abiertas, sin atender, dirigidas a Haggo) y flujos de los últimos 7 días', tools: ['agentes'] },
   { area: 'Mensajería: campañas, envíos fallidos y plantillas de WhatsApp (estado en Meta y envíos por plantilla)', tools: ['mensajeria'] },
   { area: 'Mensajes automáticos por evento: reglas, envíos y fallos', tools: ['automatizaciones'] },
   { area: 'Tráfico web: blog, páginas de servicio y por zona, canales de GA4', tools: ['trafico_web'] },

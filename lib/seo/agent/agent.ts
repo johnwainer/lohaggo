@@ -16,6 +16,7 @@ import { slugify } from '@/lib/marketing/seo'
 import { detectOpportunities, healthScore, scoreOf, type SeoFacts } from '@/lib/seo/agent/audit-core'
 import { BRIEF_TOOL, REPORT_TOOL, SEO_SYSTEM, briefTask, reportTask, sanitizeBrief, sanitizeReport, type BriefContext } from '@/lib/seo/agent/brief-core'
 import { gatherFacts } from '@/lib/seo/agent/facts'
+import { announceNewGuides, processIncoming, sendGuidanceToMarketing } from '@/lib/seo/agent/bus'
 import { sendBriefToMarketing, webMarketingAgent } from '@/lib/seo/agent/marketing-bridge'
 import { getSeoSettings } from '@/lib/seo/agent/settings'
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
@@ -218,7 +219,7 @@ export async function briefOpportunity(id: string, opts: { trigger?: Trigger; fa
 
 const slugKey = (s: string) => slugify(s, 60)
 
-async function writeReport(facts: SeoFacts, candidates: Candidate[], config: SeoConfig, trigger: Trigger, gscTop: Array<{ query: string; clicks: number; impressions: number; position: number }>, gscTotals: { clicks: number; impressions: number } | null) {
+async function writeReport(facts: SeoFacts, candidates: Candidate[], config: SeoConfig, trigger: Trigger, gscTop: Array<{ query: string; clicks: number; impressions: number; position: number }>, gscTotals: { clicks: number; impressions: number } | null, heard: string[] = []) {
   const [ideasOpen, ideaRows, learnings] = await Promise.all([
     prisma.marketingIdea.count({ where: { status: 'proposed' } }).catch(() => 0),
     prisma.marketingIdea.findMany({ where: { createdAt: { gte: new Date(Date.now() - 30 * DAY) }, status: { not: 'rejected' } }, orderBy: { createdAt: 'desc' }, take: 15, select: { angle: true } }).catch(() => []),
@@ -236,7 +237,7 @@ async function writeReport(facts: SeoFacts, candidates: Candidate[], config: Seo
       open, pagesWithIssues: facts.pages.filter((p) => p.issues.some((i) => i.severity !== 'info')).length,
       gsc: gscTotals ? { days: facts.gsc?.days ?? 28, ...gscTotals, top: gscTop.slice(0, 15) } : null,
       articles: facts.articles.slice(0, 15).map((a) => ({ title: a.title, days: Math.floor((facts.now.getTime() - a.publishedAt.getTime()) / DAY), views: a.views, clicks: facts.gsc ? gscByPage.get(`/blog/${a.slug}`) ?? 0 : null })),
-      marketing: { ideasOpen, recentTopics: ideaRows.map((i) => i.angle), learnings: learnings.map((l) => l.insights.slice(0, 400)) },
+      marketing: { ideasOpen, recentTopics: ideaRows.map((i) => i.angle), learnings: [...heard, ...learnings.map((l) => l.insights.slice(0, 400))] },
       searches: facts.zeroSearches.slice(0, 10),
     })
     const report = sanitizeReport(await callTool(REPORT_TOOL, 'seo_agent_report', task, meter, 4500))
@@ -250,6 +251,7 @@ async function writeReport(facts: SeoFacts, candidates: Candidate[], config: Seo
         data: { kind: p.kind, title: p.title, detail: p.detail, keyword: p.keyword, impact: p.impact, effort: p.effort, source: 'ai', dedupeKey: key, score: scoreOf({ impact: p.impact, effort: p.effort }) },
       }).then(() => { added++ }).catch(() => null)
     }
+    await sendGuidanceToMarketing(report.forMarketing)
     return { summary: `Informe semanal: ${report.findings.length} hallazgos, ${added} propuestas nuevas`, value: { report, added }, output: { summary: report.summary, findings: report.findings, forMarketing: report.forMarketing, proposals: report.proposals.map((p) => p.title) } }
   })
   return outcome
@@ -279,6 +281,9 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
 
   const outcome = await withRun('cycle', opts.trigger, { force: Boolean(opts.force), withAi: opts.withAi ?? null }, async (meter) => {
     const { facts, gsc, unavailable } = await gatherFacts(config, { now, deadline: Math.min(deadline, Date.now() + 80_000) })
+    // The agent bus: what other agents asked or learned, and what SEO tells them (new guides for the inbox bot)
+    const incoming = await processIncoming()
+    await announceNewGuides(facts.articles, now)
     const candidates = detectOpportunities(facts, config)
     const synced = await syncOpportunities(candidates, now)
     const health = healthScore(facts, candidates)
@@ -330,7 +335,7 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
           }
         }
         if (Date.now() < deadline - 50_000 && !(await spendBlock(config, now))) {
-          const rep = await writeReport(facts, candidates, config, opts.trigger, top, rows.length ? { clicks, impressions } : null)
+          const rep = await writeReport(facts, candidates, config, opts.trigger, top, rows.length ? { clicks, impressions } : null, incoming.learnings)
           if (rep.ok) reportAdded = rep.value.added
           else aiNote = rep.error
         }
@@ -344,7 +349,7 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
       output: {
         health, gsc: { ...gscState, days: facts.gsc?.days ?? null, clicks, impressions, top, topPages, indexing },
         pages: facts.pages.map((p) => ({ path: p.path, status: p.status, words: p.words, issues: p.issues.map((i) => ({ code: i.code, severity: i.severity, message: i.message })) })),
-        counts: { services: facts.services.length, articles: facts.articles.length, zeroSearches: facts.zeroSearches.length, thinPartnerProfiles: facts.thinPartnerProfiles }, unavailable, aiNote,
+        bus: { requestsReceived: incoming.requests, learningsHeard: incoming.learnings.length }, counts: { services: facts.services.length, articles: facts.articles.length, zeroSearches: facts.zeroSearches.length, thinPartnerProfiles: facts.thinPartnerProfiles }, unavailable, aiNote,
       },
     }
   })

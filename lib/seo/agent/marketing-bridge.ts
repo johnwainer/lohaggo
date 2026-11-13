@@ -97,18 +97,16 @@ export const WEB_SEO_RULES = 'SEO del blog: una sola palabra clave principal en 
  */
 export async function seoGuidanceForPlanner(now = new Date()): Promise<string | null> {
   try {
-    const [open, covered, lastReport] = await Promise.all([
+    const [open, covered] = await Promise.all([
       prisma.seoOpportunity.findMany({ where: { status: { in: ['open', 'briefed'] }, kind: { in: ['content_gap', 'demand_gap', 'ugc', 'programmatic'] } }, orderBy: { score: 'desc' }, take: 8, select: { title: true, keyword: true, serviceSlug: true, citySlug: true, status: true } }),
       prisma.marketingPostVariant.findMany({ where: { channel: 'WEB', webPublishedAt: { not: null, lte: now }, slug: { not: null } }, orderBy: { webPublishedAt: 'desc' }, take: 25, select: { post: { select: { title: true } } } }),
-      prisma.seoRun.findFirst({ where: { type: 'report', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { output: true } }),
     ])
-    const forMarketing = ((lastReport?.output as { forMarketing?: string[] } | null)?.forMarketing ?? []).slice(0, 4)
-    if (!open.length && !forMarketing.length) return null
+    // The weekly indications reach the planner as a note on the agent bus, not from here
+    if (!open.length) return null
     return [
       'Agente de SEO (trabaja contigo: sus palabras clave y sus avisos valen para el blog y para Instagram y Facebook):',
       open.length ? `Búsquedas que conviene atacar (el brief completo llega con la idea cuando el SEO la envía; no dupliques estas ideas, enriquécelas con ángulos de redes):\n${open.map((o) => `- ${o.keyword ?? o.title}${o.citySlug ? ` (${o.citySlug})` : ''}`).join('\n')}` : '',
       covered.length ? `Artículos ya publicados en el blog (no compitas con ellos, enlázalos):\n${covered.map((c) => `- ${c.post.title}`).join('\n')}` : '',
-      forMarketing.length ? `Indicaciones del SEO para esta semana:\n${forMarketing.map((f) => `- ${f}`).join('\n')}` : '',
       WEB_SEO_RULES,
     ].filter(Boolean).join('\n\n')
   } catch {

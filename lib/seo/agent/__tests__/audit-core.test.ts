@@ -11,7 +11,7 @@ const base = (): SeoFacts => ({
   ],
   cities: [{ slug: 'medellin', name: 'Medellín', status: 'ACTIVE' }, { slug: 'bogota', name: 'Bogotá', status: 'COMING_SOON' }],
   supply: [{ serviceSlug: 'plomeria', citySlug: 'medellin', partners: 5, requests90d: 12 }, { serviceSlug: 'plomeria', citySlug: 'bogota', partners: 2, requests90d: 3 }],
-  articles: [], zeroSearches: [], gsc: null, pageTotals: [], inspections: [], pages: [], pricePageSlugs: [], thinPartnerProfiles: 0,
+  articles: [], zeroSearches: [], gsc: null, pageTotals: [], inspections: [], botGaps: [], pages: [], pricePageSlugs: [], thinPartnerProfiles: 0,
 })
 const cfg = DEFAULT_SEO_CONFIG
 const keys = (f: SeoFacts, c = cfg) => detectOpportunities(f, c).map((o) => o.dedupeKey)
@@ -105,6 +105,15 @@ describe('detectOpportunities', () => {
     const plain = detectOpportunities(base(), cfg).find((o) => o.dedupeKey === 'gap:plomeria:medellin')!
     const focused = detectOpportunities(base(), sanitizeSeoConfig({ focus: { services: ['plomeria'] } })).find((o) => o.dedupeKey === 'gap:plomeria:medellin')!
     expect(focused.score).toBeGreaterThan(plain.score)
+  })
+})
+
+describe('bot questions', () => {
+  it('turns questions the bot could not answer, asked more than once, into demand gaps', () => {
+    const f = base()
+    f.botGaps = [{ question: '¿Hacen impermeabilización de terrazas?', count: 4 }, { question: 'hola?', count: 9 }, { question: '¿Cuánto cuesta un gasfitero?', count: 1 }]
+    const k = keys(f).filter((x) => x.startsWith('botgap:'))
+    expect(k).toHaveLength(1)
   })
 })
 

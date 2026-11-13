@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, HeartPulse, LifeBuoy, ToggleRight, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, Sparkles, ShieldCheck, ListChecks, SearchCheck, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, HeartPulse, LifeBuoy, ToggleRight, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, Sparkles, ShieldCheck, ListChecks, SearchCheck, Network, type LucideIcon } from 'lucide-react'
 
 export interface MenuItem {
   id: string
@@ -22,6 +22,7 @@ export const ADMIN_MENU: MenuGroup[] = [
     hint: 'Vista global y salud del sistema',
     items: [
       { id: 'haggo', label: 'Haggo', icon: Sparkles, href: '/admin/haggo', superAdminOnly: true },
+      { id: 'agents', label: 'Agentes', icon: Network, href: '/admin/agentes' },
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'analytics', label: 'Analítica', icon: BarChart3, href: '/admin/analytics' },
       { id: 'system', label: 'Salud del sistema', icon: HeartPulse, href: '/admin/system' },

@@ -35,6 +35,8 @@ export type SeoFacts = {
   /** Slugs of the services that already have /precios/[slug] */
   pricePageSlugs: string[]
   thinPartnerProfiles: number
+  /** Questions customers asked the inbox bot that it could not answer, grouped (from the knowledge gaps) */
+  botGaps: Array<{ question: string; count: number }>
 }
 
 export const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
@@ -291,6 +293,21 @@ function realCases(f: SeoFacts, config: SeoConfig): Candidate[] {
     }))
 }
 
+/** Customers ask the bot something it cannot answer, more than once: it is content the site does not have. */
+function botQuestions(f: SeoFacts, config: SeoConfig): Candidate[] {
+  return f.botGaps
+    .filter((g) => g.count >= 2 && g.question.trim().length >= 8)
+    .slice(0, 8)
+    .map((g) => ({
+      kind: 'demand_gap' as OpportunityKind,
+      title: `Los clientes le preguntan al bot «${g.question.slice(0, 90)}» y no sabe responder`,
+      detail: `${g.count} veces. Una guía que la responda sirve a Google y al bot (recomienda el enlace). Sin inventar: la respuesta sale del equipo o de los datos de la plataforma.`,
+      keyword: g.question.slice(0, 80), impact: (g.count >= 5 ? 'high' : 'medium') as Level, effort: 'medium' as Level, source: 'rules' as const,
+      evidence: { asks: g.count, from: 'bandeja' }, dedupeKey: `botgap:${slugKey(g.question).slice(0, 60)}`,
+      score: scoreOf({ impact: g.count >= 5 ? 'high' : 'medium', effort: 'medium', demand: g.count * 4, focus: focusOf(config, { text: g.question }) }),
+    }))
+}
+
 function localAndBrand(f: SeoFacts): Candidate[] {
   const out: Candidate[] = []
   if (f.thinPartnerProfiles >= 5) {
@@ -316,6 +333,7 @@ export function detectOpportunities(f: SeoFacts, config: SeoConfig): Candidate[]
   const all = [
     ...serviceCityGaps(f, config),
     ...zeroResultSearches(f, config),
+    ...botQuestions(f, config),
     ...fromSearchConsole(f, config),
     ...notIndexed(f),
     ...articleChecks(f, config),

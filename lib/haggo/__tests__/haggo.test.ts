@@ -8,6 +8,7 @@ import { detect, novelDetections, type Snapshot } from '@/lib/haggo/detect'
 import { parseAnalysis, parseReport, REVIEW_CHECKLIST, untrusted } from '@/lib/haggo/prompt'
 import { READ_TOOLS } from '@/lib/haggo/tools/read'
 import { DOMAINS } from '@/lib/haggo/config'
+import type { AgentsSnapshot } from '@/lib/haggo/agents-view'
 import { PLATFORM_CHANGELOG, PLATFORM_FACTS_PROMPT, configStatusText } from '@/lib/haggo/platform-facts'
 import { mergeActivity } from '@/lib/haggo/tools/platform'
 import { SYSTEM_PROMPT } from '@/lib/haggo/prompt'
@@ -378,3 +379,38 @@ describe('conciencia del producto', () => {
     expect(mergeActivity([{ at: new Date('x'), area: 'a', que: 'b', ref: 'c' }])).toEqual([])
   })
 })
+
+describe('reglas agents:*', () => {
+  const ok: AgentsSnapshot = { notesOpenForHaggo: 0, notesHigh: 0, oldestOpenHours: null, attention: [], tablesReady: true }
+  const run = (agents?: Partial<AgentsSnapshot>, extra: Partial<Snapshot> = {}) => detect({ ...base, ...extra, agents: agents ? { ...ok, ...agents } : undefined }).filter((d) => d.key.startsWith('agents:'))
+  const agentKeys = (...a: Parameters<typeof run>) => run(...a).map((d) => d.key)
+
+  it('sin lectura o sin tablas no dicen nada', () => {
+    expect(agentKeys(undefined)).toEqual([])
+    expect(agentKeys({ tablesReady: false, notesOpenForHaggo: 3, oldestOpenHours: 200, attention: [{ key: 'haggo', headline: 'x' }] })).toEqual([])
+  })
+
+  it('agents:attention: warning si nadie más lo cubre; info si ya lo dicen las reglas de marketing', () => {
+    const att = [{ key: 'inbox', headline: '0 agentes activos' }]
+    expect(run({ attention: att }).map((d) => [d.key, d.severity, d.domain])).toEqual([['agents:attention', 'warning', 'ai_agents']])
+    expect(run({ attention: att })[0].title).toContain('inbox')
+    const mk = [{ key: 'marketing', headline: '2 agentes activos' }]
+    expect(run({ attention: mk }).map((d) => d.severity)).toEqual(['warning'])
+    const degraded = { ...base.marketing, degraded: [{ id: 'a1', name: 'C', reason: 'x' }] } as unknown as Snapshot['marketing']
+    expect(run({ attention: mk }, { marketing: degraded }).map((d) => d.severity)).toEqual(['info'])
+    expect(agentKeys({ attention: [] })).toEqual([])
+  })
+
+  it('agents:notes-stuck: solo pasadas las 72 h, y se cierra sola', () => {
+    expect(agentKeys({ oldestOpenHours: 72 })).toEqual([])
+    expect(agentKeys({ oldestOpenHours: 73 })).toEqual(['agents:notes-stuck'])
+    expect(agentKeys({ oldestOpenHours: null })).toEqual([])
+  })
+
+  it('agents:notes-for-haggo: warning con prioridad alta, info si no, y se cierra sola', () => {
+    expect(run({ notesOpenForHaggo: 2 }).map((d) => [d.key, d.severity])).toEqual([['agents:notes-for-haggo', 'info']])
+    expect(run({ notesOpenForHaggo: 2, notesHigh: 1 }).map((d) => [d.key, d.severity])).toEqual([['agents:notes-for-haggo', 'warning']])
+    expect(agentKeys({ notesOpenForHaggo: 0 })).toEqual([])
+  })
+})
+

@@ -9,6 +9,7 @@ import { getPricesSafe, PRICE_PAGE_LIMIT } from '@/lib/seo/data'
 import { partnerIsIndexable } from '@/lib/seo/indexing'
 import { stripMarkdown } from '@/lib/marketing/seo'
 import type { SeoFacts } from '@/lib/seo/agent/audit-core'
+import { cleanNoteText, hadPersonalData } from '@/lib/agents/bus-core'
 import { fetchPageTotals, fetchSearchConsole, inspectUrls, type GscResult } from '@/lib/seo/agent/gsc'
 import { auditPages } from '@/lib/seo/agent/page-audit'
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
@@ -27,6 +28,22 @@ function internalLinks(md: string): string[] {
   return Array.from(out)
 }
 
+/** The same question asked in different words of capitalization or accents counts once; most asked first. */
+export function groupQuestions(questions: string[]): Array<{ question: string; count: number }> {
+  const by = new Map<string, { question: string; count: number }>()
+  for (const q of questions) {
+    // A customer's own words: never with their contact data or an ID, and never anything that reads like an order to the system
+    if (hadPersonalData(q) || /ignora|ignore|instrucci|system|prompt|reglas|api ?key|contraseñ/i.test(q)) continue
+    const text = cleanNoteText(q, 160)
+    const key = text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, '').trim().slice(0, 80)
+    if (key.length < 6) continue
+    const row = by.get(key) ?? { question: text.slice(0, 160), count: 0 }
+    row.count++
+    by.set(key, row)
+  }
+  return Array.from(by.values()).sort((a, b) => b.count - a.count)
+}
+
 export type GatheredFacts = { facts: SeoFacts; gsc: GscResult | null; unavailable: string[] }
 
 export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadline?: number; withPages?: boolean } = {}): Promise<GatheredFacts> {
@@ -37,7 +54,7 @@ export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadlin
   }
   const since90 = new Date(now.getTime() - 90 * DAY)
 
-  const [services, cities, requestsByService, requestsByCity, supplyRows, variants, zero, partners, prices, gscResult] = await Promise.all([
+  const [services, cities, requestsByService, requestsByCity, supplyRows, variants, zero, partners, prices, gaps, gscResult] = await Promise.all([
     safe('services', prisma.service.findMany({
       where: { slug: { not: 'lohaggo-ya' } },
       select: { id: true, slug: true, name: true, popular: true, category: { select: { name: true } }, _count: { select: { partners: { where: { active: true, partner: { verified: true, isActive: true } } } } } },
@@ -54,6 +71,7 @@ export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadlin
     safe('zeroSearches', prisma.searchEvent.groupBy({ by: ['normalized'], where: { resultCount: 0, createdAt: { gte: since90 } }, _count: { _all: true }, orderBy: { _count: { normalized: 'desc' } }, take: 30 }), []),
     safe('partnerProfiles', prisma.partnerProfile.findMany({ where: { verified: true, isActive: true }, select: { totalReviews: true, bio: true, user: { select: { image: true } } }, take: 2000 }), []),
     safe('prices', getPricesSafe(), null),
+    safe('botGaps', prisma.aiKnowledgeGap.findMany({ where: { createdAt: { gte: since90 } }, orderBy: { createdAt: 'desc' }, take: 400, select: { question: true } }), []),
     config.gsc.enabled ? fetchSearchConsole(config.gsc.siteUrl, 28, now).catch(() => null) : Promise.resolve(null),
   ])
 
@@ -103,6 +121,7 @@ export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadlin
     inspections: [],
     pages: [],
     pricePageSlugs: prices ? prices.items.slice(0, PRICE_PAGE_LIMIT).map((s) => s.slug) : [],
+    botGaps: groupQuestions(gaps.map((g) => g.question)),
     thinPartnerProfiles: partners.filter((p) => !partnerIsIndexable({ totalReviews: p.totalReviews, bio: p.bio, image: p.user?.image })).length,
   }
 

@@ -152,6 +152,8 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'seo.run_cycle_ai': { raw: {}, before: { withAi: true } },
   'seo.send_to_marketing': { raw: { opportunityId: 'opp_123456' }, before: { title: 'Guía de plomería', kind: 'content_gap', status: 'briefed', hasBrief: true } },
   'seo.dismiss_opportunity': { raw: { opportunityId: 'opp_123456', reason: 'Ya existe un artículo igual' }, before: { title: 'Guía de plomería', status: 'open' } },
+  'agents.post_note': { raw: { toAgent: 'seo', topic: 'content_request', kind: 'request', title: 'Falta una guía de cerrajería en Envigado' }, before: { toAgent: 'seo', toName: 'Agente de SEO' } },
+  'agents.resolve_note': { raw: { noteId: 'note_123456' }, before: { title: 'Servicio sin socios hoy', status: 'open', fromAgent: 'marketing' } },
   'seo.mark_done': { raw: { opportunityId: 'opp_123456' }, before: { title: 'Título de la portada', status: 'open' } },
   'ai_agents.pause': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'active', open: 3 } },
   'ai_agents.activate': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'paused', open: 0 } },
@@ -383,7 +385,7 @@ describe('Haggo puede encontrar lo que cada acción necesita', () => {
     conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
     requestId: ['solicitudes_con_atencion', 'solicitud_detalle'], proposalId: ['solicitud_detalle'], bookingId: ['solicitud_detalle'],
     key: ['funciones', 'configuracion_plataforma'], partnerId: ['socios', 'resenas', 'verificacion_documentos', 'socio_detalle'], paymentId: ['dinero'], slug: ['configuracion_plataforma'],
-    campaignId: ['mensajeria'], opportunityId: ['seo'],
+    campaignId: ['mensajeria'], opportunityId: ['seo'], noteId: ['agentes'],
   }
   it('todo identificador requerido tiene una herramienta de lectura que lo muestra', () => {
     for (const a of ACTIONS) {

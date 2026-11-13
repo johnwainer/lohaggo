@@ -3182,3 +3182,41 @@ model SeoRun {
   @@index([startedAt])
   @@index([type, startedAt])
 }
+
+// ─── Agent bus ───────────────────────────────────────────────────────────────
+
+/// Shared board where the platform's agents (Haggo, inbox, marketing, ads, SEO…) leave each other
+/// requests, insights, alerts and answers. Text here is data for the readers, never instructions.
+model AgentNote {
+  id         String    @id @default(cuid())
+  /// Registry key of the author (lib/agents/registry.ts): haggo | inbox | marketing | ads | seo | …
+  fromAgent  String
+  /// A specific agent of that kind (AiAgent or MarketingAgent id), when it matters
+  fromRef    String?
+  /// Registry key of the reader; null = everyone
+  toAgent    String?
+  /// Short machine topic: content_request | idea_request | new_guide | seo_guidance | learning | alert | question | answer
+  topic      String
+  /// request | insight | alert | answer
+  kind       String
+  title      String
+  body       String?
+  data       Json?
+  /// low | normal | high
+  priority   String    @default("normal")
+  /// open | done | expired
+  status     String    @default("open")
+  /// Agents that already read it (a broadcast is read once per agent)
+  readBy     String[]  @default([])
+  /// Same note once: «guide:<slug>», «seo-guidance:2026-W46»
+  dedupeKey  String?   @unique
+  inReplyTo  String?
+  expiresAt  DateTime
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@index([toAgent, status, createdAt])
+  @@index([fromAgent, createdAt])
+  @@index([status, expiresAt])
+}

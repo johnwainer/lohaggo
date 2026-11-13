@@ -14,7 +14,7 @@ const TOOL_LABEL: Record<string, string> = {
   tendencias_negocio: 'negocio', salud_sistema: 'salud del sistema', conversaciones_en_espera: 'bandeja', agente_ia: 'agente IA', marketing: 'marketing',
   solicitudes_sin_propuestas: 'solicitudes', costos_ia: 'costos de IA', hallazgos_abiertos: 'hallazgos', incidentes_abiertos: 'incidentes', dinero: 'dinero',
   oferta_y_demanda: 'oferta y demanda', busquedas: 'búsquedas', personas_y_adquisicion: 'adquisición', atencion: 'atención', resenas: 'reseñas', socios: 'socios',
-  mensajeria: 'mensajería', seguridad: 'seguridad', agentes_marketing: 'agentes de marketing', publicidad: 'publicidad',
+  mensajeria: 'mensajería', seguridad: 'seguridad', agentes_marketing: 'agentes de marketing', agentes: 'el equipo de agentes', seo: 'SEO', publicidad: 'publicidad',
 }
 const SUGGESTIONS = ['¿Cómo va el negocio esta semana?', '¿Por qué hay solicitudes sin propuestas?', '¿Qué está fallando en el sistema?', '¿Cuánto gastamos en IA este mes y en qué?']
 

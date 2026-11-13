@@ -6,6 +6,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { callClaude, describeApiError, textOf, type Effort } from '@/lib/ai/anthropic'
 import { getAiSettings } from '@/lib/ai/settings'
 import { applySignature, formatForChannel, parseMarkers } from '@/lib/ai/format'
+import { peerNotesFor } from '@/lib/ai/peer-notes'
 import { buildSystem, type CommentPromptContext } from '@/lib/ai/prompt'
 import type { CommentSignals } from '@/lib/ai/comments-core'
 import { recordGap, retrieve, type KnowledgeChunk, type Retrieval } from '@/lib/ai/knowledge'
@@ -297,8 +298,12 @@ export const AgentRuntimeService = {
     ])
     const closedText = closedBefore ? `Esta conversación ya se había cerrado (${describeNow(closedBefore.at, tz)}): ${closedBefore.detail}. La persona volvió a escribir: retómala desde ahí, sin presentarte de nuevo.` : ''
 
+    // Only the agent that answers a client's conversation (the admin simulator too: reading consumes nothing).
+    // Copilot drafts and public comments never get notes from other agents.
+    const peerNotes = !opts.copilot && !opts.comment ? await peerNotesFor() : undefined
     const system = buildSystem(agent, {
       knowledge,
+      peerNotes,
       nowText: describeNow(now, tz),
       timezone: tz,
       channel: opts.channel,

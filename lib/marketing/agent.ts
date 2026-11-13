@@ -92,6 +92,7 @@ import { upgradeOneStyleExample } from '@/lib/marketing/image-style-examples'
 import { ARBITER_TOOL, REVIEW_MISSING_REASON, arbiterPrecheck, arbiterSystem, arbiterTask, isLinkParamAsk, parseArbiter, type ArbiterDecision } from '@/lib/marketing/arbiter-core'
 import { overrideReview } from '@/lib/marketing/editorial-ops'
 import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
+import { postNote, notesBlock } from '@/lib/agents/bus'
 import { WEB_SEO_RULES, briefForIdea, briefText, seoGuidanceForPlanner } from '@/lib/seo/agent/marketing-bridge'
 
 const logger = createLogger('marketing-agent')
@@ -392,7 +393,7 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     const toDay = bogota(new Date(Math.min(now.getTime() + agent.horizonDays * DAY, endsAt ? endsAt.getTime() : Infinity))).key
     const input = await callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 7000, effort: 'medium',
-      task: planTask({ gaps, daily, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas, seo: await seoGuidanceForPlanner(now) }),
+      task: planTask({ gaps, daily, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas, seo: [await seoGuidanceForPlanner(now), await notesBlock('marketing', { topics: ['seo_guidance', 'idea_request', 'alert'], limit: 6 })].filter(Boolean).join('\n\n') || null }),
     }, meter)
     const parsed = parseIdeas(input, { pillars: strategy.pillars.map((p) => p.name), channels: enabledChannels(config), services: ctx.catalog.services.map((s) => s.name), fromDay, toDay, max: maxIdeas, formats: { INSTAGRAM: config.channels.INSTAGRAM.formats, FACEBOOK: config.channels.FACEBOOK.formats, WEB: config.channels.WEB.formats } })
     if (!parsed.ok) throw new AgentError(parsed.errors.join(' · '))
@@ -1101,6 +1102,11 @@ export async function learn(agent: Agent, now = new Date()) {
       body: `${parsed.value.insights.slice(0, 3).join('\n')}${applied ? `\nAplicado: ${applied.applied.join('; ') || 'nada que cambiar'}` : parsed.value.recommendations.length ? '\nHay recomendaciones esperando tu aprobación.' : ''}`,
       url: agentUrl(agent.id), dedupeKey: `learning:${learning.id}`,
     })
+    // What worked this week goes to the SEO agent (and to Haggo's board): same topics and words across blog and networks
+    await postNote({
+      fromAgent: 'marketing', fromRef: agent.id, toAgent: 'seo', topic: 'learning', kind: 'insight',
+      title: `Lo que funcionó en ${agent.campaign.name} esta semana`, body: parsed.value.insights.slice(0, 4).join(' | '), dedupeKey: `learning:${learning.id}`, ttlDays: 21,
+    }).catch(() => null)
     return { summary: `${parsed.value.insights.length} hallazgos y ${parsed.value.recommendations.length} recomendaciones${applied ? ` (${applied.applied.length} aplicadas)` : ''}`, value: learning.id, output: { applied: applied?.applied ?? [], skipped: applied?.skipped ?? [] } }
   })
 }
