@@ -29,7 +29,8 @@ const tool = (type: string) => ({
   type,
   name: 'web_search',
   max_uses: 3,
-  user_location: { type: 'approximate', country: 'CO', city: 'Medellín', region: 'Antioquia', timezone: 'America/Bogota' },
+  // The search tool does not accept Colombia as a country code: the city and the question itself («en Medellín») carry the place
+  user_location: { type: 'approximate', city: 'Medellín', region: 'Antioquia', timezone: 'America/Bogota' },
 })
 
 const isTransient = (err: unknown) => {
