@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma'
 import { fmtCount, STAT_MINIMUMS } from '@/lib/public/claims'
 import { clientPayment, guarantee, verificationLong, verificationShort } from '@/lib/public/copy'
 import { getPublicTrustSafe, publicContactExtras } from '@/lib/public/trust'
-import { faqJsonLd, focusZones, FOCUS_SERVICE_SLUGS, serviceZonePath, type FaqItem } from '@/lib/public/serviceZones'
+import { faqJsonLd, focusZones, CORE_SERVICE_SLUGS, serviceZonePath, type FaqItem } from '@/lib/public/serviceZones'
 import { withRef } from '@/lib/public/whatsapp'
 import { jsonLdScript } from '@/lib/marketing/seo'
 import { RelatedGuides } from '@/components/public/RelatedGuides'
@@ -142,7 +142,7 @@ async function ActiveCityLanding({ city }: { city: PublicCity }) {
                 <li key={z.key} className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700">{z.name}</li>
               ))}
             </ul>
-            {FOCUS_SERVICE_SLUGS.filter((s) => nameBySlug.has(s)).map((s) => (
+            {CORE_SERVICE_SLUGS.filter((s) => nameBySlug.has(s)).map((s) => (
               <div key={s} className="mt-5">
                 <p className="font-semibold text-gray-900">{nameBySlug.get(s)} por zona</p>
                 <ul className="mt-2 flex flex-wrap gap-2">

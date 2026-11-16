@@ -10,6 +10,7 @@ import { withRef } from '@/lib/public/whatsapp'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
 import { defaultOgImages } from '@/lib/seo/site'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { tradeTitle } from '@/lib/seo/agent/keywords-core'
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import {
   faqJsonLd, focusPairs, focusZones, isFocusService, isFocusZone, pesos, serviceFaq, serviceZonePath, typicalJobs, zoneWhere,
@@ -81,8 +82,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await loadLanding(slug, zona)
   if (!data) return { title: 'Página no encontrada', robots: { index: false } }
   const { service, zone } = data
-  const title = `${service.name} en ${zone.name}, Medellín`
-  const description = `Pide ${service.name.toLowerCase()} en ${zone.name} con LoHaggo: recibe propuestas de socios verificados y elige. Desde ${pesos(service.basePrice)} COP.`
+  // People search «plomero en El Poblado»: the trade person leads the title when there is one
+  const trade = tradeTitle(slug)
+  const title = `${trade ?? service.name} en ${zone.name}, Medellín`
+  const description = `${trade ? `${trade} en ${zone.name}: pide ${service.name.toLowerCase()}` : `Pide ${service.name.toLowerCase()} en ${zone.name}`} con LoHaggo: recibe propuestas de socios verificados y elige. Desde ${pesos(service.basePrice)} COP.`
   const url = `${SITE_URL}${serviceZonePath(slug, zona)}`
   return {
     title,
@@ -155,7 +158,7 @@ export default async function ServiceZonePage({ params }: Props) {
             <Link href={`/servicios/${slug}`} className="hover:text-white">{service.name}</Link> <span aria-hidden>›</span>{' '}
             <span>{zone.name}</span>
           </nav>
-          <h1 className="mt-3 text-2xl font-extrabold leading-tight sm:text-3xl">{service.name} en {zone.name}</h1>
+          <h1 className="mt-3 text-2xl font-extrabold leading-tight sm:text-3xl">{tradeTitle(slug) ? `${tradeTitle(slug)} en ${zone.name}` : `${service.name} en ${zone.name}`}</h1>
           <p className="mt-2 text-sm leading-6 text-white/90 sm:text-base">
             {zoneWhere(zone)}. Pide {svc} en LoHaggo y recibe propuestas de socios verificados que atienden la zona.
           </p>
@@ -189,6 +192,15 @@ export default async function ServiceZonePage({ params }: Props) {
             precio final, así comparas antes de elegir.
           </p>
         </section>
+
+        {zone.barrios.length > 0 && (
+          <section className="mt-8" aria-labelledby="barrios">
+            <h2 id="barrios" className="text-xl font-bold text-gray-900">Barrios de {zone.name} donde puedes pedir {svc}</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Los socios que atienden {zone.name} llegan a barrios como {zone.barrios.slice(0, 12).map((b) => b.replace(/\b\w/g, (c) => c.toUpperCase())).join(', ')}. Al pedir indicas tu dirección y los socios que cubren tu zona te envían su propuesta.
+            </p>
+          </section>
+        )}
 
         {partners.length > 0 && (
           <section className="mt-8" aria-labelledby="socios">

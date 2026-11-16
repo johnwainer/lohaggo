@@ -7,8 +7,17 @@ import { zoneByKey, type Zone } from '@/lib/geo/zones'
 import { STAT_MINIMUMS, fmtCount } from '@/lib/public/claims'
 import { clientPayment, verificationLong, type TrustLike } from '@/lib/public/copy'
 
-export const FOCUS_SERVICE_SLUGS = ['plomeria', 'electricidad', 'pintura', 'limpieza-hogar'] as const
-export const FOCUS_ZONE_KEYS = ['el-poblado', 'laureles', 'envigado', 'belen', 'sabaneta', 'bello'] as const
+/** The four services of the first landings: the ones the city page lists zone by zone. */
+export const CORE_SERVICE_SLUGS = ['plomeria', 'electricidad', 'pintura', 'limpieza-hogar'] as const
+/**
+ * Every service that gets a landing per zone («plomero en El Poblado»). A landing exists only while the service has
+ * verified partners (otherwise 404 and out of the sitemap), so a service without partners costs nothing.
+ */
+export const FOCUS_SERVICE_SLUGS = [
+  ...CORE_SERVICE_SLUGS,
+  'cerrajeria', 'carpinteria', 'jardineria', 'fumigacion', 'reparacion-aires', 'reparacion-neveras', 'reparacion-lavadoras', 'reparacion-electrodomesticos', 'herreria', 'impermeabilizacion',
+] as const
+export const FOCUS_ZONE_KEYS = ['el-poblado', 'laureles', 'envigado', 'belen', 'sabaneta', 'bello', 'itagui', 'robledo', 'la-america', 'castilla'] as const
 
 export const isFocusService = (slug: string | null | undefined) => (FOCUS_SERVICE_SLUGS as readonly string[]).includes(slug ?? '')
 export const isFocusZone = (key: string | null | undefined) => (FOCUS_ZONE_KEYS as readonly string[]).includes(key ?? '')
@@ -47,6 +56,69 @@ const TYPICAL_JOBS: Record<string, string[]> = {
     'Limpieza de vidrios, pisos y zonas comunes del hogar',
   ],
 }
+
+Object.assign(TYPICAL_JOBS, {
+  cerrajeria: [
+    'Apertura de puertas y cerraduras cuando te quedaste sin llaves',
+    'Cambio e instalación de cerraduras y guardas',
+    'Copia de llaves y reparación de chapas',
+    'Revisión de la seguridad de puertas y ventanas',
+  ],
+  carpinteria: [
+    'Muebles a la medida: closets, cocinas, bibliotecas',
+    'Reparación de puertas, marcos y muebles de madera',
+    'Instalación de pisos, zócalos y divisiones en madera',
+    'Ajuste y restauración de muebles que ya tienes',
+  ],
+  jardineria: [
+    'Poda de plantas, setos y árboles pequeños',
+    'Diseño y siembra de jardines y materos',
+    'Mantenimiento mensual de jardines y zonas verdes',
+    'Instalación de sistemas de riego y abono',
+  ],
+  fumigacion: [
+    'Control de cucarachas, hormigas y roedores en casas y apartamentos',
+    'Fumigación de zancudos y de plagas en jardines',
+    'Desinfección de espacios después de una plaga o mudanza',
+    'Planes de mantenimiento para evitar que vuelvan las plagas',
+  ],
+  'reparacion-aires': [
+    'Mantenimiento y limpieza de aires acondicionados',
+    'Reparación de fugas de gas y fallas de enfriamiento',
+    'Instalación y traslado de equipos',
+    'Revisión de ruidos, goteos y consumo de energía',
+  ],
+  'reparacion-neveras': [
+    'Neveras que no enfrían o enfrían de más',
+    'Cambio de empaques, termostatos y motores',
+    'Revisión de ruidos y de goteos de agua',
+    'Mantenimiento para alargar la vida del electrodoméstico',
+  ],
+  'reparacion-lavadoras': [
+    'Lavadoras que no centrifugan, no desagotan o no encienden',
+    'Cambio de bombas, correas y rodamientos',
+    'Revisión de fugas de agua y ruidos fuertes',
+    'Mantenimiento de lavadoras y lavasecadoras',
+  ],
+  'reparacion-electrodomesticos': [
+    'Reparación de neveras, lavadoras, estufas y hornos',
+    'Diagnóstico de fallas eléctricas en electrodomésticos',
+    'Cambio de repuestos con garantía del socio',
+    'Mantenimiento preventivo para evitar daños mayores',
+  ],
+  herreria: [
+    'Rejas, puertas y ventanas de seguridad a la medida',
+    'Soldadura y reparación de estructuras metálicas',
+    'Barandas, escaleras y portones',
+    'Mantenimiento y pintura de elementos metálicos',
+  ],
+  impermeabilizacion: [
+    'Impermeabilización de terrazas, cubiertas y techos',
+    'Solución de humedades y filtraciones en paredes',
+    'Sellado de juntas, canales y bajantes',
+    'Revisión antes de la temporada de lluvias',
+  ],
+})
 
 export const typicalJobs = (slug: string) => TYPICAL_JOBS[slug] ?? []
 
