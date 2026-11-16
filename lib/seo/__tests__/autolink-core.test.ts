@@ -57,6 +57,11 @@ describe('enlaces internos automáticos', () => {
     expect(out).toContain('[precio de referencia](/precios)')
   })
 
+  it('no anida enlaces en texto que el autor dejó entre corchetes', () => {
+    const body = 'Combina con [plomería] para reforzar.'
+    expect(link(body)).toBe(body)
+  })
+
   it('fold conserva el largo', () => {
     expect(fold('Plomería Ñandú')).toHaveLength('Plomería Ñandú'.length)
     expect(fold('Plomería')).toBe('plomeria')

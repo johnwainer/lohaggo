@@ -80,6 +80,8 @@ function findPhrase(line: string, folded: string, phrase: string, spans: Span[])
     if (plural && !isLetter(rest[plural.length])) end += plural.length
     else if (isLetter(folded[end])) continue
     if (spans.some(([a, b]) => at < b && end > a)) continue
+    // Texto que el autor dejó entre corchetes («[instalación de cámaras]»): un enlace dentro rompería el markdown
+    if (line[at - 1] === '[' || line[end] === ']') continue
     return [at, end]
   }
 }
