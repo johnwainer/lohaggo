@@ -294,7 +294,7 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
   const outcome = await withRun('cycle', opts.trigger, { force: Boolean(opts.force), withAi: opts.withAi ?? null }, async (meter) => {
     const { facts, gsc, unavailable } = await gatherFacts(config, { now, deadline: Math.min(deadline, Date.now() + 80_000) })
     // Core Web Vitals: measured about once a week (slow: ~2 min), the rest of the days the last measure is reused
-    const speed = await speedFor(now, Boolean(opts.force), deadline)
+    const speed = await speedFor(now, Boolean(opts.force), deadline, opts.withAi === true)
     facts.speed = speed.results
     // The last measure of how AI assistants answer (done weekly by its own job, see runAiProbeCycle)
     facts.aiProbes = await lastAiProbes(now)
@@ -396,11 +396,11 @@ const SPEED_EVERY_DAYS = 6
  * The speed of the main pages. A new measure (PageSpeed, ~2 min) only when the last one is older than 6 days (or the
  * person pressed «Ejecutar» and it is older than 2 hours) and there is time left; otherwise the last one is reused.
  */
-async function speedFor(now: Date, forced: boolean, deadline: number): Promise<{ at: string | null; results: SpeedResult[] }> {
+async function speedFor(now: Date, forced: boolean, deadline: number, always = false): Promise<{ at: string | null; results: SpeedResult[] }> {
   try {
     const last = await prisma.seoRun.findFirst({ where: { type: 'speed', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true, output: true } })
     const ageDays = last ? (now.getTime() - last.startedAt.getTime()) / DAY : Infinity
-    const due = ageDays >= SPEED_EVERY_DAYS || (forced && ageDays >= 2 / 24)
+    const due = ageDays >= SPEED_EVERY_DAYS || (forced && ageDays >= 2 / 24) || (always && ageDays >= 5 / 1440)
     if (due && deadline - Date.now() > 120_000) {
       const results = await measureSpeed(pickSpeedPaths(), { deadline: Date.now() + 110_000 })
       const ok = results.filter((r) => !r.error)
