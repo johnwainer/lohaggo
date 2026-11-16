@@ -375,7 +375,7 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
     return {
       summary, value: { created: synced.created, closed: synced.closed + synced.published, briefs, reportAdded },
       output: {
-        speed: speed.results.length ? { measuredAt: speed.at, summary: speedSummary(speed.results), results: speed.results.map((r) => ({ path: r.path, score: r.score, lcpMs: r.lcpMs, cls: r.cls, tbtMs: r.tbtMs, field: r.field, error: r.error })) } : null,
+        speed: speed.results.length ? { measuredAt: speed.at, summary: speedSummary(speed.results), results: speed.results.map((r) => ({ path: r.path, score: r.score, lcpMs: r.lcpMs, cls: r.cls, tbtMs: r.tbtMs, field: r.field, diag: r.diag ?? null, error: r.error })) } : null,
         health, keywords: keywordRows.sort((a, b) => b.impressions - a.impressions || (a.position ?? 999) - (b.position ?? 999)).slice(0, 40), webBacklog: { waiting, target: config.webPostsAhead }, gsc: { ...gscState, days: facts.gsc?.days ?? null, clicks, impressions, top, topPages, indexing },
         pages: facts.pages.map((p) => ({ path: p.path, status: p.status, words: p.words, issues: p.issues.map((i) => ({ code: i.code, severity: i.severity, message: i.message })) })),
         bus: { requestsReceived: incoming.requests, learningsHeard: incoming.learnings.length }, counts: { services: facts.services.length, articles: facts.articles.length, zeroSearches: facts.zeroSearches.length, thinPartnerProfiles: facts.thinPartnerProfiles }, unavailable, aiNote,

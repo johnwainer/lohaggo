@@ -19,7 +19,11 @@ export type SpeedResult = {
   error: string | null
   /** The 3 Lighthouse opportunities with the biggest estimated saving (titles as Lighthouse reports them) */
   opportunities?: SpeedOpportunity[]
+  /** What Lighthouse says is behind the numbers: the LCP element, where its time goes, server time and heavy third parties */
+  diag?: SpeedDiag
 }
+
+export type SpeedDiag = { lcpElement: string | null; lcpLazy: boolean; serverMs: number | null; lcpParts: Array<{ part: string; ms: number }>; renderBlockingMs: number | null; thirdPartyMs: number | null; unusedJsKb: number | null }
 
 export type SpeedOpportunity = { id: string; title: string; savingsMs: number }
 
@@ -77,8 +81,29 @@ export function parsePsi(json: unknown, path: string, url = ''): SpeedResult {
     if (lcp != null || clsRaw != null || inp != null) field = { lcpMs: lcp, cls: clsRaw != null ? clsRaw / 100 : null, inpMs: inp, category }
   }
 
+  // LCP element and its breakdown (Lighthouse's own tables: the second table of the LCP element audit)
+  const lcpItems = ((audits['largest-contentful-paint-element'] as Json | undefined)?.details?.items ?? []) as Json[]
+  const snippet = (() => {
+    const first = (lcpItems[0]?.items ?? [])[0] as Json | undefined
+    const v = first?.node?.snippet
+    return typeof v === 'string' ? v.replace(/\s+/g, ' ').slice(0, 220) : null
+  })()
+  const lcpParts = ((lcpItems[1]?.items ?? []) as Json[])
+    .map((i) => ({ part: String(i.phase ?? i.subpart ?? '').slice(0, 40), ms: Math.round(num(i.timing) ?? num(i.duration) ?? 0) }))
+    .filter((i) => i.part)
+  const diag: SpeedDiag = {
+    lcpElement: snippet,
+    lcpLazy: audits['lcp-lazy-loaded']?.score === 0,
+    serverMs: num(audits['server-response-time']?.numericValue) != null ? Math.round(num(audits['server-response-time']?.numericValue)!) : null,
+    lcpParts,
+    renderBlockingMs: num(audits['render-blocking-resources']?.details?.overallSavingsMs) != null ? Math.round(num(audits['render-blocking-resources']?.details?.overallSavingsMs)!) : null,
+    thirdPartyMs: num(audits['third-party-summary']?.details?.summary?.wastedMs) != null ? Math.round(num(audits['third-party-summary']?.details?.summary?.wastedMs)!) : null,
+    unusedJsKb: num(audits['unused-javascript']?.details?.overallSavingsBytes) != null ? Math.round(num(audits['unused-javascript']?.details?.overallSavingsBytes)! / 1024) : null,
+  }
+
   return {
     ...base,
+    diag,
     score: rawScore != null ? Math.round(rawScore * 100) : null,
     lcpMs: metric('largest-contentful-paint'),
     cls: metric('cumulative-layout-shift'),
