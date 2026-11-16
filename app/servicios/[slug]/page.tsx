@@ -921,7 +921,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   </button>
                 )}
               </div>
-              <div className="mb-4 md:mb-6" />
+              <div className="mb-2 md:mb-3" />
 
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 md:gap-6">
                 <div className="flex items-center gap-2">
