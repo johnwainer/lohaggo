@@ -492,7 +492,7 @@ export async function runAiProbeCycle(opts: { trigger: Trigger; force?: boolean;
   } catch { return { ok: true, skipped: 'no_tables', summary: 'Falta aplicar el SQL del agente de SEO' } }
   const blocked = await spendBlock(config)
   if (blocked) return { ok: false, summary: blocked, error: blocked }
-  const deadline = opts.deadline ?? Date.now() + 240_000
+  const deadline = opts.deadline ?? Date.now() + 270_000
   const outcome = await withRun('ai_probe', opts.trigger, null, async (meter) => {
     const { facts } = await gatherFacts(config, { withPages: false })
     const city = activeCities(facts)[0]?.name ?? 'Medellín'

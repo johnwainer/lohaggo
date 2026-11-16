@@ -15,7 +15,7 @@ import { parseProbe, type AiProbeResult } from '@/lib/seo/agent/ai-visibility-co
 const logger = createLogger('seo-ai-visibility')
 
 export const MAX_QUERIES = 6
-const QUERY_TIMEOUT_MS = 90_000
+const QUERY_TIMEOUT_MS = 100_000
 const MAX_CONTINUATIONS = 2
 const SEARCH_USD = 0.01
 
@@ -28,7 +28,7 @@ type Json = Record<string, any> // eslint-disable-line @typescript-eslint/no-exp
 const tool = (type: string) => ({
   type,
   name: 'web_search',
-  max_uses: 3,
+  max_uses: 2,
   // The search tool does not accept Colombia as a country code: the city and the question itself («en Medellín») carry the place
   user_location: { type: 'approximate', city: 'Medellín', region: 'Antioquia', timezone: 'America/Bogota' },
 })
@@ -112,7 +112,7 @@ export async function runAiProbe(
           : await probeOne(list[i], model, settings.anthropicKey as string, deadline, meter)
       }
     }
-    await Promise.all(Array.from({ length: Math.max(1, Math.min(opts.concurrency ?? 2, 4)) }, worker))
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(opts.concurrency ?? 3, 4)) }, worker))
     const failed = results.filter((r) => r.error).length
     return { results, costUsd: Math.round(meter.costUsd * 1e4) / 1e4, model: meter.model ?? model, error: failed === results.length ? results[0]?.error ?? 'No se pudo medir' : null }
   } catch (err) {
