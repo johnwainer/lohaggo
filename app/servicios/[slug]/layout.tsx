@@ -9,12 +9,23 @@ import { RelatedGuides, RELATED_TOPICS } from '@/components/public/RelatedGuides
 import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } from '@/lib/public/serviceZones'
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import { STAT_MINIMUMS } from '@/lib/public/claims'
-import { citiesLine, clientPayment, verificationLong, verificationShort } from '@/lib/public/copy'
+import { citiesLine, clientPayment, guarantee, verificationLong, verificationShort } from '@/lib/public/copy'
 import { ServiceLinksSection } from '@/components/public/ServiceLinksSection'
 import { defaultOgImages, pesosCO } from '@/lib/seo/site'
 import { priceFrom } from '@/lib/public/price-from'
 
 type Props = { params: Promise<{ slug: string }>; children: React.ReactNode }
+export const revalidate = 3600
+
+/**
+ * Without generateStaticParams a dynamic route is rendered on every request (no-store, a new database trip each time: ~0.4 s
+ * of server time and no CDN). An empty list makes it ISR: no work at build, the first visit renders and every other one
+ * is served from the cache until the revalidate time. The page is public and the same for everyone.
+ */
+export async function generateStaticParams() {
+  return []
+}
+
 
 const BASE_URL = 'https://www.lohaggo.com'
 
@@ -291,6 +302,14 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
               </div>
             ))}
           </div>
+          {/* Answer first: the short, factual paragraph that search engines and AI assistants quote */}
+          <p style={{ color: '#111827', lineHeight: 1.7, marginBottom: '1.25rem', fontSize: '1rem' }}>
+            <strong>{trade ? `¿Cómo contratar un ${trade.toLowerCase()} en Medellín?` : `¿Cómo contratar ${service.name.toLowerCase()} en Medellín?`}</strong>{' '}
+            En LoHaggo describes lo que necesitas{verifiedPartners > 0 ? ` y recibes propuestas con precio de socios verificados (hoy ${verifiedPartners} en ${service.category.name.toLowerCase()})` : ' y los socios verificados te envían su propuesta con precio'}, comparas y eliges.
+            El precio de referencia parte desde ${priceFormatted} COP según el trabajo. {clientPayment(trust)}
+            {guarantee(trust) ? ` ${guarantee(trust)}` : ''}
+            {coverage ? ` Atendemos en ${coverage} y el Valle de Aburrá.` : ' Atendemos en Medellín y el Valle de Aburrá.'}
+          </p>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', marginBottom: '0.75rem' }}>
             Sobre el servicio de {service.name.toLowerCase()} en Medellín
           </h2>

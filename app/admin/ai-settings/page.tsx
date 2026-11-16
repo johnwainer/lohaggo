@@ -60,6 +60,7 @@ const KIND_LABEL: Record<string, string> = {
   marketing_arbiter: 'Haggo: árbitro de publicaciones',
   seo_agent_brief: 'Agente de SEO: briefs de artículos',
   seo_agent_report: 'Agente de SEO: informe semanal',
+  seo_agent_probe: 'Agente de SEO: visibilidad en respuestas de IA',
   haggo_cycle: 'Haggo: ciclos de revisión',
   haggo_chat: 'Haggo: conversación',
   haggo_report: 'Haggo: informes',

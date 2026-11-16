@@ -8,6 +8,7 @@ import { seoSpend } from '@/lib/seo/agent/agent'
 import { webMarketingAgent } from '@/lib/seo/agent/marketing-bridge'
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
 import type { SeoBrief } from '@/lib/seo/agent/types'
+import type { AiVisibilityData } from '@/lib/seo/agent/ai-visibility-core'
 
 const H = 3_600_000
 
@@ -41,6 +42,8 @@ export type SeoOverview = {
   spend: { month: number; budget: number }
   lastCycle: { id: string; at: string; status: string; trigger: string; summary: string | null; error: string | null; output: SeoCycleOutput | null } | null
   lastReport: { at: string; output: SeoReportOutput } | null
+  /** What AI assistants answer to the questions a client asks (weekly): are we named or cited, and who is instead */
+  aiVisibility: AiVisibilityData | null
   counts: { open: number; briefed: number; sent: number; done: number; dismissed: number; highOpen: number }
   byKind: Array<{ kind: string; open: number }>
   opportunities: SeoOpportunityView[]
@@ -56,10 +59,11 @@ export async function seoOverview(): Promise<SeoOverview> {
   const guard = async <T,>(p: PromiseLike<T>, fallback: T): Promise<T> => {
     try { return await p } catch { tablesReady = false; return fallback }
   }
-  const [rows, cycle, report, runs, byStatus, byKind, spend, agent, proposed] = await Promise.all([
+  const [rows, cycle, report, aiRun, runs, byStatus, byKind, spend, agent, proposed] = await Promise.all([
     guard(prisma.seoOpportunity.findMany({ where: { OR: [{ status: { in: ['open', 'briefed', 'sent'] } }, { resolvedAt: { gte: new Date(Date.now() - 14 * 24 * H) } }] }, orderBy: { score: 'desc' }, take: 300 }), []),
     guard(prisma.seoRun.findFirst({ where: { type: 'cycle' }, orderBy: { startedAt: 'desc' } }), null),
     guard(prisma.seoRun.findFirst({ where: { type: 'report', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true, output: true } }), null),
+    guard(prisma.seoRun.findFirst({ where: { type: 'ai_probe', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { output: true } }), null),
     guard(prisma.seoRun.findMany({ orderBy: { startedAt: 'desc' }, take: 20 }), []),
     guard(prisma.seoOpportunity.groupBy({ by: ['status'], _count: { _all: true } }), []),
     guard(prisma.seoOpportunity.groupBy({ by: ['kind'], where: { status: { in: ['open', 'briefed'] } }, _count: { _all: true } }), []),
@@ -71,6 +75,7 @@ export async function seoOverview(): Promise<SeoOverview> {
   return {
     config, tablesReady, spend: { month: Math.round(spend * 100) / 100, budget: config.monthlyBudgetUsd },
     lastCycle: cycle ? { id: cycle.id, at: cycle.startedAt.toISOString(), status: cycle.status, trigger: cycle.trigger, summary: cycle.summary, error: cycle.error, output: (cycle.output as SeoCycleOutput | null) ?? null } : null,
+    aiVisibility: aiRun ? ((aiRun.output as AiVisibilityData | null) ?? null) : null,
     lastReport: report ? { at: report.startedAt.toISOString(), output: report.output as SeoReportOutput } : null,
     counts: { open: n('open'), briefed: n('briefed'), sent: n('sent'), done: n('done'), dismissed: n('dismissed'), highOpen: rows.filter((r) => ['open', 'briefed'].includes(r.status) && r.impact === 'high').length },
     byKind: byKind.map((k) => ({ kind: k.kind, open: k._count._all })),

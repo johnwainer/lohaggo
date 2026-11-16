@@ -16,7 +16,11 @@ export type LlmsInput = {
   guarantee: string | null
   clientPayment: string
   verification: string
-  articles?: Array<{ title: string; slug: string }>
+  articles?: Array<{ title: string; slug: string; excerpt?: string | null }>
+  /** Landings per service and zone («Plomero en El Poblado»): [service name, zone name, path] */
+  zonePages?: Array<{ service: string; zone: string; path: string }>
+  /** Cities with their own page */
+  cityPages?: Array<{ name: string; slug: string }>
   updatedAt: Date
 }
 
@@ -67,10 +71,22 @@ export function buildLlmsTxt(i: LlmsInput): string {
   L.push(`- [Únete como socio](${SITE_URL}/unete)`)
   L.push(`- [Contacto](${SITE_URL}/contact)`)
   L.push(`- [Blog](${SITE_URL}/blog)`)
+  L.push(`- [Versión completa de este archivo, con trabajos, zonas y preguntas](${SITE_URL}/llms-full.txt)`)
   L.push('')
+  if (i.cityPages?.length) {
+    L.push('## Ciudades')
+    for (const c of i.cityPages) L.push(`- [Servicios a domicilio en ${c.name}](${SITE_URL}/ciudad/${c.slug})`)
+    L.push('')
+  }
+  if (i.zonePages?.length) {
+    L.push('## Servicios por zona')
+    L.push('Una página por servicio y zona de Medellín y el Valle de Aburrá, con trabajos típicos, barrios y precio de referencia.')
+    for (const z of i.zonePages) L.push(`- [${z.service} en ${z.zone}](${SITE_URL}${z.path})`)
+    L.push('')
+  }
   if (i.articles?.length) {
     L.push('## Guías recientes')
-    for (const a of i.articles) L.push(`- [${a.title}](${SITE_URL}/blog/${a.slug})`)
+    for (const a of i.articles) L.push(`- [${a.title}](${SITE_URL}/blog/${a.slug})${a.excerpt ? `: ${a.excerpt}` : ''}`)
     L.push('')
   }
   L.push('## Contacto')
@@ -80,4 +96,40 @@ export function buildLlmsTxt(i: LlmsInput): string {
   L.push(`Actualizado: ${bogotaDate(i.updatedAt)}.`)
   L.push('')
   return L.join('\n')
+}
+
+export type LlmsFullInput = LlmsInput & {
+  /** Frequently asked questions with their answers (the same ones the site publishes) */
+  faq?: Array<{ q: string; a: string }>
+  /** Jobs people ask for, per service slug */
+  jobs?: Record<string, string[]>
+  /** Zones with their neighborhoods */
+  zones?: Array<{ name: string; kind: string; barrios: string[] }>
+}
+
+/**
+ * /llms-full.txt: the long version, everything an assistant needs to answer «¿cómo contrato un plomero en Medellín?»
+ * with exact data: the short file plus jobs per service, zones and neighborhoods, guides with their summary and the
+ * questions people ask. Same rule as the short one: only what the platform can back.
+ */
+export function buildLlmsFullTxt(i: LlmsFullInput): string {
+  const L: string[] = [buildLlmsTxt(i).trimEnd(), '']
+  if (i.jobs && Object.keys(i.jobs).length) {
+    L.push('## Trabajos que se pueden pedir')
+    for (const s of i.services) {
+      const j = i.jobs[s.slug]
+      if (j?.length) L.push(`- ${s.name}: ${j.join('; ')}.`)
+    }
+    L.push('')
+  }
+  if (i.zones?.length) {
+    L.push('## Zonas y barrios que se atienden')
+    for (const z of i.zones) L.push(`- ${z.name} (${z.kind}): ${z.barrios.slice(0, 14).join(', ')}.`)
+    L.push('')
+  }
+  if (i.faq?.length) {
+    L.push('## Preguntas frecuentes')
+    for (const f of i.faq) L.push(`### ${f.q}`, f.a, '')
+  }
+  return L.join('\n') + '\n'
 }

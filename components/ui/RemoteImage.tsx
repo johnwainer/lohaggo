@@ -55,6 +55,8 @@ export function RemoteImage({ src, alt, width, height, fill, priority, sizes, cl
       width={fill ? undefined : width}
       height={fill ? undefined : height}
       loading={priority ? 'eager' : 'lazy'}
+      // The image that decides the Largest Contentful Paint is fetched first (never lazy)
+      fetchPriority={priority ? 'high' : undefined}
       decoding="async"
       className={className}
       style={fill ? { position: 'absolute', inset: 0, width: '100%', height: '100%', ...style } : style}

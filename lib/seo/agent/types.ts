@@ -50,6 +50,8 @@ export type SeoBrief = {
   secondary: string[]
   intent: 'informacional' | 'transaccional' | 'comparativa' | 'local'
   title: string
+  /** The answer that opens the article (40–60 words): what search engines and AI assistants quote */
+  shortAnswer?: string
   seoTitle: string
   seoDescription: string
   /** H2 sections, in order */

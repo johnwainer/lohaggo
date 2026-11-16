@@ -6,6 +6,7 @@ import OpportunitiesSection from './OpportunitiesSection'
 import SeoSettingsDialog from './SeoSettingsDialog'
 import { ActivityList, KeywordTracker, PagesAudit, SearchConsoleCard, SpeedCard, WeeklyReport } from './SeoSections'
 import { ShareKitSection } from './ShareKitSection'
+import { AiVisibilityCard } from './AiVisibilityCard'
 import { RUN_STATUS, WEEK_DAYS, btnGhost, btnPrimary, card, fmtWhen, healthTone, seoApi, usd, type SeoData } from './shared'
 
 type RunMode = 'rules' | 'ai'
@@ -183,6 +184,7 @@ export default function SeoAgentPanel() {
       <SearchConsoleCard gsc={out?.gsc} hasCycle={Boolean(lastCycle)} canEdit={data.canEdit} onChanged={load} />
       <KeywordTracker keywords={out?.keywords} backlog={out?.webBacklog} gscOk={out?.gsc?.state === 'ok'} />
       <SpeedCard speed={out?.speed} />
+      <AiProbeSection data={data.aiVisibility} canEdit={data.canEdit} onDone={load} />
       <ShareKitSection />
 
       <OpportunitiesSection
@@ -199,6 +201,37 @@ export default function SeoAgentPanel() {
       <ActivityList runs={data.runs} />
 
       {settingsOpen && <SeoSettingsDialog config={config} defaults={data.defaults} canEdit={data.canEdit} onClose={() => setSettingsOpen(false)} onSaved={load} />}
+    </div>
+  )
+}
+
+
+/** The AI-answers card with its «Medir ahora» button (spends a little model budget: superadmin only). */
+function AiProbeSection({ data, canEdit, onDone }: { data: import('@/lib/seo/agent/ai-visibility-core').AiVisibilityData | null; canEdit: boolean; onDone: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  async function run() {
+    if (!window.confirm('Esto le hace unas 6 preguntas a una IA con búsqueda web y cuesta alrededor de US$ 0,20 a 0,50. ¿Medir ahora?')) return
+    setBusy(true); setMsg(null)
+    try {
+      const r = await seoApi<{ ok?: boolean; summary?: string; error?: string }>('/api/admin/seo/ai-probe', { json: {} })
+      setMsg(r.summary ?? 'Listo')
+      onDone()
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'No se pudo medir')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="space-y-2">
+      <AiVisibilityCard data={data} />
+      {canEdit && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button onClick={run} disabled={busy} className={btnGhost}>{busy ? 'Midiendo en las IA… (hasta 4 min)' : 'Medir ahora en las IA'}</button>
+          {msg && <p className="text-xs text-gray-600">{msg}</p>}
+        </div>
+      )}
     </div>
   )
 }

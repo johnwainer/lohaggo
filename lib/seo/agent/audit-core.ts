@@ -5,6 +5,7 @@
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
 import { TRADE_TERMS, anglesFor, queryMatches, searchTerm } from '@/lib/seo/agent/keywords-core'
 import { speedCandidates, type SpeedResult } from '@/lib/seo/agent/speed-core'
+import { probeCandidates, type AiProbeResult } from '@/lib/seo/agent/ai-visibility-core'
 import type { Candidate, GscRow, Level, OpportunityKind, PageAudit } from '@/lib/seo/agent/types'
 
 export const SITE = 'https://www.lohaggo.com'
@@ -36,6 +37,8 @@ export type SeoFacts = {
   pages: PageAudit[]
   /** Core Web Vitals of the main pages (PageSpeed Insights), measured about once a week; empty when never measured */
   speed: SpeedResult[]
+  /** The last answers of AI assistants to the questions a client asks (weekly job); empty when never measured */
+  aiProbes: AiProbeResult[]
   /** Slugs of the services that already have /precios/[slug] */
   pricePageSlugs: string[]
   thinPartnerProfiles: number
@@ -325,6 +328,13 @@ function fromSpeed(f: SeoFacts): Candidate[] {
   }))
 }
 
+function fromAiProbes(f: SeoFacts): Candidate[] {
+  return probeCandidates(f.aiProbes).map((c) => ({
+    kind: 'growth' as OpportunityKind, title: c.title, detail: c.detail, keyword: c.keyword, impact: c.impact, effort: 'medium' as Level, source: 'rules' as const,
+    evidence: c.evidence, dedupeKey: c.dedupeKey, score: c.score,
+  }))
+}
+
 function programmaticPages(f: SeoFacts, config: SeoConfig): Candidate[] {
   const has = new Set(f.pricePageSlugs)
   return f.services
@@ -400,6 +410,7 @@ export function detectOpportunities(f: SeoFacts, config: SeoConfig): Candidate[]
     ...articleChecks(f, config),
     ...fromPageAudit(f),
     ...fromSpeed(f),
+    ...fromAiProbes(f),
     ...programmaticPages(f, config),
     ...realCases(f, config),
     ...localAndBrand(f),

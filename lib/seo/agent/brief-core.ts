@@ -30,6 +30,7 @@ export const BRIEF_TOOL: Anthropic.Tool = {
       secondary: { type: 'array', items: { type: 'string' }, description: 'De 2 a 6 variantes y búsquedas relacionadas' },
       intent: { type: 'string', enum: ['informacional', 'transaccional', 'comparativa', 'local'] },
       title: { type: 'string', description: 'Título del artículo (h1), claro y con la palabra clave' },
+      shortAnswer: { type: 'string', description: 'Respuesta corta que abre el artículo: de 40 a 60 palabras, responde directo la pregunta de la palabra clave y usa un dato concreto de los datos de la plataforma si lo hay (precio de referencia, número de socios). Es lo que un buscador o una IA citaría.' },
       seoTitle: { type: 'string', description: `Máximo ${LIMITS.WEB.seoTitleMax} caracteres` },
       seoDescription: { type: 'string', description: `Entre ${LIMITS.WEB.seoDescriptionMin} y ${LIMITS.WEB.seoDescriptionMax} caracteres, con la promesa concreta` },
       outline: { type: 'array', description: 'De 4 a 8 secciones h2 en orden', items: { type: 'object', properties: { h2: { type: 'string' }, points: { type: 'array', items: { type: 'string' }, description: 'Qué debe decir la sección, en 2 a 4 puntos' } }, required: ['h2', 'points'] } },
@@ -41,7 +42,7 @@ export const BRIEF_TOOL: Anthropic.Tool = {
       format: { type: 'string', enum: ['guía', 'lista', 'comparativa', 'preguntas', 'caso'], description: 'Formato del canal web del agente de marketing' },
       notes: { type: 'string', description: 'Qué evitar y por qué esta pieza posiciona (2 a 3 frases)' },
     },
-    required: ['keyword', 'secondary', 'intent', 'title', 'seoTitle', 'seoDescription', 'outline', 'faqs', 'internalLinks', 'facts', 'cta', 'schema', 'format', 'notes'],
+    required: ['keyword', 'secondary', 'intent', 'title', 'shortAnswer', 'seoTitle', 'seoDescription', 'outline', 'faqs', 'internalLinks', 'facts', 'cta', 'schema', 'format', 'notes'],
   },
 }
 
@@ -182,7 +183,7 @@ export function sanitizeBrief(raw: unknown, allowedUrls: ReadonlyArray<string>):
     dropped,
     value: {
       keyword, secondary: arr(r.secondary).map((s) => str(s, 80)).filter(Boolean).slice(0, 8),
-      intent: pick(r.intent, INTENTS, 'informacional'), title,
+      intent: pick(r.intent, INTENTS, 'informacional'), title, shortAnswer: str(r.shortAnswer, 500) || undefined,
       seoTitle: fit(str(r.seoTitle, 200) || title, LIMITS.WEB.seoTitleMax), seoDescription,
       outline, faqs, internalLinks, facts: arr(r.facts).map((f) => str(f, 240)).filter(Boolean).slice(0, 12),
       cta: str(r.cta, 200) || 'Pide tu servicio en LoHaggo', schema: pick(r.schema, SCHEMAS, 'Article'), format: pick(r.format, FORMATS, 'guía'), notes: str(r.notes, 500),

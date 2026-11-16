@@ -18,6 +18,8 @@ import { BRIEF_TOOL, REPORT_TOOL, SEO_SYSTEM, briefTask, reportTask, sanitizeBri
 import { gatherFacts } from '@/lib/seo/agent/facts'
 import { measureSpeed, pickSpeedPaths } from '@/lib/seo/agent/speed'
 import { speedSummary, type SpeedResult } from '@/lib/seo/agent/speed-core'
+import { runAiProbe, MAX_QUERIES } from '@/lib/seo/agent/ai-visibility'
+import { buildProbeQueries, summarizeProbes, type AiProbeResult, type AiVisibilityData } from '@/lib/seo/agent/ai-visibility-core'
 import { TRADE_TERMS, focusLines, searchTerm, trackKeywords } from '@/lib/seo/agent/keywords-core'
 import { announceNewGuides, processIncoming, sendFocusToMarketing, sendGuidanceToMarketing } from '@/lib/seo/agent/bus'
 import { sendBriefToMarketing, webMarketingAgent } from '@/lib/seo/agent/marketing-bridge'
@@ -294,6 +296,8 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
     // Core Web Vitals: measured about once a week (slow: ~2 min), the rest of the days the last measure is reused
     const speed = await speedFor(now, Boolean(opts.force), deadline)
     facts.speed = speed.results
+    // The last measure of how AI assistants answer (done weekly by its own job, see runAiProbeCycle)
+    facts.aiProbes = await lastAiProbes(now)
 
     // The agent bus: what other agents asked or learned, and what SEO tells them (new guides for the inbox bot)
     const incoming = await processIncoming()
@@ -463,3 +467,44 @@ export async function reopenOpportunity(id: string) {
   if (!r.count) throw new SeoError('No se puede reabrir')
 }
 
+
+
+/** The last AI answers measured (up to two weeks old); empty when none. */
+async function lastAiProbes(now: Date): Promise<AiProbeResult[]> {
+  try {
+    const last = await prisma.seoRun.findFirst({ where: { type: 'ai_probe', status: 'ok', startedAt: { gte: new Date(now.getTime() - 14 * DAY) } }, orderBy: { startedAt: 'desc' }, select: { output: true } })
+    return ((last?.output as { probes?: AiProbeResult[] } | null)?.probes ?? []).filter((p) => p && typeof p.query === 'string')
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Weekly (own cron) or on demand: asks AI assistants with web search the questions a client would ask («plomero en
+ * Medellín…») and records whether LoHaggo is named or cited and who is instead. About US$ 0,20–0,50 a run.
+ */
+export async function runAiProbeCycle(opts: { trigger: Trigger; force?: boolean; deadline?: number } = { trigger: 'cron' }): Promise<{ ok: boolean; skipped?: string; summary: string; runId?: string; error?: string }> {
+  const config = await getSeoSettings()
+  if (!config.enabled && !opts.force) return { ok: true, skipped: 'disabled', summary: 'El agente de SEO está apagado' }
+  try {
+    const last = await prisma.seoRun.findFirst({ where: { type: 'ai_probe', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true } })
+    if (!opts.force && last && Date.now() - last.startedAt.getTime() < 5 * DAY) return { ok: true, skipped: 'recent', summary: 'Ya se midió esta semana' }
+  } catch { return { ok: true, skipped: 'no_tables', summary: 'Falta aplicar el SQL del agente de SEO' } }
+  const blocked = await spendBlock(config)
+  if (blocked) return { ok: false, summary: blocked, error: blocked }
+  const deadline = opts.deadline ?? Date.now() + 240_000
+  const outcome = await withRun('ai_probe', opts.trigger, null, async (meter) => {
+    const { facts } = await gatherFacts(config, { withPages: false })
+    const city = activeCities(facts)[0]?.name ?? 'Medellín'
+    const items = trackedServices(facts).slice(0, 12).map((s) => ({ keyword: `${searchTerm(s.slug, s.name)} en ${city}`, service: s.name, city }))
+    const r = await runAiProbe(buildProbeQueries(items, MAX_QUERIES), { deadline })
+    if (!r.results.length || r.results.every((x) => x.error)) throw new SeoError(r.error ?? 'Ninguna consulta se pudo hacer')
+    meter.cost += r.costUsd
+    meter.model = r.model
+    const summary = summarizeProbes(r.results)
+    const data: AiVisibilityData = { checkedAt: new Date().toISOString(), summary, results: r.results.map((x) => ({ query: x.query, mentioned: x.mentioned, cited: x.cited, position: x.position, competitors: x.competitors, excerpt: x.excerpt, error: x.error })) }
+    return { summary: `IA: nos citaron en ${summary.cited} de ${summary.asked} preguntas (${summary.mentioned} nos nombraron)`, value: data, output: { ...data, probes: r.results } }
+  })
+  if (!outcome.ok) return { ok: false, runId: outcome.runId, summary: outcome.error, error: outcome.error }
+  return { ok: true, runId: outcome.runId, summary: outcome.summary }
+}

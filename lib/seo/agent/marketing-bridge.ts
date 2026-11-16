@@ -79,8 +79,9 @@ export function briefText(b: SeoBrief): string {
   return [
     `Palabra clave principal: ${b.keyword}${b.secondary.length ? ` (variantes: ${b.secondary.join(', ')})` : ''}. Intención: ${b.intent}.`,
     `Título del artículo: ${b.title}\nTítulo SEO (≤60): ${b.seoTitle}\nDescripción SEO: ${b.seoDescription}`,
+    b.shortAnswer ? `Abre el artículo (justo después del título) con un párrafo de respuesta corta, de 40 a 60 palabras, sin titularlo «Respuesta corta»: es lo que los buscadores y las IA citan. Base:\n${b.shortAnswer}` : '',
     `Estructura (cada sección con su h2):\n${b.outline.map((o, i) => `${i + 1}. ${o.h2}\n${o.points.map((p) => `   - ${p}`).join('\n')}`).join('\n')}`,
-    `Preguntas frecuentes (inclúyelas al final, con estas respuestas como base):\n${b.faqs.map((f) => `- ${f.q} → ${f.a}`).join('\n')}`,
+    `Preguntas frecuentes (sección final con el título «Preguntas frecuentes»; cada pregunta es un subtítulo h3 que termina en «?» y su respuesta va en el párrafo siguiente, directa y autosuficiente, de 1 a 3 frases):\n${b.faqs.map((f) => `- ${f.q} → ${f.a}`).join('\n')}`,
     b.internalLinks.length ? `Enlaces internos obligatorios (en Markdown, con el ancla indicada):\n${b.internalLinks.map((l) => `- [${l.anchor}](${l.url.startsWith('http') ? l.url : `${SITE_URL}${l.url}`})`).join('\n')}` : '',
     b.facts.length ? `Datos de la plataforma que puedes citar (no hay otros datos):\n${b.facts.map((f) => `- ${f}`).join('\n')}` : 'No cites cifras ni precios.',
     `Cierre: ${b.cta}`,
@@ -89,7 +90,7 @@ export function briefText(b: SeoBrief): string {
 }
 
 /** Short rules every web piece follows, with or without a brief. */
-export const WEB_SEO_RULES = 'SEO del blog: una sola palabra clave principal en el título, la primera frase y algún subtítulo (sin forzarla); subtítulos h2 que respondan preguntas reales; al menos 3 enlaces internos a páginas de lohaggo.com (servicios, precios, ciudad); preguntas frecuentes al final con respuestas directas; título SEO ≤ 60 y descripción de 120 a 155 caracteres con la promesa concreta; nada de cifras que no vengan de los datos de la plataforma.'
+export const WEB_SEO_RULES = 'SEO del blog: una sola palabra clave principal en el título, la primera frase y algún subtítulo (sin forzarla); subtítulos h2 que respondan preguntas reales; al menos 3 enlaces internos a páginas de lohaggo.com (servicios, precios, ciudad); una respuesta corta de 40 a 60 palabras justo después del título (es lo que citan Google y las IA); sección final «Preguntas frecuentes» con cada pregunta como subtítulo h3 terminado en «?» y su respuesta directa debajo; título SEO ≤ 60 y descripción de 120 a 155 caracteres con la promesa concreta; nada de cifras que no vengan de los datos de la plataforma.'
 
 /**
  * What the marketing planner receives about SEO: what to push, what is already covered and what already

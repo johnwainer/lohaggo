@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { findRedirect, getArticle, relatedArticles } from '@/lib/marketing/blog'
-import { articleJsonLd, articleUrl, jsonLdScript, makeExcerpt, readingMinutes, renderMarkdown, SITE_URL } from '@/lib/marketing/seo'
+import { articleJsonLd, articleUrl, extractFaq, faqPageJsonLd, jsonLdScript, makeExcerpt, readingMinutes, renderMarkdown, SITE_URL } from '@/lib/marketing/seo'
 import { deliveryUrl, ogImageUrl } from '@/lib/marketing/media'
 import ViewBeacon from '@/components/blog/ViewBeacon'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
@@ -13,6 +13,15 @@ import { blogWaMessage } from '@/lib/public/whatsapp'
 import { focusZones, isFocusService, serviceZonePath } from '@/lib/public/serviceZones'
 
 export const revalidate = 300
+/**
+ * Without generateStaticParams a dynamic route is rendered on every request (no-store, a new database trip each time: ~0.4 s
+ * of server time and no CDN). An empty list makes it ISR: no work at build, the first visit renders and every other one
+ * is served from the cache until the revalidate time. Publishing or editing an article revalidates its own path.
+ */
+export async function generateStaticParams() {
+  return []
+}
+
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -65,7 +74,9 @@ export default async function ArticlePage({ params }: Props) {
   const cover = a.coverUrl || a.post.media[0]?.url || null
   const description = a.seoDescription || a.excerpt || makeExcerpt(a.body, 158)
   const [related, service] = await Promise.all([relatedArticles(a.id, a.category, a.tags), serviceForPost(a.tags, a.post.title)])
+  const faq = extractFaq(a.body)
   const jsonLd = [
+    ...(faq.length >= 2 ? [faqPageJsonLd(faq)] : []),
     articleJsonLd({ title: a.post.title, description, slug, image: ogImageUrl(cover), publishedAt: a.webPublishedAt!, updatedAt: a.updatedAt, category: a.category, tags: a.tags }),
     {
       '@context': 'https://schema.org', '@type': 'BreadcrumbList',
@@ -88,7 +99,7 @@ export default async function ArticlePage({ params }: Props) {
         </nav>
         <h1 className="mt-4 text-3xl sm:text-4xl font-bold leading-tight text-gray-900">{a.post.title}</h1>
         <p className="mt-3 text-sm text-gray-500">
-          <time dateTime={a.webPublishedAt!.toISOString()}>{fmt(a.webPublishedAt!)}</time> · {readingMinutes(a.body)} min de lectura
+          <time dateTime={a.webPublishedAt!.toISOString()}>{fmt(a.webPublishedAt!)}</time>{a.updatedAt.getTime() - a.webPublishedAt!.getTime() > 2 * 86_400_000 && <> · Actualizado el <time dateTime={a.updatedAt.toISOString()}>{fmt(a.updatedAt)}</time></>} · {readingMinutes(a.body)} min de lectura
         </p>
         {cover && (
           <img src={deliveryUrl('WEB', cover, { kind: 'image' })} alt={a.post.media.find((m) => m.url === cover)?.alt || a.post.title} className="mt-6 w-full rounded-3xl object-cover aspect-[1.91/1] bg-gray-100" />

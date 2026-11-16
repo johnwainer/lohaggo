@@ -23,6 +23,7 @@ export const JOB_LABEL: Record<string, string> = {
   'channel-health': 'Salud de tokens de canales',
   'marketing-agent': 'Agente de marketing',
   'seo-agent': 'Agente de SEO',
+  'seo-ai-probe': 'Agente de SEO: visibilidad en respuestas de IA (semanal)',
   haggo: 'Haggo (agente maestro)',
   'request-lifecycle': 'Solicitudes: reenvío sin propuestas y vencimiento',
   'wa-daily': 'Plantillas de WhatsApp por tiempo y bienvenida a clientes',

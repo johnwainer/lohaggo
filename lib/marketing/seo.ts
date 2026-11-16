@@ -129,6 +129,50 @@ export function renderMarkdown(md: string) {
   return html.join('\n')
 }
 
+/**
+ * Question and answer pairs from an article's «Preguntas frecuentes» section (what AI assistants and Google quote
+ * word for word): headings or bold lines that end in «?» followed by their paragraph(s). Pure.
+ */
+export function extractFaq(md: string, max = 8): Array<{ q: string; a: string }> {
+  const lines = md.replace(/\r\n/g, '\n').split('\n')
+  const start = lines.findIndex((l) => /^#{1,4}\s+.*(preguntas\s+frecuentes|preguntas\s+comunes|dudas\s+frecuentes)/i.test(l.trim()))
+  if (start < 0) return []
+  const out: Array<{ q: string; a: string }> = []
+  let q: string | null = null
+  let a: string[] = []
+  const flush = () => {
+    const answer = stripMarkdown(a.join(' ')).slice(0, 600)
+    if (q && answer.length >= 20) out.push({ q, a: answer })
+    q = null
+    a = []
+  }
+  for (const raw of lines.slice(start + 1)) {
+    const line = raw.trim()
+    const h = line.match(/^(#{1,4})\s+(.+)$/)
+    // The next section of the article (a heading that is not a question) ends the FAQ
+    if (h && !/\?\s*$/.test(h[2])) { if (h[1].length <= 2) break; flush(); continue }
+    const question = h ? h[2] : line.match(/^\*\*(.+\?)\*\*\s*$/)?.[1] ?? line.match(/^(?:[-*]\s+)?\*\*(.+\?)\*\*\s*(.*)$/)?.[1]
+    if (question && /\?\s*\**$/.test(question)) {
+      flush()
+      q = stripMarkdown(question).slice(0, 200)
+      const inline = line.match(/^(?:[-*]\s+)?\*\*.+\?\*\*\s+(.+)$/)?.[1]
+      if (inline) a.push(inline)
+      continue
+    }
+    if (q && line) a.push(line)
+  }
+  flush()
+  return out.slice(0, max)
+}
+
+export function faqPageJsonLd(items: Array<{ q: string; a: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((i) => ({ '@type': 'Question', name: i.q, acceptedAnswer: { '@type': 'Answer', text: i.a } })),
+  }
+}
+
 export function articleUrl(slug: string) {
   return `${SITE_URL}${BLOG_PATH}/${slug}`
 }
@@ -155,6 +199,8 @@ export function articleJsonLd(a: {
     dateModified: a.updatedAt.toISOString(),
     ...(a.category ? { articleSection: a.category } : {}),
     ...(a.tags?.length ? { keywords: a.tags.join(', ') } : {}),
+    inLanguage: 'es-CO',
+    isAccessibleForFree: true,
     author: { '@type': 'Organization', name: 'LoHaggo', url: SITE_URL },
     publisher: { '@type': 'Organization', name: 'LoHaggo', logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon-512.png` } },
   }

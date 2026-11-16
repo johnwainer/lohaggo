@@ -10,6 +10,15 @@ import { faqJsonLd, focusZones, isFocusService, serviceZonePath, type FaqItem } 
 import { FaqList, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 
 export const revalidate = 86400
+/**
+ * Without generateStaticParams a dynamic route is rendered on every request (no-store, a new database trip each time: ~0.4 s
+ * of server time and no CDN). An empty list makes it ISR: no work at build, the first visit renders and every other one
+ * is served from the cache until the revalidate time. 
+ */
+export async function generateStaticParams() {
+  return []
+}
+
 
 type Props = { params: Promise<{ servicio: string }> }
 

@@ -21,6 +21,15 @@ import { ZONES } from '@/lib/geo/zones'
 
 // The city page is server-rendered (Google used to receive «Ciudad no encontrada»); regenerated every 10 minutes
 export const revalidate = 600
+/**
+ * Without generateStaticParams a dynamic route is rendered on every request (no-store, a new database trip each time: ~0.4 s
+ * of server time and no CDN). An empty list makes it ISR: no work at build, the first visit renders and every other one
+ * is served from the cache until the revalidate time. 
+ */
+export async function generateStaticParams() {
+  return []
+}
+
 
 type Props = { params: Promise<{ slug: string }> }
 

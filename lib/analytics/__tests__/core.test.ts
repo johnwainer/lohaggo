@@ -64,3 +64,17 @@ describe('origen de la visita (first touch)', () => {
     expect(sourceLabel('mailchimp')).toBe('mailchimp')
   })
 })
+
+describe('AI assistant sources', () => {
+  it('names the assistant a visit came from, before Google', async () => {
+    const { sourceLabel, aiSourceLabel } = await import('@/lib/analytics/core')
+    expect(aiSourceLabel('chatgpt.com')).toBe('ChatGPT')
+    expect(aiSourceLabel('perplexity.ai')).toBe('Perplexity')
+    expect(aiSourceLabel('gemini.google.com')).toBe('Gemini')
+    expect(sourceLabel('gemini.google.com')).toBe('Gemini')
+    expect(sourceLabel('www.google.com')).toBe('Google')
+    expect(aiSourceLabel('claude.ai')).toBe('Claude')
+    expect(aiSourceLabel('copilot.microsoft.com')).toBe('Copilot')
+    expect(aiSourceLabel('facebook.com')).toBeNull()
+  })
+})

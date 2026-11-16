@@ -11,7 +11,7 @@ const base = (): SeoFacts => ({
   ],
   cities: [{ slug: 'medellin', name: 'Medellín', status: 'ACTIVE' }, { slug: 'bogota', name: 'Bogotá', status: 'COMING_SOON' }],
   supply: [{ serviceSlug: 'plomeria', citySlug: 'medellin', partners: 5, requests90d: 12 }, { serviceSlug: 'plomeria', citySlug: 'bogota', partners: 2, requests90d: 3 }],
-  articles: [], zeroSearches: [], gsc: null, pageTotals: [], inspections: [], botGaps: [], pages: [], speed: [], pricePageSlugs: [], thinPartnerProfiles: 0,
+  articles: [], zeroSearches: [], gsc: null, pageTotals: [], inspections: [], botGaps: [], pages: [], speed: [], aiProbes: [], pricePageSlugs: [], thinPartnerProfiles: 0,
 })
 const cfg = DEFAULT_SEO_CONFIG
 const keys = (f: SeoFacts, c = cfg) => detectOpportunities(f, c).map((o) => o.dedupeKey)

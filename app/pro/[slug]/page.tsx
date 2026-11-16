@@ -2,6 +2,17 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import ProfileClient from './ProfileClient'
+export const revalidate = 3600
+
+/**
+ * Without generateStaticParams a dynamic route is rendered on every request (no-store, a new database trip each time: ~0.4 s
+ * of server time and no CDN). An empty list makes it ISR: no work at build, the first visit renders and every other one
+ * is served from the cache until the revalidate time. Partner profiles are public.
+ */
+export async function generateStaticParams() {
+  return []
+}
+
 import { partnerIsIndexable } from '@/lib/seo/indexing'
 import { defaultOgImages, SITE_URL } from '@/lib/seo/site'
 

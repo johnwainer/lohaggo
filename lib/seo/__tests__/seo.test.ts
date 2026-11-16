@@ -108,3 +108,21 @@ describe('buildLlmsTxt', () => {
     expect(t).toContain('## Garantía')
   })
 })
+
+describe('llms-full.txt', () => {
+  const base = { services: [{ name: 'Plomería', slug: 'plomeria', from: 100000, range: null }], cities: ['Medellín'], verifiedPartners: 20, whatsappPhone: null, guarantee: null, clientPayment: 'Pagas al terminar.', verification: 'Identidad verificada.', updatedAt: new Date('2026-11-16') }
+  it('adds zones, cities, guides with summary, jobs and the questions to the short file', async () => {
+    const { buildLlmsFullTxt } = await import('@/lib/seo/llms')
+    const t = buildLlmsFullTxt({ ...base, articles: [{ title: 'Guía', slug: 'guia', excerpt: 'Resumen de la guía' }], zonePages: [{ service: 'Plomería', zone: 'El Poblado', path: '/servicios/plomeria/el-poblado' }], cityPages: [{ name: 'Medellín', slug: 'medellin' }], jobs: { plomeria: ['Arreglo de fugas'] }, zones: [{ name: 'El Poblado', kind: 'comuna', barrios: ['Provenza', 'Manila'] }], faq: [{ q: '¿Cuánto cuesta?', a: 'Desde $100.000.' }] })
+    expect(t).toContain('# LoHaggo')
+    expect(t).toContain('[Plomería en El Poblado](https://www.lohaggo.com/servicios/plomeria/el-poblado)')
+    expect(t).toContain('Resumen de la guía')
+    expect(t).toContain('Plomería: Arreglo de fugas')
+    expect(t).toContain('Provenza, Manila')
+    expect(t).toContain('### ¿Cuánto cuesta?')
+  })
+  it('the short file points to the full one', async () => {
+    const { buildLlmsTxt } = await import('@/lib/seo/llms')
+    expect(buildLlmsTxt(base)).toContain('/llms-full.txt')
+  })
+})

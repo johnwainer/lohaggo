@@ -143,10 +143,25 @@ export function parseAcquisition(raw: string | null | undefined): Acquisition | 
   }
 }
 
+/** The AI assistant a visit came from (referrer host or utm_source), or null. ChatGPT adds utm_source=chatgpt.com to its links. */
+export function aiSourceLabel(source: string | null | undefined): string | null {
+  const s = (source || '').toLowerCase()
+  if (/chatgpt|openai/.test(s)) return 'ChatGPT'
+  if (/perplexity/.test(s)) return 'Perplexity'
+  if (/gemini\.google|bard\.google|^gemini$/.test(s)) return 'Gemini'
+  if (/claude\.ai|anthropic|^claude$/.test(s)) return 'Claude'
+  if (/copilot\.microsoft|copilot\.cloud|^copilot$/.test(s)) return 'Copilot'
+  if (/meta\.ai/.test(s)) return 'Meta AI'
+  if (/you\.com|phind|kagi|brave\.com\/ask|duck\.ai/.test(s)) return 'Otros asistentes de IA'
+  return null
+}
+
 /** Groups sources the way people think of them: facebook.com, m.facebook.com and fb → Facebook. */
 export function sourceLabel(source: string | null | undefined) {
   const s = (source || 'direct').toLowerCase()
   if (s === 'direct') return 'Directo'
+  const ai = aiSourceLabel(s)
+  if (ai) return ai
   if (/facebook|^fb$|fb\.me/.test(s)) return 'Facebook'
   if (/instagram|^ig$/.test(s)) return 'Instagram'
   if (/google/.test(s)) return 'Google'

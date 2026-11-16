@@ -65,13 +65,13 @@ export default async function BlogPage({ searchParams }: Props) {
           <div className="rounded-3xl bg-white p-10 text-center text-gray-500 shadow-sm">Pronto publicaremos los primeros artículos.</div>
         ) : (
           <div className={`${data.categories.length > 0 ? 'mt-5' : ''} grid gap-5 sm:grid-cols-2 lg:grid-cols-3`}>
-            {data.items.map((a) => {
+            {data.items.map((a, index) => {
               const image = a.coverUrl || a.post.media[0]?.url || null
               return (
                 <Link key={a.slug} href={`/blog/${a.slug}`} className="group overflow-hidden rounded-3xl bg-white shadow-sm transition hover:shadow-md">
                   <div className="relative aspect-[1.91/1] bg-gray-100 overflow-hidden">
                     {image
-                      ? <RemoteImage src={ogImageUrl(image) || image} alt="" fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition group-hover:scale-[1.02]" />
+                      ? <RemoteImage src={ogImageUrl(image) || image} alt="" fill priority={index < 3} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition group-hover:scale-[1.02]" />
                       : <div className="h-full w-full bg-gradient-to-br from-primary-100 to-secondary-100" />}
                   </div>
                   <div className="p-5">

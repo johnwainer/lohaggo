@@ -242,11 +242,15 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-sans">
+        {/* Tag Manager (analytics, pixels) runs after the person first interacts or 5 s after load, never competing with the first paint */}
         <Script id="gtm-loader" strategy="lazyOnload">
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+          {`(function(w,d,s,l,i){var started=false;function start(){if(started)return;started=true;
+['pointerdown','keydown','touchstart','scroll'].forEach(function(e){w.removeEventListener(e,start)});
+w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);}
+['pointerdown','keydown','touchstart','scroll'].forEach(function(e){w.addEventListener(e,start,{once:true,passive:true})});
+setTimeout(start,5000);
 })(window,document,'script','dataLayer','GTM-W7V4TD6P');`}
         </Script>
         <noscript>
