@@ -88,6 +88,14 @@
 - ❌ **NUNCA** correr `SET SESSION …` (ni `SET` sin `LOCAL`) contra prod por `DATABASE_URL`: va por el pooler de Supabase y la conexión «sucia» la recibe después la app. Un `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY` de una consulta de diagnóstico hizo fallar ~30 min las escrituras (marcar leído, cerrar chats) con «cannot execute UPDATE in a read-only transaction».
 - ✅ Para consultas de solo lectura: `BEGIN READ ONLY; …; ROLLBACK;` (alcance de transacción). Si pasa de nuevo: cerrar las conexiones de la app (`pg_terminate_backend`) y `RESET ALL` en la propia antes de soltarla.
 
+#### Reglas duras aprendidas (revisión de velocidad y SEO del 2026-11-16)
+- ❌ **NUNCA** dejar una ruta pública dinámica (`/blog/[slug]`, `/servicios/[slug]`, `/ciudad/[slug]`, `/precios/[servicio]`, `/pro/[slug]`) sin `generateStaticParams`: sin él Next la marca `ƒ` y la renderiza en CADA visita (`cache-control: private, no-store`, `x-vercel-cache: MISS`, ~0,4 s de servidor y sin CDN) aunque tenga `revalidate`. Con `generateStaticParams() { return [] }` pasa a ISR (`●`): la primera visita la genera y las demás salen de caché.
+- ✅ Tras un deploy el caché queda frío: calentar con `curl` a las URLs de `/sitemap.xml` (278 en 2026-11) antes de medir velocidad.
+- ❌ **NUNCA** hacer que el contenido principal de una página pública espere una consulta del navegador tras hidratar (el LCP se va a 6–8 s en PageSpeed móvil). Los datos del servicio van dentro del HTML (`<script id="service-data">`, `lib/services/public-service.ts`) y la API solo refresca.
+- ❌ **NUNCA** repetir `h1` ni la descripción en un componente cliente que ya está en el hero del servidor: el duplicado hidratado se vuelve el LCP.
+- ✅ PageSpeed con la cuenta de servicio solo acepta el permiso `openid`; la búsqueda web de Anthropic no acepta `country: 'CO'`. Las mediciones de laboratorio varían entre corridas (una misma página salta de 1 s a 7 s de LCP): comparar promedios, no una corrida.
+- ✅ Un `PATCH` parcial de `config.channels` al agente de marketing borra cuentas y formatos de los canales omitidos: mandar siempre los tres canales completos.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
