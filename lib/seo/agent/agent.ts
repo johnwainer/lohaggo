@@ -379,9 +379,9 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
   return { ok: true, runId: outcome.runId, summary: outcome.summary, ...outcome.value }
 }
 
-/** Web ideas (from SEO or the planner) still waiting to become an article: the calendar's runway. */
+/** Web ideas SEO sent that still wait to become an article: the runway. The planner's own ideas do not count, or they would crowd out the service+city articles. */
 async function waitingWebIdeas(now: Date) {
-  return prisma.marketingIdea.count({ where: { channels: { has: 'WEB' }, status: { in: ['proposed', 'accepted'] }, postId: null, targetDate: { gte: new Date(now.getTime() - DAY) } } }).catch(() => 0)
+  return prisma.marketingIdea.count({ where: { channels: { has: 'WEB' }, status: { in: ['proposed', 'accepted'] }, postId: null, rationale: { startsWith: 'Brief del agente de SEO' }, targetDate: { gte: new Date(now.getTime() - DAY) } } }).catch(() => 0)
 }
 
 const activeCities = (f: SeoFacts) => f.cities.filter((c) => c.status === 'ACTIVE')
