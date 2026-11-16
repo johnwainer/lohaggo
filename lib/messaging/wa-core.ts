@@ -204,6 +204,7 @@ export const WA_TEMPLATE_USAGE: Record<string, string> = {
   lh_socio_antecedentes_guia: 'Reactivación de socios A/B, día 3: cómo sacar el certificado de antecedentes',
   lh_socio_ultimo_aviso: 'Reactivación de socios A/B, día 10: último aviso antes de pausar el perfil (respaldo: C3)',
   lh_socio_verificado_activar: 'Reactivación de socios F/H, día 0: ya está verificado, cómo recibir más solicitudes (respaldo: C33)',
+  lh_socio_completar_perfil: 'Invitación a escribir el «Sobre mí» con el asistente del perfil (marketing, 1 cada 45 días)',
   lh_socio_sin_actividad: 'Verificado sin proponer en 30 días (marketing)',
   lh_admin_conversacion_traspasada: 'La IA traspasa una conversación',
   lh_admin_accion_por_aprobar: 'Acción del copiloto esperando aprobación',

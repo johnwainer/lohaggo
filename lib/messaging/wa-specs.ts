@@ -123,6 +123,9 @@ export const WA = {
   /** Invite a verified partner to share their public profile (at most once a month) */
   C33: (p: { partnerId: string; name: string; slug: string }) =>
     spec('C33', [['lh_socio_compartir_perfil', { 1: partner(p.name), 2: `pro/${p.slug}?utm_source=whatsapp&utm_medium=socio&utm_campaign=compartir_perfil` }]], E('PartnerProfile', p.partnerId), { marketing: true, promotional: true, dedupeKey: `C33:PartnerProfile:${p.partnerId}`, dedupeWindowMs: 30 * DAY }),
+  /** Invite a verified partner with no «Sobre mí» to write it with the profile assistant (at most once every 45 days) */
+  C50: (p: { partnerId: string; userId: string; name: string }) =>
+    spec('C50', [['lh_socio_completar_perfil', { 1: partner(p.name), 2: 'profile?utm_source=whatsapp&utm_medium=socio&utm_campaign=completar_perfil' }]], E('PartnerProfile', p.partnerId), { marketing: true, dedupeKey: `C50:PartnerProfile:${p.partnerId}`, dedupeWindowMs: 45 * DAY }),
   /** Partner reactivation campaign (lib/partners/reactivation.ts): one key per partner and step, so a step is never sent twice */
   C46: (p: { userId: string; name: string; service: string; city: string; step: string }) =>
     spec('C46', [['lh_socio_reactivar_documentos', { 1: partner(p.name), 2: p.service, 3: p.city, 4: 'partner/verification?utm_source=whatsapp&utm_medium=socio&utm_campaign=reactivar_socios' }]], E('User', p.userId), { marketing: true, dedupeKey: `C46:User:${p.userId}:${p.step}`, dedupeWindowMs: 60 * DAY }),

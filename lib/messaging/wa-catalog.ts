@@ -1937,6 +1937,21 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     }
   },
   {
+    "code": "C50",
+    "name": "lh_socio_completar_perfil",
+    "category": "MARKETING",
+    "body": "✍️ {{1}}, tu perfil público en LoHaggo todavía no tiene «Sobre mí». Los clientes eligen al socio que ven completo. Te escribimos un borrador en un toque: tú lo lees, lo cambias y decides si lo publicas.",
+    "variables": {
+      "1": "Carlos",
+      "2": "profile?utm_source=whatsapp&utm_medium=socio&utm_campaign=completar_perfil"
+    },
+    "quickReplies": [],
+    "url": {
+      "title": "Completar mi perfil",
+      "url": "https://www.lohaggo.com/{{2}}"
+    }
+  },
+  {
     "code": "B41",
     "name": "lh_cliente_resena_google",
     "category": "UTILITY",

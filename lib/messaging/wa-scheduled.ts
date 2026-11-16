@@ -357,3 +357,33 @@ export async function sendShareProfileInvites(opts: { limit?: number; excludeUse
   }
   return { eligible: partners.length, withoutSlug: 0, sent, skipped, failed, done }
 }
+
+/**
+ * Invites verified, active partners whose public profile has no «Sobre mí» to write it with the assistant (C50, marketing:
+ * respects STOP and quiet hours). At most once every 45 days per partner; call again while `done` is false.
+ */
+export async function sendProfileBioInvites(opts: { limit?: number; dryRun?: boolean; now?: Date } = {}) {
+  const now = opts.now ?? new Date()
+  const limit = Math.min(Math.max(opts.limit ?? 60, 1), 200)
+  const rows = await prisma.partnerProfile.findMany({
+    where: { verified: true, isActive: true, isPublicProfile: true, user: { isActive: true, role: 'PARTNER' } },
+    select: { id: true, userId: true, bio: true, user: { select: { name: true } } },
+    orderBy: { createdAt: 'asc' },
+  })
+  const partners = rows.filter((p) => (p.bio ?? '').trim().length < 20)
+  if (opts.dryRun) return { eligible: partners.length, sent: 0, skipped: {} as Record<string, number>, failed: 0, done: true }
+
+  const started = Date.now()
+  let sent = 0
+  let failed = 0
+  const skipped: Record<string, number> = {}
+  let done = true
+  for (const p of partners) {
+    if (sent >= limit || Date.now() - started > 45_000) { done = false; break }
+    const res = await sendWaToUser(p.userId, WA.C50({ partnerId: p.id, userId: p.userId, name: p.user.name }), now)
+    if (res?.ok) sent++
+    else if (res && 'skipped' in res && res.skipped) skipped[res.skipped] = (skipped[res.skipped] ?? 0) + 1
+    else failed++
+  }
+  return { eligible: partners.length, sent, skipped, failed, done }
+}
