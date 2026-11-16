@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
 import { jsonLdScript } from '@/lib/marketing/seo'
+import ReactDOM from 'react-dom'
 import { tradeTitle } from '@/lib/seo/agent/keywords-core'
 import { RelatedGuides, RELATED_TOPICS } from '@/components/public/RelatedGuides'
 import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } from '@/lib/public/serviceZones'
@@ -141,6 +142,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ServiceSlugLayout({ params, children }: Props) {
   const { slug } = await params
   const trade = tradeTitle(slug)
+  // The client page asks this endpoint after hydration (the content of the page waits for it): start the request with the HTML
+  ReactDOM.preload(`/api/services/${slug}?city=medellin`, { as: 'fetch', crossOrigin: 'anonymous' })
 
   const service = await prisma.service.findUnique({
     where: { slug },

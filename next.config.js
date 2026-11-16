@@ -68,6 +68,13 @@ const nextConfig = {
           }
         ],
       },
+      {
+        // Public service data (what a card shows): the page waits for it to paint its content, so the CDN keeps it a minute
+        source: '/api/services/:slug',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=600' },
+        ],
+      },
     ]
   },
 
