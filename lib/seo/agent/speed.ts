@@ -38,8 +38,8 @@ async function measureOne(path: string, token: string | null): Promise<SpeedResu
     if (key) qs.set('key', key)
     const res = await fetch(`${PSI}?${qs}`, { cache: 'no-store', signal: AbortSignal.timeout(60_000), headers: !key && token ? { Authorization: `Bearer ${token}` } : undefined })
     if (res.status === 429) return empty(key || token ? 'Cuota de PageSpeed agotada (429)' : 'Cuota de PageSpeed agotada: falta una clave (PAGESPEED_API_KEY) o conectar la cuenta de Google')
-    if (res.status === 403) return empty('PageSpeed no está activado en el proyecto de Google Cloud: activa «PageSpeed Insights API» (o crea una clave y ponla en PAGESPEED_API_KEY)')
     const json = await res.json().catch(() => null)
+    if (res.status === 403) return empty(`Google negó el acceso (403): ${String(json?.error?.message ?? 'sin detalle').slice(0, 220)}`)
     if (!res.ok) return empty(`PageSpeed respondió ${res.status}${json?.error?.message ? `: ${String(json.error.message).slice(0, 100)}` : ''}`)
     return parsePsi(json, path, url)
   } catch (err) {
