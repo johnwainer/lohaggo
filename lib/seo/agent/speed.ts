@@ -23,7 +23,7 @@ export function pickSpeedPaths(): string[] {
 async function bearer(): Promise<string | null> {
   try {
     const { account } = await getGa4Settings()
-    return account ? await accessToken(account, 'https://www.googleapis.com/auth/cloud-platform') : null
+    return account ? await accessToken(account, 'openid') : null
   } catch {
     return null
   }
