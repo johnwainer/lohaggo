@@ -23,7 +23,7 @@ export type SpeedResult = {
   diag?: SpeedDiag
 }
 
-export type SpeedDiag = { lcpElement: string | null; lcpLazy: boolean; serverMs: number | null; lcpParts: Array<{ part: string; ms: number }>; renderBlockingMs: number | null; thirdPartyMs: number | null; unusedJsKb: number | null }
+export type SpeedDiag = { lcpElement: string | null; lcpLazy: boolean; serverMs: number | null; lcpParts: Array<{ part: string; ms: number }>; renderBlockingMs: number | null; thirdPartyMs: number | null; unusedJsKb: number | null; bootupMs?: number | null; domNodes?: number | null; chainMs?: number | null }
 
 export type SpeedOpportunity = { id: string; title: string; savingsMs: number }
 
@@ -81,24 +81,37 @@ export function parsePsi(json: unknown, path: string, url = ''): SpeedResult {
     if (lcp != null || clsRaw != null || inp != null) field = { lcpMs: lcp, cls: clsRaw != null ? clsRaw / 100 : null, inpMs: inp, category }
   }
 
-  // LCP element and its breakdown (Lighthouse's own tables: the second table of the LCP element audit)
-  const lcpItems = ((audits['largest-contentful-paint-element'] as Json | undefined)?.details?.items ?? []) as Json[]
-  const snippet = (() => {
-    const first = (lcpItems[0]?.items ?? [])[0] as Json | undefined
-    const v = first?.node?.snippet
-    return typeof v === 'string' ? v.replace(/\s+/g, ' ').slice(0, 220) : null
-  })()
-  const lcpParts = ((lcpItems[1]?.items ?? []) as Json[])
-    .map((i) => ({ part: String(i.phase ?? i.subpart ?? '').slice(0, 40), ms: Math.round(num(i.timing) ?? num(i.duration) ?? 0) }))
-    .filter((i) => i.part)
+  // LCP element and its breakdown. Lighthouse nests these tables differently between versions: search, do not index.
+  const findNode = (v: unknown, depth = 0): string | null => {
+    if (!v || typeof v !== 'object' || depth > 8) return null
+    const o = v as Json
+    const snip = o.node && typeof o.node === 'object' ? (o.node as Json).snippet : null
+    if (typeof snip === 'string') return snip.replace(/\s+/g, ' ').slice(0, 220)
+    for (const x of Array.isArray(v) ? v : Object.values(o)) { const r = findNode(x, depth + 1); if (r) return r }
+    return null
+  }
+  const findParts = (v: unknown, depth = 0, out: Array<{ part: string; ms: number }> = []): Array<{ part: string; ms: number }> => {
+    if (!v || typeof v !== 'object' || depth > 8) return out
+    const o = v as Json
+    const name = o.phase ?? o.subpart ?? null
+    const ms = num(o.timing) ?? num(o.duration)
+    if (typeof name === 'string' && ms != null && out.length < 8) out.push({ part: name.slice(0, 40), ms: Math.round(ms) })
+    for (const x of Array.isArray(v) ? v : Object.values(o)) findParts(x, depth + 1, out)
+    return out
+  }
+  const lcpAudit = audits['largest-contentful-paint-element'] ?? audits['lcp-breakdown-insight']
+  const lcpParts = findParts(audits['lcp-breakdown-insight']?.details ?? lcpAudit?.details)
   const diag: SpeedDiag = {
-    lcpElement: snippet,
+    lcpElement: findNode(audits['largest-contentful-paint-element']?.details) ?? findNode(audits['lcp-breakdown-insight']?.details),
     lcpLazy: audits['lcp-lazy-loaded']?.score === 0,
     serverMs: num(audits['server-response-time']?.numericValue) != null ? Math.round(num(audits['server-response-time']?.numericValue)!) : null,
     lcpParts,
-    renderBlockingMs: num(audits['render-blocking-resources']?.details?.overallSavingsMs) != null ? Math.round(num(audits['render-blocking-resources']?.details?.overallSavingsMs)!) : null,
-    thirdPartyMs: num(audits['third-party-summary']?.details?.summary?.wastedMs) != null ? Math.round(num(audits['third-party-summary']?.details?.summary?.wastedMs)!) : null,
+    renderBlockingMs: num(audits['render-blocking-resources']?.details?.overallSavingsMs) ?? num(audits['render-blocking-insight']?.metricSavings?.FCP) ?? null,
+    thirdPartyMs: num(audits['third-party-summary']?.details?.summary?.wastedMs) ?? null,
     unusedJsKb: num(audits['unused-javascript']?.details?.overallSavingsBytes) != null ? Math.round(num(audits['unused-javascript']?.details?.overallSavingsBytes)! / 1024) : null,
+    bootupMs: num(audits['bootup-time']?.numericValue) != null ? Math.round(num(audits['bootup-time']?.numericValue)!) : null,
+    domNodes: num(audits['dom-size']?.numericValue),
+    chainMs: num(audits['critical-request-chains']?.details?.longestChain?.duration) != null ? Math.round(num(audits['critical-request-chains']?.details?.longestChain?.duration)!) : null,
   }
 
   return {

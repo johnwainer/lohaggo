@@ -1,14 +1,16 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Navbar } from './Navbar'
 import { Footer, isClientPanelPath } from './Footer'
 import { AppDownloadBanner } from './AppDownloadBanner'
 import { BottomNav } from './mobile/BottomNav'
-import NotificationPermissionPrompt from './NotificationPermissionPrompt'
-import PWAInstallPrompt from './PWAInstallPrompt'
-import PWAOnboardingPrompt from './PWAOnboardingPrompt'
+// Prompts that appear later (install the app, notifications) are not part of the first JavaScript
+const NotificationPermissionPrompt = dynamic(() => import('./NotificationPermissionPrompt'), { ssr: false })
+const PWAInstallPrompt = dynamic(() => import('./PWAInstallPrompt'), { ssr: false })
+const PWAOnboardingPrompt = dynamic(() => import('./PWAOnboardingPrompt'), { ssr: false })
 import InactiveAccountBanner from './InactiveAccountBanner'
 import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
 import FloatingButtons from './FloatingButtons'
