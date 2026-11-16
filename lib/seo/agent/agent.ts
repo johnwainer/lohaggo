@@ -404,6 +404,8 @@ async function speedFor(now: Date, forced: boolean, deadline: number): Promise<{
         await prisma.seoRun.create({ data: { type: 'speed', trigger: 'cron', status: 'ok', summary: `Velocidad: ${ok.length} de ${results.length} páginas medidas`, output: json({ results }), finishedAt: new Date() } })
         return { at: now.toISOString(), results }
       }
+      // Nothing could be measured (quota, API not enabled): show why in the panel, keep trying next cycle
+      if (results.length) return { at: null, results }
     }
     const kept = ((last?.output as { results?: SpeedResult[] } | null)?.results ?? []).filter((r) => !r.error)
     return { at: last?.startedAt.toISOString() ?? null, results: kept }

@@ -5,6 +5,7 @@
  * a 429 or any failure just becomes `error` on that page.
  */
 import { SITE } from '@/lib/seo/agent/audit-core'
+import { accessToken, getGa4Settings } from '@/lib/analytics/ga4'
 import { parsePsi, type SpeedResult } from '@/lib/seo/agent/speed-core'
 
 const PSI = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed'
@@ -14,15 +15,30 @@ export function pickSpeedPaths(): string[] {
   return ['/', '/servicios', '/servicios/plomeria', '/servicios/electricidad', '/servicios/cerrajeria', '/ciudad/medellin', '/blog'].slice(0, 7)
 }
 
-async function measureOne(path: string): Promise<SpeedResult> {
+/**
+ * Without a key, PageSpeed answers 429 almost always (the anonymous quota is shared by the whole world). The Google
+ * service account already connected (GA4 / Search Console) has its own project quota: its token is used when there is
+ * no PAGESPEED_API_KEY. The «PageSpeed Insights API» must be enabled in that Google Cloud project.
+ */
+async function bearer(): Promise<string | null> {
+  try {
+    const { account } = await getGa4Settings()
+    return account ? await accessToken(account, 'https://www.googleapis.com/auth/cloud-platform') : null
+  } catch {
+    return null
+  }
+}
+
+async function measureOne(path: string, token: string | null): Promise<SpeedResult> {
   const url = `${SITE}${path === '/' ? '' : path}`
   const empty = (error: string): SpeedResult => ({ path, url, strategy: 'mobile', score: null, lcpMs: null, cls: null, tbtMs: null, fcpMs: null, field: null, error })
   try {
     const qs = new URLSearchParams({ url, strategy: 'mobile', category: 'performance' })
     const key = process.env.PAGESPEED_API_KEY
     if (key) qs.set('key', key)
-    const res = await fetch(`${PSI}?${qs}`, { cache: 'no-store', signal: AbortSignal.timeout(60_000) })
-    if (res.status === 429) return empty('Cuota de PageSpeed agotada (429)')
+    const res = await fetch(`${PSI}?${qs}`, { cache: 'no-store', signal: AbortSignal.timeout(60_000), headers: !key && token ? { Authorization: `Bearer ${token}` } : undefined })
+    if (res.status === 429) return empty(key || token ? 'Cuota de PageSpeed agotada (429)' : 'Cuota de PageSpeed agotada: falta una clave (PAGESPEED_API_KEY) o conectar la cuenta de Google')
+    if (res.status === 403) return empty('PageSpeed no está activado en el proyecto de Google Cloud: activa «PageSpeed Insights API» (o crea una clave y ponla en PAGESPEED_API_KEY)')
     const json = await res.json().catch(() => null)
     if (!res.ok) return empty(`PageSpeed respondió ${res.status}${json?.error?.message ? `: ${String(json.error.message).slice(0, 100)}` : ''}`)
     return parsePsi(json, path, url)
@@ -36,10 +52,11 @@ export async function measureSpeed(paths: string[], opts: { deadline?: number; c
   const deadline = opts.deadline ?? Date.now() + 150_000
   const concurrency = Math.max(1, opts.concurrency ?? 2)
   const out: SpeedResult[] = []
+  const token = process.env.PAGESPEED_API_KEY ? null : await bearer()
   let i = 0
   const worker = async () => {
     while (i < paths.length && Date.now() < deadline) {
-      out.push(await measureOne(paths[i++]))
+      out.push(await measureOne(paths[i++], token))
     }
   }
   try {
