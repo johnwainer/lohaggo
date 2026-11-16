@@ -394,13 +394,13 @@ const SPEED_EVERY_DAYS = 6
 
 /**
  * The speed of the main pages. A new measure (PageSpeed, ~2 min) only when the last one is older than 6 days (or the
- * person pressed «Ejecutar» and it is older than a day) and there is time left; otherwise the last one is reused.
+ * person pressed «Ejecutar» and it is older than 2 hours) and there is time left; otherwise the last one is reused.
  */
 async function speedFor(now: Date, forced: boolean, deadline: number): Promise<{ at: string | null; results: SpeedResult[] }> {
   try {
     const last = await prisma.seoRun.findFirst({ where: { type: 'speed', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true, output: true } })
     const ageDays = last ? (now.getTime() - last.startedAt.getTime()) / DAY : Infinity
-    const due = ageDays >= SPEED_EVERY_DAYS || (forced && ageDays >= 1)
+    const due = ageDays >= SPEED_EVERY_DAYS || (forced && ageDays >= 2 / 24)
     if (due && deadline - Date.now() > 120_000) {
       const results = await measureSpeed(pickSpeedPaths(), { deadline: Date.now() + 110_000 })
       const ok = results.filter((r) => !r.error)
