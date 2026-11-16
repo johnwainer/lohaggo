@@ -120,6 +120,7 @@ export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadlin
     pageTotals: [],
     inspections: [],
     pages: [],
+    speed: [],
     pricePageSlugs: prices ? prices.items.slice(0, PRICE_PAGE_LIMIT).map((s) => s.slug) : [],
     botGaps: groupQuestions(gaps.map((g) => g.question)),
     thinPartnerProfiles: partners.filter((p) => !partnerIsIndexable({ totalReviews: p.totalReviews, bio: p.bio, image: p.user?.image })).length,

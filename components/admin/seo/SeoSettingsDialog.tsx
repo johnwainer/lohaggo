@@ -30,6 +30,12 @@ const GROUPS: Array<{ title: string; fields: Field[] }> = [
     ],
   },
   {
+    title: 'Reseñas en Google',
+    fields: [
+      { kind: 'text', path: 'googleReviewUrl', label: 'Enlace para dejar una reseña', placeholder: 'https://g.page/r/…/review', help: 'En tu ficha de Google Business Profile: «Pedir reseñas» → copiar enlace. Con esto, la pantalla «¡Gracias por calificar!» y un WhatsApp al día siguiente invitan a cada cliente que calificó (sea cual sea su calificación) a dejar su reseña pública. Vacío = apagado. Solo se aceptan enlaces de Google.' },
+    ],
+  },
+  {
     title: 'Con marketing',
     fields: [
       { kind: 'bool', path: 'autoSendToMarketing', label: 'Enviar briefs a marketing solo', help: 'Cada brief nuevo pasa solo al calendario del agente de marketing. Apagado: tú pulsas «Enviar a marketing».' },

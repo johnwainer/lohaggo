@@ -19,7 +19,10 @@ export type SeoOpportunityView = {
 
 export type SeoKeywordRow = { service: string; slug: string; city: string; keyword: string; impressions: number; clicks: number; position: number | null; page: string | null; onServicePage: boolean }
 
+export type SeoSpeedOutput = { measuredAt: string | null; summary: { measured: number; slow: number; avgScore: number | null; worstPath: string | null }; results: Array<{ path: string; score: number | null; lcpMs: number | null; cls: number | null; tbtMs: number | null; field: { lcpMs: number | null; cls: number | null; inpMs: number | null; category: string | null } | null; error: string | null }> }
+
 export type SeoCycleOutput = {
+  speed?: SeoSpeedOutput | null
   keywords?: SeoKeywordRow[]
   webBacklog?: { waiting: number; target: number }
   health?: { score: number; parts: Array<{ label: string; score: number }> }

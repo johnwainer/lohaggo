@@ -40,6 +40,8 @@ export type SeoConfig = {
   }
   /** Where to push first: service slugs, city slugs and keywords the team cares about */
   focus: { services: string[]; cities: string[]; keywords: string[] }
+  /** Link to leave a Google review (the business profile's «Pedir reseñas» link). Empty = no review invitations. */
+  googleReviewUrl: string
   /** Domains the agent keeps in mind (for angle, never to copy) */
   competitors: string[]
 }
@@ -57,6 +59,7 @@ export const DEFAULT_SEO_CONFIG: Readonly<SeoConfig> = {
   pageAudit: { enabled: true, maxPages: 40 },
   thresholds: { minImpressions: 10, lowCtrPct: 2, strikeFrom: 8, strikeTo: 20, staleArticleDays: 180, thinArticleWords: 600, zeroResultMinSearches: 3 },
   focus: { services: [], cities: [], keywords: [] },
+  googleReviewUrl: '',
   competitors: [],
 }
 
@@ -79,6 +82,18 @@ const list = (v: unknown, max: number, len: number, re?: RegExp): string[] => {
     if (out.length >= max) break
   }
   return out
+}
+
+/** Only Google's own hosts: a review link that sends customers anywhere else is refused. */
+const REVIEW_HOSTS = /^(g\.page|search\.google\.com|www\.google\.com|google\.com|maps\.app\.goo\.gl|goo\.gl|g\.co|maps\.google\.com)$/i
+export function cleanReviewUrl(v: unknown): string {
+  if (typeof v !== 'string') return ''
+  try {
+    const u = new URL(v.trim())
+    return u.protocol === 'https:' && REVIEW_HOSTS.test(u.hostname) ? u.toString().slice(0, 300) : ''
+  } catch {
+    return ''
+  }
 }
 
 const SITE_RE = /^(sc-domain:[a-z0-9.-]+\.[a-z]{2,}|https?:\/\/[a-z0-9.-]+\.[a-z]{2,}\/?)$/i
@@ -117,6 +132,7 @@ export function sanitizeSeoConfig(raw: unknown): SeoConfig {
       cities: list(f.cities, 20, 80, /^[a-z0-9-]+$/),
       keywords: list(f.keywords, 30, 80),
     },
+    googleReviewUrl: cleanReviewUrl(r.googleReviewUrl),
     competitors: list(r.competitors, 10, 80, /^[a-z0-9.-]+\.[a-z]{2,}$/i).map((x) => x.toLowerCase()),
   }
 }

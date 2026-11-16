@@ -1935,6 +1935,23 @@ export const WA_CATALOG: WaCatalogEntry[] = [
       "title": "Compartir mi perfil",
       "url": "https://www.lohaggo.com/{{3}}"
     }
+  },
+  {
+    "code": "B41",
+    "name": "lh_cliente_resena_google",
+    "category": "UTILITY",
+    "body": "🙏 Hola {{1}}, gracias por calificar a {{2}} por tu servicio de *{{3}}*. Si quieres, cuéntales a otras familias de Medellín cómo te fue, sea bueno o malo: una reseña pública en Google nos ayuda a mejorar y toma un minuto.",
+    "variables": {
+      "1": "Ana",
+      "2": "Carlos",
+      "3": "Plomería",
+      "4": "resena/clx1abc"
+    },
+    "quickReplies": [],
+    "url": {
+      "title": "Dejar mi reseña",
+      "url": "https://www.lohaggo.com/{{4}}"
+    }
   }
 ]
 

@@ -4,6 +4,7 @@
  */
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
 import { TRADE_TERMS, anglesFor, queryMatches, searchTerm } from '@/lib/seo/agent/keywords-core'
+import { speedCandidates, type SpeedResult } from '@/lib/seo/agent/speed-core'
 import type { Candidate, GscRow, Level, OpportunityKind, PageAudit } from '@/lib/seo/agent/types'
 
 export const SITE = 'https://www.lohaggo.com'
@@ -33,6 +34,8 @@ export type SeoFacts = {
   /** What Google says about each article URL (URL Inspection); empty when not available */
   inspections: Array<{ path: string; verdict: string; coverage: string; lastCrawl: string | null }>
   pages: PageAudit[]
+  /** Core Web Vitals of the main pages (PageSpeed Insights), measured about once a week; empty when never measured */
+  speed: SpeedResult[]
   /** Slugs of the services that already have /precios/[slug] */
   pricePageSlugs: string[]
   thinPartnerProfiles: number
@@ -315,6 +318,13 @@ function fromPageAudit(f: SeoFacts): Candidate[] {
   return out
 }
 
+function fromSpeed(f: SeoFacts): Candidate[] {
+  return speedCandidates(f.speed).map((c) => ({
+    kind: 'technical' as OpportunityKind, title: c.title, detail: c.detail, targetUrl: c.path, impact: c.impact, effort: 'medium' as Level, source: 'page_audit' as const,
+    evidence: c.evidence, dedupeKey: c.dedupeKey, score: c.score,
+  }))
+}
+
 function programmaticPages(f: SeoFacts, config: SeoConfig): Candidate[] {
   const has = new Set(f.pricePageSlugs)
   return f.services
@@ -389,6 +399,7 @@ export function detectOpportunities(f: SeoFacts, config: SeoConfig): Candidate[]
     ...notIndexed(f),
     ...articleChecks(f, config),
     ...fromPageAudit(f),
+    ...fromSpeed(f),
     ...programmaticPages(f, config),
     ...realCases(f, config),
     ...localAndBrand(f),

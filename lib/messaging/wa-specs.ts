@@ -99,6 +99,8 @@ export const WA = {
   /** `round` 2 for the second reminder (the first keeps its original dedupe key) */
   B18: (b: BookingData & { round?: number }) =>
     spec('B18', [['lh_cliente_recordatorio_calificar_v2', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service }]], E('Booking', b.id), (b.round ?? 1) > 1 ? { dedupeKey: `B18:Booking:${b.id}:r${b.round}` } : {}),
+  /** After the client rated: one invitation to leave a public Google review (the link opens /resena/<booking>, which redirects to the configured Google page). */
+  B41: (b: BookingData) => spec('B41', [['lh_cliente_resena_google', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service, 4: `resena/${b.id}` }]], E('Booking', b.id), { dedupeKey: `B41:Booking:${b.id}` }),
   B19: (b: BookingData) => spec('B19', [
     ['lh_cliente_reserva_cancelada_socio_v3', { 1: client(b.clientName), 2: waRef(b.id), 3: b.service, 4: waDay(b.when) }],
     ['lh_cliente_reserva_cancelada_socio', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service, 4: waDay(b.when) }],

@@ -16,6 +16,8 @@ import { slugify } from '@/lib/marketing/seo'
 import { detectOpportunities, healthScore, scoreOf, type SeoFacts } from '@/lib/seo/agent/audit-core'
 import { BRIEF_TOOL, REPORT_TOOL, SEO_SYSTEM, briefTask, reportTask, sanitizeBrief, sanitizeReport, type BriefContext } from '@/lib/seo/agent/brief-core'
 import { gatherFacts } from '@/lib/seo/agent/facts'
+import { measureSpeed, pickSpeedPaths } from '@/lib/seo/agent/speed'
+import { speedSummary, type SpeedResult } from '@/lib/seo/agent/speed-core'
 import { TRADE_TERMS, focusLines, searchTerm, trackKeywords } from '@/lib/seo/agent/keywords-core'
 import { announceNewGuides, processIncoming, sendFocusToMarketing, sendGuidanceToMarketing } from '@/lib/seo/agent/bus'
 import { sendBriefToMarketing, webMarketingAgent } from '@/lib/seo/agent/marketing-bridge'
@@ -285,10 +287,14 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
   let running = false
   try { running = await busy(now) } catch { return { ok: true, skipped: 'no_tables', summary: 'Falta aplicar el SQL del agente de SEO' } }
   if (running) return { ok: true, skipped: 'busy', summary: 'Ya hay un ciclo en marcha' }
-  const deadline = opts.deadline ?? Date.now() + 200_000
+  const deadline = opts.deadline ?? Date.now() + 250_000
 
   const outcome = await withRun('cycle', opts.trigger, { force: Boolean(opts.force), withAi: opts.withAi ?? null }, async (meter) => {
     const { facts, gsc, unavailable } = await gatherFacts(config, { now, deadline: Math.min(deadline, Date.now() + 80_000) })
+    // Core Web Vitals: measured about once a week (slow: ~2 min), the rest of the days the last measure is reused
+    const speed = await speedFor(now, Boolean(opts.force), deadline)
+    facts.speed = speed.results
+
     // The agent bus: what other agents asked or learned, and what SEO tells them (new guides for the inbox bot)
     const incoming = await processIncoming()
     await announceNewGuides(facts.articles, now)
@@ -369,6 +375,7 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
     return {
       summary, value: { created: synced.created, closed: synced.closed + synced.published, briefs, reportAdded },
       output: {
+        speed: speed.results.length ? { measuredAt: speed.at, summary: speedSummary(speed.results), results: speed.results.map((r) => ({ path: r.path, score: r.score, lcpMs: r.lcpMs, cls: r.cls, tbtMs: r.tbtMs, field: r.field, error: r.error })) } : null,
         health, keywords: keywordRows.sort((a, b) => b.impressions - a.impressions || (a.position ?? 999) - (b.position ?? 999)).slice(0, 40), webBacklog: { waiting, target: config.webPostsAhead }, gsc: { ...gscState, days: facts.gsc?.days ?? null, clicks, impressions, top, topPages, indexing },
         pages: facts.pages.map((p) => ({ path: p.path, status: p.status, words: p.words, issues: p.issues.map((i) => ({ code: i.code, severity: i.severity, message: i.message })) })),
         bus: { requestsReceived: incoming.requests, learningsHeard: incoming.learnings.length }, counts: { services: facts.services.length, articles: facts.articles.length, zeroSearches: facts.zeroSearches.length, thinPartnerProfiles: facts.thinPartnerProfiles }, unavailable, aiNote,
@@ -377,6 +384,32 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
   })
   if (!outcome.ok) return { ok: false, runId: outcome.runId, summary: outcome.error, error: outcome.error }
   return { ok: true, runId: outcome.runId, summary: outcome.summary, ...outcome.value }
+}
+
+const SPEED_EVERY_DAYS = 6
+
+/**
+ * The speed of the main pages. A new measure (PageSpeed, ~2 min) only when the last one is older than 6 days (or the
+ * person pressed «Ejecutar» and it is older than a day) and there is time left; otherwise the last one is reused.
+ */
+async function speedFor(now: Date, forced: boolean, deadline: number): Promise<{ at: string | null; results: SpeedResult[] }> {
+  try {
+    const last = await prisma.seoRun.findFirst({ where: { type: 'speed', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true, output: true } })
+    const ageDays = last ? (now.getTime() - last.startedAt.getTime()) / DAY : Infinity
+    const due = ageDays >= SPEED_EVERY_DAYS || (forced && ageDays >= 1)
+    if (due && deadline - Date.now() > 120_000) {
+      const results = await measureSpeed(pickSpeedPaths(), { deadline: Date.now() + 110_000 })
+      const ok = results.filter((r) => !r.error)
+      if (ok.length) {
+        await prisma.seoRun.create({ data: { type: 'speed', trigger: 'cron', status: 'ok', summary: `Velocidad: ${ok.length} de ${results.length} páginas medidas`, output: json({ results }), finishedAt: new Date() } })
+        return { at: now.toISOString(), results }
+      }
+    }
+    const kept = ((last?.output as { results?: SpeedResult[] } | null)?.results ?? []).filter((r) => !r.error)
+    return { at: last?.startedAt.toISOString() ?? null, results: kept }
+  } catch {
+    return { at: null, results: [] }
+  }
 }
 
 /** Web ideas SEO sent that still wait to become an article: the runway. The planner's own ideas do not count, or they would crowd out the service+city articles. */

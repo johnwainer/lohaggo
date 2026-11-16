@@ -47,6 +47,7 @@ export default function RatingModal({
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const [favorite, setFavorite] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [googleReview, setGoogleReview] = useState(false)
   const { dialogProps, titleId } = useDialog(isOpen, onClose, { dismissible: !isSubmitting })
 
   if (!isOpen) return null
@@ -119,7 +120,11 @@ export default function RatingModal({
 
       if (res.ok) {
         onSuccess()
-        if (thanks && reviewType === 'client') setDone(true)
+        if (thanks && reviewType === 'client') {
+          setDone(true)
+          // The Google review invitation shows only when it is set up (it is the same for every rating: never filtered by stars)
+          fetch('/api/public/google-review').then((r) => r.json()).then((d) => setGoogleReview(Boolean(d?.available))).catch(() => null)
+        }
         else onClose()
       } else {
         const data = await res.json().catch(() => ({}))
@@ -165,6 +170,11 @@ export default function RatingModal({
               <button type="button" onClick={share} className={`${btn} border-2 border-[#25D366] text-[#128C7E] hover:bg-[#25D366]/10`}>
                 <Share2 className="h-5 w-5" aria-hidden="true" /> Recomiéndalo a un amigo
               </button>
+            )}
+            {googleReview && (
+              <a href={`/resena/${bookingId}`} target="_blank" rel="noopener noreferrer" className={`${btn} border-2 border-gray-200 text-gray-800 hover:bg-gray-50`}>
+                <Star className="h-5 w-5" aria-hidden="true" /> Cuenta tu experiencia en Google
+              </a>
             )}
             <button type="button" onClick={closeAll} className={`${btn} text-gray-600 hover:text-gray-800`}>Listo</button>
           </div>

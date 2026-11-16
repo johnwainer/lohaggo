@@ -180,6 +180,46 @@ export function KeywordTracker({ keywords, backlog, gscOk }: { keywords: KwRow[]
   )
 }
 
+type SpeedData = NonNullable<SeoCycleOutput['speed']>
+
+const SPEED_LABEL = (r: SpeedData['results'][number]) => {
+  if (r.error) return { text: 'Sin medir', cls: 'bg-gray-100 text-gray-600' }
+  const lcp = r.field?.lcpMs ?? r.lcpMs
+  if ((lcp != null && lcp > 4000) || (r.score != null && r.score < 50)) return { text: 'Lenta', cls: 'bg-rose-100 text-rose-700' }
+  if ((lcp != null && lcp > 2500) || (r.score != null && r.score < 75)) return { text: 'Mejorable', cls: 'bg-amber-100 text-amber-800' }
+  return { text: 'Rápida', cls: 'bg-emerald-100 text-emerald-800' }
+}
+
+/** Core Web Vitals of the main pages, on mobile (PageSpeed Insights), measured about once a week. */
+export function SpeedCard({ speed }: { speed: SpeedData | null | undefined }) {
+  return (
+    <section className={card} aria-labelledby="seo-speed">
+      <h2 id="seo-speed" className="flex items-center gap-2 text-base font-bold text-gray-900"><Search size={18} className="text-primary-600" /> Velocidad del sitio en el celular</h2>
+      <p className="mt-1 text-xs text-gray-500">Google premia las páginas que cargan rápido. Se mide una vez por semana con PageSpeed (LCP: cuánto tarda en mostrarse lo principal; CLS: cuánto se mueve la página al cargar).</p>
+      {!speed ? <p className="mt-3 text-sm text-gray-500">Todavía no se ha medido. Pulsa «Ejecutar ahora»: la primera medición tarda unos 2 minutos.</p> : (
+        <>
+          <p className="mt-2 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">{speed.summary.measured} páginas medidas{speed.summary.avgScore != null ? `, puntaje medio ${speed.summary.avgScore}/100` : ''}{speed.summary.slow ? `, ${speed.summary.slow} lentas` : ''}. {speed.measuredAt ? `Medido el ${fmtWhen(speed.measuredAt)}.` : ''}</p>
+          <ul className="mt-3 divide-y divide-gray-100 rounded-xl border border-gray-100">
+            {speed.results.map((r) => {
+              const l = SPEED_LABEL(r)
+              const lcp = r.field?.lcpMs ?? r.lcpMs
+              return (
+                <li key={r.path} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
+                  <span className="min-w-0">
+                    <span className="block break-all font-medium text-gray-900">{r.path}</span>
+                    <span className="block text-xs text-gray-500">{r.error ? r.error : `${r.score != null ? `${Math.round(r.score)}/100` : '—'} · LCP ${lcp != null ? `${(lcp / 1000).toFixed(1)} s` : '—'}${r.cls != null || r.field?.cls != null ? ` · CLS ${(r.field?.cls ?? r.cls)!.toFixed(2)}` : ''}${r.field ? ' · datos de visitantes reales' : ''}`}</span>
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${l.cls}`}>{l.text}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+    </section>
+  )
+}
+
 const SEV = {
   critical: { label: 'Grave', cls: 'bg-rose-100 text-rose-700', rank: 0 },
   warning: { label: 'Aviso', cls: 'bg-amber-100 text-amber-800', rank: 1 },

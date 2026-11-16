@@ -9,6 +9,7 @@ import { createLogger } from '@/lib/logger'
 import { formatBookingWhen } from '@/lib/bookings/ops'
 import { REMINDER_WINDOWS, candidateScheduledRange, expiringSoonMessage, inReminderWindow } from '@/lib/notifications/reminder-window'
 import { waBookingReminder, waRatingReminder, waRequestExpiring } from '@/lib/messaging/wa-events'
+import { runGoogleReviewAsk } from '@/lib/reviews/google-ask'
 import { runWaPaymentPending } from '@/lib/messaging/wa-scheduled'
 import { willAutoExtend } from '@/lib/service-requests/ops'
 
@@ -167,15 +168,17 @@ async function runRatingReminder(now: Date) {
 async function handler(_req: NextRequest) {
   const now = new Date()
   try {
-    const [r24, r1, expiring, ratings, paymentPending] = await Promise.all([
+    const [r24, r1, expiring, ratings, paymentPending, googleAsk] = await Promise.all([
       remindBookings(now, 'day').catch((e) => { logger.error('24h reminder failed', e); return 0 }),
       remindBookings(now, 'soon').catch((e) => { logger.error('1h reminder failed', e); return 0 }),
       runRequestExpiringSoon(now).catch((e) => { logger.error('request expiring failed', e); return 0 }),
       runRatingReminder(now).catch((e) => { logger.error('rating reminder failed', e); return 0 }),
       runWaPaymentPending(now).catch((e) => { logger.error('payment pending WhatsApp failed', e); return {} }),
+      // Invitation to a public Google review the day after the client rated (only when the link is set up)
+      runGoogleReviewAsk(now).catch((e) => { logger.error('google review ask failed', e); return { sent: 0, skipped: 'error' } }),
     ])
     logger.info('Notification reminders run complete', { r24, r1, expiring, ratings, paymentPending })
-    return NextResponse.json({ ok: true, sent: { booking24h: r24, bookingSoon: r1, requestExpiring: expiring, ratingReminder: ratings, whatsapp: paymentPending } })
+    return NextResponse.json({ ok: true, sent: { booking24h: r24, bookingSoon: r1, requestExpiring: expiring, ratingReminder: ratings, whatsapp: paymentPending, googleReviewAsk: googleAsk } })
   } catch (error) {
     logger.error('Cron failed', error)
     return NextResponse.json({ ok: false, error: 'Cron run failed' }, { status: 500 })

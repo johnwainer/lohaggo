@@ -155,6 +155,7 @@ export const WA_TEMPLATE_USAGE: Record<string, string> = {
   lh_cliente_pago_confirmado_v2: 'El socio confirma que recibió el pago',
   lh_cliente_pago_rechazado_v2: 'El socio rechaza el pago reportado',
   lh_cliente_recordatorio_calificar_v2: 'Sin calificación 24 h después del servicio',
+  lh_cliente_resena_google: 'Un día después de calificar: invitación a una reseña pública en Google',
   lh_cliente_reserva_cancelada_socio: 'El socio cancela una reserva confirmada (se reabre la solicitud)',
   lh_cliente_reserva_cancelada_socio_v3: 'El socio cancela una reserva confirmada (se reabre la solicitud)',
   lh_cliente_garantia_recibida: 'Se registra un reclamo de garantía',

@@ -279,6 +279,15 @@ export function waRatingReminder(bookingId: string) {
   })
 }
 
+/** B41: invitation to a public Google review after the client rated. */
+export function waGoogleReviewAsk(bookingId: string) {
+  return safe('B41', async () => {
+    const b = await loadBooking(bookingId)
+    if (!b) return null
+    return sendWaToUser(b.row.userId, WA.B41(b.data))
+  })
+}
+
 /** C23: a client rated the partner. */
 export function waReviewReceived(bookingId: string, rating: number) {
   return safe('C23', async () => {

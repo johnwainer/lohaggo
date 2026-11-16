@@ -37,7 +37,7 @@ export const RUN_STATUS: Record<string, { label: string; cls: string }> = {
   partial: { label: 'Parcial', cls: 'bg-amber-100 text-amber-800' },
   skipped: { label: 'Omitido', cls: 'bg-gray-100 text-gray-600' },
 }
-export const RUN_TYPE: Record<string, string> = { cycle: 'Ciclo', report: 'Informe semanal', brief: 'Brief' }
+export const RUN_TYPE: Record<string, string> = { cycle: 'Ciclo', report: 'Informe semanal', brief: 'Brief', speed: 'Velocidad del sitio', monthly: 'Resumen mensual' }
 export const RUN_TRIGGER: Record<string, string> = { manual: 'manual', cron: 'automático', auto: 'automático' }
 
 export const healthTone = (score: number) => (score >= 80 ? { bar: 'bg-emerald-500', text: 'text-emerald-700', label: 'Buena' } : score >= 50 ? { bar: 'bg-amber-500', text: 'text-amber-700', label: 'Regular' } : { bar: 'bg-rose-500', text: 'text-rose-700', label: 'Por mejorar' })
