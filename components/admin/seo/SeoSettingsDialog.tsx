@@ -24,7 +24,8 @@ const GROUPS: Array<{ title: string; fields: Field[] }> = [
     fields: [
       { kind: 'bool', path: 'enabled', label: 'Agente encendido', help: 'Si lo apagas, no corre solo cada semana. Los botones manuales siguen funcionando.' },
       { kind: 'day', path: 'weeklyDay', label: 'Día del ciclo semanal', help: 'El día en que el agente hace su revisión completa con IA (hora de Bogotá).' },
-      { kind: 'num', path: 'briefsPerCycle', label: 'Briefs por ciclo', unit: 'briefs', help: 'Cuántos planes de artículo escribe en cada ciclo. Cada uno gasta presupuesto (0 a 10).' },
+      { kind: 'num', path: 'briefsPerCycle', label: 'Briefs por ciclo', unit: 'briefs', help: 'Máximo de planes de artículo que escribe en cada ciclo diario. Cada uno gasta presupuesto (0 a 10).' },
+      { kind: 'num', path: 'webPostsAhead', label: 'Artículos del blog por adelantado', unit: 'artículos', help: 'Cuántos artículos del blog deben estar esperando en el calendario de marketing (uno por día = 7). Cada día el agente escribe los que falten (0 a 30).' },
       { kind: 'num', path: 'monthlyBudgetUsd', label: 'Presupuesto mensual de IA', unit: 'US$', decimal: true, help: 'Tope de gasto al mes. Al llegar, el agente sigue con las reglas gratis y deja de escribir.' },
     ],
   },

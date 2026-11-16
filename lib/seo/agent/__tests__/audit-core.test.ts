@@ -26,16 +26,48 @@ describe('scoreOf', () => {
 })
 
 describe('detectOpportunities', () => {
-  it('finds a service+city gap only for active cities with supply', () => {
+  it('finds supporting-article gaps for service+city keywords only for active cities with supply', () => {
     const k = keys(base())
-    expect(k).toContain('gap:plomeria:medellin')
-    expect(k).not.toContain('gap:plomeria:bogota')
+    expect(k).toContain('kw:plomeria:medellin:precio')
+    expect(k).toContain('kw:plomeria:medellin:urgente')
+    expect(k.some((x) => x.includes(':bogota:'))).toBe(false)
+    expect(k.some((x) => x.startsWith('kw:pintura:'))).toBe(false)
   })
 
-  it('does not report a gap an article already covers', () => {
+  it('names the trade person people type («plomero en Medellín»)', () => {
+    const o = detectOpportunities(base(), cfg).find((x) => x.dedupeKey === 'kw:plomeria:medellin:guia')!
+    expect(o.keyword).toBe('plomero en Medellín')
+    expect(o.targetUrl).toBe('/servicios/plomeria')
+  })
+
+  it('does not repeat an angle an article already covers', () => {
     const f = base()
-    f.articles = [{ slug: 'a', title: 'Plomero en Medellín: guía', publishedAt: now, updatedAt: now, words: 900, seoTitle: 'x'.repeat(40), seoDescription: 'x'.repeat(100), category: null, tags: [], links: ['/servicios/plomeria'], haystack: 'Plomero en Medellín plomería guía', bodyText: 'plomería en Medellín', views: 3 }]
-    expect(keys(f)).not.toContain('gap:plomeria:medellin')
+    f.articles = [{ slug: 'a', title: 'Cuánto cuesta un plomero en Medellín', publishedAt: now, updatedAt: now, words: 900, seoTitle: 'x'.repeat(40), seoDescription: 'x'.repeat(100), category: null, tags: [], links: ['/servicios/plomeria'], haystack: 'Cuánto cuesta un plomero en Medellín plomeria', bodyText: 'plomería en Medellín', views: 3 }]
+    const k = keys(f)
+    expect(k).not.toContain('kw:plomeria:medellin:precio')
+    expect(k).toContain('kw:plomeria:medellin:guia')
+  })
+
+  it('asks to put the trade person and the city in the service page title, h1 and description', () => {
+    const f = base()
+    f.pages = [{ url: 'u', path: '/servicios/plomeria', status: 200, title: 'Plomería a domicilio desde $70.000', description: 'Contrata plomería', h1Count: 1, h1: 'Plomería en Medellín', canonical: 'c', robots: null, jsonLd: [], imagesWithoutAlt: 0, words: 500, issues: [] }]
+    expect(keys(f)).toContain('kw-onpage:plomeria:medellin')
+    f.pages[0].title = 'Plomero en Medellín · Plomería desde $70.000'
+    expect(keys(f)).not.toContain('kw-onpage:plomeria:medellin')
+  })
+
+  it('flags a money keyword Google does not show at all (only with Search Console connected)', () => {
+    const f = base()
+    expect(keys(f)).not.toContain('kw-invisible:plomeria:medellin')
+    f.gsc = { days: 28, rows: [{ query: 'otra cosa', page: 'https://www.lohaggo.com/', clicks: 0, impressions: 5, ctr: 0, position: 30 }] }
+    expect(keys(f)).toContain('kw-invisible:plomeria:medellin')
+    f.gsc = { days: 28, rows: [{ query: 'plomero medellin', page: 'https://www.lohaggo.com/servicios/plomeria', clicks: 0, impressions: 5, ctr: 0, position: 30 }] }
+    expect(keys(f)).not.toContain('kw-invisible:plomeria:medellin')
+  })
+
+  it('caps the supporting articles per service so one service does not take the backlog', () => {
+    const k = detectOpportunities(base(), cfg).filter((o) => o.dedupeKey.startsWith('kw:plomeria:'))
+    expect(k.length).toBeLessThanOrEqual(3)
   })
 
   it('turns zero-result searches over the threshold into demand gaps', () => {
@@ -77,7 +109,7 @@ describe('detectOpportunities', () => {
 
   it('turns page-audit issues into technical findings (critical = high impact)', () => {
     const f = base()
-    f.pages = [{ url: 'u', path: '/servicios/plomeria', status: 200, title: 'T', description: null, h1Count: 1, canonical: 'c', robots: 'noindex', jsonLd: [], imagesWithoutAlt: 0, words: 500, issues: [{ code: 'noindex_unexpected', severity: 'critical', message: 'Marcada noindex' }] }]
+    f.pages = [{ url: 'u', path: '/servicios/plomeria', status: 200, title: 'T', description: null, h1Count: 1, h1: 'x', canonical: 'c', robots: 'noindex', jsonLd: [], imagesWithoutAlt: 0, words: 500, issues: [{ code: 'noindex_unexpected', severity: 'critical', message: 'Marcada noindex' }] }]
     const o = detectOpportunities(f, cfg).find((x) => x.dedupeKey === 'tech:/servicios/plomeria')
     expect(o?.impact).toBe('high')
   })
@@ -102,8 +134,8 @@ describe('detectOpportunities', () => {
   })
 
   it('the team focus raises the score', () => {
-    const plain = detectOpportunities(base(), cfg).find((o) => o.dedupeKey === 'gap:plomeria:medellin')!
-    const focused = detectOpportunities(base(), sanitizeSeoConfig({ focus: { services: ['plomeria'] } })).find((o) => o.dedupeKey === 'gap:plomeria:medellin')!
+    const plain = detectOpportunities(base(), cfg).find((o) => o.dedupeKey === 'kw:plomeria:medellin:guia')!
+    const focused = detectOpportunities(base(), sanitizeSeoConfig({ focus: { services: ['plomeria'] } })).find((o) => o.dedupeKey === 'kw:plomeria:medellin:guia')!
     expect(focused.score).toBeGreaterThan(plain.score)
   })
 })
@@ -121,7 +153,7 @@ describe('healthScore', () => {
   it('is 0–100 and drops with technical problems', () => {
     const f = base()
     const good = healthScore(f, []).score
-    f.pages = [{ url: 'u', path: '/', status: 500, title: null, description: null, h1Count: 0, canonical: null, robots: null, jsonLd: [], imagesWithoutAlt: 0, words: 0, issues: [{ code: 'status', severity: 'critical', message: 'x' }] }]
+    f.pages = [{ url: 'u', path: '/', status: 500, title: null, description: null, h1Count: 0, h1: null, canonical: null, robots: null, jsonLd: [], imagesWithoutAlt: 0, words: 0, issues: [{ code: 'status', severity: 'critical', message: 'x' }] }]
     const bad = healthScore(f, []).score
     expect(bad).toBeLessThan(good)
     expect(bad).toBeGreaterThanOrEqual(0)

@@ -20,6 +20,9 @@ export const KIND_LABEL: Record<OpportunityKind, string> = {
 /** Kinds that become an article (and so can go to the marketing agent); the rest are fixes a person or Haggo does */
 export const ARTICLE_KINDS: OpportunityKind[] = ['content_gap', 'demand_gap', 'ugc', 'refresh']
 
+/** Kinds that become a NEW article (refresh edits an existing page, so it is not sent to marketing as a new piece) */
+export const NEW_ARTICLE_KINDS: OpportunityKind[] = ['content_gap', 'demand_gap', 'ugc']
+
 export const STATUSES = ['open', 'briefed', 'sent', 'done', 'dismissed'] as const
 export type OpportunityStatus = (typeof STATUSES)[number]
 export type Level = 'low' | 'medium' | 'high'
@@ -73,6 +76,8 @@ export type PageAudit = {
   title: string | null
   description: string | null
   h1Count: number
+  /** Text of the first h1 (to check that the service page names the trade and the city) */
+  h1: string | null
   canonical: string | null
   robots: string | null
   jsonLd: string[]

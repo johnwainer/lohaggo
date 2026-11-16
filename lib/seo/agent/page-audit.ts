@@ -15,7 +15,7 @@ async function fetchPage(path: string): Promise<PageAudit> {
     const html = res.ok ? (await res.text()).slice(0, 600_000) : ''
     return auditHtml(html, { url, path, status: res.status })
   } catch (err) {
-    return { url, path, status: null, title: null, description: null, h1Count: 0, canonical: null, robots: null, jsonLd: [], imagesWithoutAlt: 0, words: 0, issues: [{ code: 'unreachable', severity: 'critical', message: `No respondió: ${err instanceof Error ? err.message.slice(0, 80) : 'error'}` }] }
+    return { url, path, status: null, title: null, description: null, h1Count: 0, h1: null, canonical: null, robots: null, jsonLd: [], imagesWithoutAlt: 0, words: 0, issues: [{ code: 'unreachable', severity: 'critical', message: `No respondió: ${err instanceof Error ? err.message.slice(0, 80) : 'error'}` }] }
   }
 }
 

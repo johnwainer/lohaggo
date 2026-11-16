@@ -73,3 +73,13 @@ export async function sendGuidanceToMarketing(forMarketing: string[], now = new 
   }).catch(() => null)
 }
 
+
+/** The week's focus for marketing, from the keyword tracker: which service+city to push and with which exact words. */
+export async function sendFocusToMarketing(lines: string[], now = new Date()) {
+  if (!lines.length) return
+  await postNote({
+    fromAgent: 'seo', toAgent: 'marketing', topic: 'seo_guidance', kind: 'insight', priority: 'high',
+    title: 'Enfoque SEO de la semana: servicios en la ciudad', body: `Lo que más importa es que la gente encuentre las páginas de servicio al buscar «plomero en Medellín», «cerrajero en Medellín», etc. En Instagram, Facebook y el blog: ${lines.join(' ')}`,
+    dedupeKey: `seo-focus:${isoWeek(now)}`, ttlDays: 8,
+  }).catch(() => null)
+}

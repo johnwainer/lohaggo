@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, AlertTriangle, Loader2, Play, RefreshCw, Search, Settings, Sparkles } from 'lucide-react'
 import OpportunitiesSection from './OpportunitiesSection'
 import SeoSettingsDialog from './SeoSettingsDialog'
-import { ActivityList, PagesAudit, SearchConsoleCard, WeeklyReport } from './SeoSections'
+import { ActivityList, KeywordTracker, PagesAudit, SearchConsoleCard, WeeklyReport } from './SeoSections'
 import { RUN_STATUS, WEEK_DAYS, btnGhost, btnPrimary, card, fmtWhen, healthTone, seoApi, usd, type SeoData } from './shared'
 
 type RunMode = 'rules' | 'ai'
@@ -180,6 +180,7 @@ export default function SeoAgentPanel() {
       </section>
 
       <SearchConsoleCard gsc={out?.gsc} hasCycle={Boolean(lastCycle)} canEdit={data.canEdit} onChanged={load} />
+      <KeywordTracker keywords={out?.keywords} backlog={out?.webBacklog} gscOk={out?.gsc?.state === 'ok'} />
 
       <OpportunitiesSection
         items={data.opportunities}

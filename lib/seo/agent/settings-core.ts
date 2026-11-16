@@ -9,6 +9,8 @@ export type SeoConfig = {
   weeklyDay: number
   /** Briefs the agent writes per cycle (each one is a model call) */
   briefsPerCycle: number
+  /** Web articles from SEO that should be waiting in the marketing backlog (1 a day = 7). Each daily cycle writes the missing briefs. */
+  webPostsAhead: number
   /** Monthly model spend cap in USD; at the cap the agent keeps the free rules and stops writing */
   monthlyBudgetUsd: number
   /** Send each new brief to the marketing agent's backlog by itself (otherwise a person presses the button) */
@@ -45,10 +47,11 @@ export type SeoConfig = {
 export const DEFAULT_SEO_CONFIG: Readonly<SeoConfig> = {
   enabled: true,
   weeklyDay: 1,
-  briefsPerCycle: 3,
+  briefsPerCycle: 4,
+  webPostsAhead: 7,
   monthlyBudgetUsd: 5,
-  autoSendToMarketing: false,
-  autoAcceptIdeas: false,
+  autoSendToMarketing: true,
+  autoAcceptIdeas: true,
   socialAdaptation: true,
   gsc: { enabled: true, siteUrl: 'sc-domain:lohaggo.com' },
   pageAudit: { enabled: true, maxPages: 40 },
@@ -93,6 +96,7 @@ export function sanitizeSeoConfig(raw: unknown): SeoConfig {
     enabled: bool(r.enabled, d.enabled),
     weeklyDay: int(r.weeklyDay, d.weeklyDay, 0, 6),
     briefsPerCycle: int(r.briefsPerCycle, d.briefsPerCycle, 0, 10),
+    webPostsAhead: int(r.webPostsAhead, d.webPostsAhead, 0, 30),
     monthlyBudgetUsd: num(r.monthlyBudgetUsd, d.monthlyBudgetUsd, 0, 500),
     autoSendToMarketing: bool(r.autoSendToMarketing, d.autoSendToMarketing),
     autoAcceptIdeas: bool(r.autoAcceptIdeas, d.autoAcceptIdeas),

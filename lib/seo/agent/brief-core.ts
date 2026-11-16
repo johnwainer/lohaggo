@@ -75,6 +75,8 @@ export type BriefContext = {
   existingTitles: string[]
   competitors: string[]
   focusKeywords: string[]
+  /** The service page this article exists to push, and the exact search it should win */
+  moneyPage?: { url: string; keyword: string } | null
 }
 
 /** Text from outside (searches, Search Console queries, titles) cannot close a <datos> block or add lines. */
@@ -91,6 +93,7 @@ export function briefTask(c: BriefContext): string {
     `<datos tipo="datos de la plataforma">\n${c.facts.length ? c.facts.map((f) => `- ${f}`).join('\n') : '- (sin datos específicos: no afirmes cifras)'}\n</datos>`,
     `<datos tipo="páginas reales para enlazar">\n${c.pages.map((p) => `- ${clean(p.url, 120)} — ${clean(p.label, 100)}`).join('\n')}\n</datos>`,
     c.existingTitles.length ? `<datos tipo="artículos ya publicados (no los repitas ni compitas con ellos)">\n${c.existingTitles.slice(0, 40).map((t) => `- ${clean(t, 140)}`).join('\n')}\n</datos>` : '',
+    c.moneyPage ? `OBJETIVO DEL ARTÍCULO: subir la página ${c.moneyPage.url} en Google para «${c.moneyPage.keyword}». Es un artículo de apoyo: ataca la búsqueda concreta de la oportunidad y empuja a quien lee hacia esa página. Reglas: la palabra clave de la oportunidad va exacta en el título SEO, en la primera frase y en un h2; incluye un enlace a ${c.moneyPage.url} con el ancla exacta «${c.moneyPage.keyword}» en el primer tercio del texto y otro al final; escribe para quien quiere contratar hoy en la ciudad (barrios o comunas, precios reales de los datos, qué preguntar, cómo pedirlo).` : '',
     c.focusKeywords.length ? `Palabras clave que el equipo quiere empujar: ${c.focusKeywords.join(', ')}.` : '',
     c.competitors.length ? `Sitios de la competencia local (solo para pensar el ángulo; no los nombres ni copies): ${c.competitors.join(', ')}.` : '',
     'El artículo será de más de 600 palabras con preguntas frecuentes. Las respuestas de las preguntas frecuentes deben poder leerse sin el resto del artículo.',

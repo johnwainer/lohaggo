@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
 import { jsonLdScript } from '@/lib/marketing/seo'
+import { tradeTitle } from '@/lib/seo/agent/keywords-core'
 import { RelatedGuides, RELATED_TOPICS } from '@/components/public/RelatedGuides'
 import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } from '@/lib/public/serviceZones'
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
@@ -83,13 +84,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const fromAmount = priceFrom(service, minPartnerPrice ? [minPartnerPrice] : []).amount
   // The visible title is this plus « | LoHaggo»: Google cuts it at ~60 characters
   const fitTitle = (...options: string[]) => options.find((o) => o.length <= 50) ?? options[options.length - 1]
+  // People type «plomero en Medellín», not «plomería»: the trade person leads the title when there is one
+  const trade = tradeTitle(slug)
   const title = verifiedPartners > 0
-    ? fitTitle(`${service.name} a domicilio en Medellín · desde ${pesosCO(fromAmount)}`, `${service.name} en Medellín · desde ${pesosCO(fromAmount)}`, `${service.name} en Medellín`)
+    ? trade
+      ? fitTitle(`${trade} en Medellín · ${service.name} desde ${pesosCO(fromAmount)}`, `${trade} en Medellín · desde ${pesosCO(fromAmount)}`, `${trade} en Medellín`)
+      : fitTitle(`${service.name} a domicilio en Medellín · desde ${pesosCO(fromAmount)}`, `${service.name} en Medellín · desde ${pesosCO(fromAmount)}`, `${service.name} en Medellín`)
     : `${service.name} en Medellín: próximamente`
   const showCount = trust.claims.trust_real_stats && verifiedPartners >= STAT_MINIMUMS.verifiedPartners
   const intro = service.description.trim().replace(/[.\s]+$/, '')
   const description = [
-    `Contrata ${lower} a domicilio en Medellín con profesionales verificados.`,
+    trade ? `Contrata un ${trade.toLowerCase()} en Medellín: ${lower} a domicilio con profesionales verificados.` : `Contrata ${lower} a domicilio en Medellín con profesionales verificados.`,
     intro ? `${intro}.` : '',
     showCount ? `${verifiedPartners} socios verificados disponibles.` : '',
     `Desde ${pesosCO(fromAmount)} COP.`,
@@ -124,6 +129,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ServiceSlugLayout({ params, children }: Props) {
   const { slug } = await params
+  const trade = tradeTitle(slug)
 
   const service = await prisma.service.findUnique({
     where: { slug },
@@ -235,7 +241,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
             {service.category.name} · Medellín, Colombia
           </p>
           <h1 style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', fontWeight: 800, marginBottom: '0.75rem', lineHeight: 1.2 }}>
-            {service.name} en Medellín
+            {trade ? `${trade} en Medellín · ${service.name}` : `${service.name} en Medellín`}
           </h1>
           <p style={{ fontSize: '0.95rem', opacity: 0.9, marginBottom: '1.25rem', maxWidth: '600px', lineHeight: 1.5 }}>
             {service.description}

@@ -142,6 +142,44 @@ export function SearchConsoleCard({ gsc, hasCycle, canEdit = false, onChanged = 
   )
 }
 
+type KwRow = NonNullable<SeoCycleOutput['keywords']>[number]
+
+/** The money keywords: «plomero en Medellín». Where each service stands in Google and the daily web calendar. */
+export function KeywordTracker({ keywords, backlog, gscOk }: { keywords: KwRow[] | undefined; backlog: SeoCycleOutput['webBacklog'] | undefined; gscOk: boolean }) {
+  const [all, setAll] = useState(false)
+  const rows = keywords ?? []
+  const shown = all ? rows : rows.slice(0, 8)
+  const label = (r: KwRow) => (r.position == null ? { text: 'No aparece', cls: 'bg-rose-100 text-rose-700' } : r.position <= 10 ? { text: `Posición ${r.position.toFixed(0)}`, cls: 'bg-emerald-100 text-emerald-800' } : { text: `Posición ${r.position.toFixed(0)}`, cls: 'bg-amber-100 text-amber-800' })
+  return (
+    <section className={card} aria-labelledby="seo-kw">
+      <h2 id="seo-kw" className="flex items-center gap-2 text-base font-bold text-gray-900"><Search size={18} className="text-primary-600" /> Servicio + ciudad en Google</h2>
+      <p className="mt-1 text-xs text-gray-500">Lo que la gente escribe para contratar: «plomero en Medellín», «cerrajero en Medellín». El agente empuja esas páginas con artículos de apoyo, uno al día.</p>
+      {backlog && (
+        <p className="mt-2 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">Calendario del blog: <strong>{backlog.waiting}</strong> artículos esperando de una meta de <strong>{backlog.target}</strong> (uno por día).</p>
+      )}
+      {!gscOk && <p className="mt-3 text-sm text-amber-800">Conecta Search Console para ver en qué posición sale cada búsqueda.</p>}
+      {gscOk && rows.length === 0 && <p className="mt-3 text-sm text-gray-500">Sin datos todavía: pulsa «Ejecutar ahora».</p>}
+      {rows.length > 0 && (
+        <ul className="mt-3 divide-y divide-gray-100 rounded-xl border border-gray-100">
+          {shown.map((r) => {
+            const l = label(r)
+            return (
+              <li key={`${r.slug}-${r.city}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
+                <span className="min-w-0">
+                  <span className="block break-words font-medium text-gray-900">{r.keyword}</span>
+                  <span className="block text-xs text-gray-500">{nf(r.impressions)} impresiones · {nf(r.clicks)} clics{r.page && !r.onServicePage ? ` · sale ${r.page}, no la página del servicio` : ''}</span>
+                </span>
+                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${l.cls}`}>{l.text}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {rows.length > 8 && <button onClick={() => setAll((a) => !a)} className="mt-2 min-h-[44px] text-sm font-semibold text-primary-700 sm:min-h-0">{all ? 'Ver menos' : `Ver los ${rows.length}`}</button>}
+    </section>
+  )
+}
+
 const SEV = {
   critical: { label: 'Grave', cls: 'bg-rose-100 text-rose-700', rank: 0 },
   warning: { label: 'Aviso', cls: 'bg-amber-100 text-amber-800', rank: 1 },

@@ -16,11 +16,12 @@ import { slugify } from '@/lib/marketing/seo'
 import { detectOpportunities, healthScore, scoreOf, type SeoFacts } from '@/lib/seo/agent/audit-core'
 import { BRIEF_TOOL, REPORT_TOOL, SEO_SYSTEM, briefTask, reportTask, sanitizeBrief, sanitizeReport, type BriefContext } from '@/lib/seo/agent/brief-core'
 import { gatherFacts } from '@/lib/seo/agent/facts'
-import { announceNewGuides, processIncoming, sendGuidanceToMarketing } from '@/lib/seo/agent/bus'
+import { TRADE_TERMS, focusLines, searchTerm, trackKeywords } from '@/lib/seo/agent/keywords-core'
+import { announceNewGuides, processIncoming, sendFocusToMarketing, sendGuidanceToMarketing } from '@/lib/seo/agent/bus'
 import { sendBriefToMarketing, webMarketingAgent } from '@/lib/seo/agent/marketing-bridge'
 import { getSeoSettings } from '@/lib/seo/agent/settings'
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
-import { ARTICLE_KINDS, type Candidate, type SeoBrief } from '@/lib/seo/agent/types'
+import { ARTICLE_KINDS, NEW_ARTICLE_KINDS, type Candidate, type SeoBrief } from '@/lib/seo/agent/types'
 
 const logger = createLogger('seo-agent')
 const DAY = 86_400_000
@@ -186,6 +187,7 @@ async function briefContext(c: { kind: Candidate['kind']; title: string; detail:
       candidate: { kind: c.kind, title: c.title, detail: c.detail, keyword: c.keyword, targetUrl: c.targetUrl, evidence: (c.evidence as Record<string, unknown>) ?? undefined },
       serviceName: service?.name ?? null, cityName: city?.name ?? null, facts: lines, pages,
       existingTitles: facts.articles.map((a) => a.title), competitors: config.competitors, focusKeywords: config.focus.keywords,
+      moneyPage: service && c.targetUrl?.startsWith('/servicios/') ? { url: c.targetUrl, keyword: `${searchTerm(service.slug, service.name)} en ${city?.name ?? 'Medellín'}` } : null,
     },
     allowed: pages.map((p) => p.url),
   }
@@ -208,6 +210,12 @@ export async function briefOpportunity(id: string, opts: { trigger?: Trigger; fa
     if (!parsed.ok) throw new SeoError(`El brief no vino completo: ${parsed.errors.join(' · ')}`)
     // The facts a writer may cite are exactly the ones the platform sent, never the model's own
     parsed.value.facts = ctx.facts
+    // The article exists to push a service page: the link with the exact keyword is never left to the model
+    if (ctx.moneyPage) {
+      const link = { url: ctx.moneyPage.url, anchor: ctx.moneyPage.keyword }
+      parsed.value.internalLinks = [link, ...parsed.value.internalLinks.filter((l) => l.url !== link.url)].slice(0, 8)
+      if (opp.citySlug && !parsed.value.internalLinks.some((l) => l.url === `/ciudad/${opp.citySlug}`)) parsed.value.internalLinks.push({ url: `/ciudad/${opp.citySlug}`, anchor: `servicios a domicilio en ${facts.cities.find((c) => c.slug === opp.citySlug)?.name ?? 'la ciudad'}` })
+    }
     await prisma.seoOpportunity.update({ where: { id }, data: { brief: json(parsed.value), briefedAt: new Date(), status: opp.status === 'sent' ? 'sent' : 'briefed', keyword: opp.keyword ?? parsed.value.keyword } })
     return { summary: `Brief de «${parsed.value.keyword}»${parsed.dropped.length ? ` (${parsed.dropped.length} ajustes)` : ''}`, value: parsed.value, output: { keyword: parsed.value.keyword, dropped: parsed.dropped } }
   })
@@ -317,24 +325,34 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
     let reportAdded = 0
     let aiNote: string | null = null
     const lastReport = await prisma.seoRun.findFirst({ where: { type: 'report', status: 'ok' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true } })
-    const due = opts.withAi ?? (opts.force || (bogotaDay(now) === config.weeklyDay && (!lastReport || now.getTime() - lastReport.startedAt.getTime() > 5 * DAY)))
-    if (due) {
+    const weeklyDue = bogotaDay(now) === config.weeklyDay && (!lastReport || now.getTime() - lastReport.startedAt.getTime() > 5 * DAY)
+    const aiAllowed = opts.withAi !== false
+    const reportDue = aiAllowed && (opts.withAi === true || weeklyDue)
+    // The daily backlog: keep `webPostsAhead` web articles waiting in the marketing agent's calendar (one a day)
+    const waiting = config.autoSendToMarketing ? await waitingWebIdeas(now) : 0
+    const need = config.autoSendToMarketing ? Math.max(0, config.webPostsAhead - waiting) : 0
+    const briefsWanted = !aiAllowed ? 0 : config.autoSendToMarketing ? Math.min(config.briefsPerCycle, Math.max(need, opts.withAi === true ? 1 : 0)) : reportDue ? config.briefsPerCycle : 0
+    if (briefsWanted > 0 || reportDue) {
       const blocked = await spendBlock(config, now)
       if (blocked) aiNote = blocked
       else {
-        const pending = await prisma.seoOpportunity.findMany({ where: { status: 'open', kind: { in: [...ARTICLE_KINDS] }, brief: { equals: Prisma.DbNull } }, orderBy: { score: 'desc' }, take: config.briefsPerCycle })
+        const pending = await prisma.seoOpportunity.findMany({ where: { status: { in: ['open', 'briefed'] }, kind: { in: [...NEW_ARTICLE_KINDS] }, marketingIdeaId: null }, orderBy: { score: 'desc' }, take: Math.max(1, briefsWanted) * 3 })
+        let done = 0
         for (const o of pending) {
+          if (done >= briefsWanted) break
           if (Date.now() > deadline - 70_000) { aiNote = 'Se cortó por tiempo; el resto sigue en el próximo ciclo'; break }
           try {
-            const brief = await briefOpportunity(o.id, { trigger: opts.trigger, facts, config })
-            briefs++
+            // Already briefed ones only need sending (no model call)
+            let brief = o.brief as SeoBrief | null
+            if (!brief) { brief = await briefOpportunity(o.id, { trigger: opts.trigger, facts, config }); briefs++ }
             if (config.autoSendToMarketing) await sendOne(o.id, brief, config)
+            done++
           } catch (err) {
             aiNote = err instanceof Error ? err.message : 'Falló un brief'
             if (/Presupuesto|IA no está configurada/.test(aiNote)) break
           }
         }
-        if (Date.now() < deadline - 50_000 && !(await spendBlock(config, now))) {
+        if (reportDue && Date.now() < deadline - 50_000 && !(await spendBlock(config, now))) {
           const rep = await writeReport(facts, candidates, config, opts.trigger, top, rows.length ? { clicks, impressions } : null, incoming.learnings)
           if (rep.ok) reportAdded = rep.value.added
           else aiNote = rep.error
@@ -342,12 +360,16 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
       }
     }
 
+    // Where each service+city stands in Google, and what marketing should push this week (rules, no model)
+    const keywordRows = facts.gsc ? trackKeywords(trackedServices(facts), activeCities(facts), facts.gsc.rows) : []
+    if (keywordRows.length) await sendFocusToMarketing(focusLines(keywordRows, 5), now)
+
     const gscState = !config.gsc.enabled ? { state: 'off' as const, message: 'Apagado en la configuración' } : gsc == null ? { state: 'error' as const, message: 'No se pudo consultar' } : gsc.ok ? { state: 'ok' as const, message: `${gsc.rows.length} combinaciones de búsqueda y página, ${gsc.from} a ${gsc.to}` } : { state: gsc.reason, message: gsc.message, serviceEmail: gsc.serviceEmail ?? null }
     const summary = [`Salud ${health.score}/100`, `${candidates.length} hallazgos (${synced.created} nuevos${synced.closed ? `, ${synced.closed} resueltos` : ''})`, briefs ? `${briefs} briefs` : '', reportAdded ? `${reportAdded} propuestas de la IA` : '', aiNote ? `IA: ${aiNote}` : ''].filter(Boolean).join(' · ')
     return {
       summary, value: { created: synced.created, closed: synced.closed + synced.published, briefs, reportAdded },
       output: {
-        health, gsc: { ...gscState, days: facts.gsc?.days ?? null, clicks, impressions, top, topPages, indexing },
+        health, keywords: keywordRows.sort((a, b) => b.impressions - a.impressions || (a.position ?? 999) - (b.position ?? 999)).slice(0, 40), webBacklog: { waiting, target: config.webPostsAhead }, gsc: { ...gscState, days: facts.gsc?.days ?? null, clicks, impressions, top, topPages, indexing },
         pages: facts.pages.map((p) => ({ path: p.path, status: p.status, words: p.words, issues: p.issues.map((i) => ({ code: i.code, severity: i.severity, message: i.message })) })),
         bus: { requestsReceived: incoming.requests, learningsHeard: incoming.learnings.length }, counts: { services: facts.services.length, articles: facts.articles.length, zeroSearches: facts.zeroSearches.length, thinPartnerProfiles: facts.thinPartnerProfiles }, unavailable, aiNote,
       },
@@ -355,6 +377,18 @@ export async function runSeoCycle(opts: { trigger: Trigger; force?: boolean; wit
   })
   if (!outcome.ok) return { ok: false, runId: outcome.runId, summary: outcome.error, error: outcome.error }
   return { ok: true, runId: outcome.runId, summary: outcome.summary, ...outcome.value }
+}
+
+/** Web ideas (from SEO or the planner) still waiting to become an article: the calendar's runway. */
+async function waitingWebIdeas(now: Date) {
+  return prisma.marketingIdea.count({ where: { channels: { has: 'WEB' }, status: { in: ['proposed', 'accepted'] }, postId: null, targetDate: { gte: new Date(now.getTime() - DAY) } } }).catch(() => 0)
+}
+
+const activeCities = (f: SeoFacts) => f.cities.filter((c) => c.status === 'ACTIVE')
+/** Services worth following: with partners in an open city, those people search by trade first, then the most requested. */
+function trackedServices(f: SeoFacts) {
+  const withSupply = new Set(f.supply.filter((s) => s.partners > 0).map((s) => s.serviceSlug))
+  return f.services.filter((s) => withSupply.has(s.slug)).sort((a, b) => Number(Boolean(TRADE_TERMS[b.slug])) - Number(Boolean(TRADE_TERMS[a.slug])) || b.requests90d - a.requests90d).slice(0, 25)
 }
 
 async function sendOne(id: string, brief: SeoBrief, config: SeoConfig) {

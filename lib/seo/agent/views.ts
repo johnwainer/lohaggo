@@ -17,7 +17,11 @@ export type SeoOpportunityView = {
   marketingIdeaId: string | null; dismissedReason: string | null; createdAt: string; resolvedAt: string | null
 }
 
+export type SeoKeywordRow = { service: string; slug: string; city: string; keyword: string; impressions: number; clicks: number; position: number | null; page: string | null; onServicePage: boolean }
+
 export type SeoCycleOutput = {
+  keywords?: SeoKeywordRow[]
+  webBacklog?: { waiting: number; target: number }
   health?: { score: number; parts: Array<{ label: string; score: number }> }
   gsc?: { state: 'ok' | 'off' | 'no_account' | 'no_access' | 'error'; message: string; serviceEmail?: string | null; days: number | null; clicks: number; impressions: number; top: Array<{ query: string; clicks: number; impressions: number; position: number }>; topPages: Array<{ path: string; clicks: number; impressions: number }>; indexing?: { inspected: number; indexed: number; notIndexed: Array<{ path: string; coverage: string }> } | null }
   pages?: Array<{ path: string; status: number | null; words: number; issues: Array<{ code: string; severity: 'critical' | 'warning' | 'info'; message: string }> }>

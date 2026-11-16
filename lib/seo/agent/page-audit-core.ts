@@ -65,6 +65,7 @@ export function auditHtml(html: string, input: { url: string; path: string; stat
   const robots = meta(html, 'robots')
   const canonical = html.match(/<link[^>]+rel=["']canonical["'][^>]*>/i)?.[0]?.match(/href=["']([^"']*)["']/i)?.[1] ?? null
   const h1Count = (html.match(/<h1[\s>]/gi) ?? []).length
+  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]?.replace(/<[^>]+>/g, ' ')
   const imgs = html.match(/<img\b[^>]*>/gi) ?? []
   // alt="" is valid for decorative images; only a missing attribute counts
   const imagesWithoutAlt = imgs.filter((t) => !/\balt=/i.test(t)).length
@@ -95,5 +96,5 @@ export function auditHtml(html: string, input: { url: string; path: string; stat
   if (ld.includes('invalid')) add('structured_data_invalid', 'warning', 'Datos estructurados con JSON inválido')
   if (words < 150 && kind !== 'other' && !noindex) add('thin', 'info', `Solo ${words} palabras visibles`)
 
-  return { url: input.url, path: input.path, status: input.status, title: t, description, h1Count, canonical, robots, jsonLd: ld, imagesWithoutAlt, words, issues }
+  return { url: input.url, path: input.path, status: input.status, title: t, description, h1Count, h1: h1 ? decode(h1) : null, canonical, robots, jsonLd: ld, imagesWithoutAlt, words, issues }
 }

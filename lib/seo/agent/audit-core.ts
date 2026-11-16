@@ -3,6 +3,7 @@
  * No model here: the rules decide what is worth a brief, the model only writes it.
  */
 import type { SeoConfig } from '@/lib/seo/agent/settings-core'
+import { TRADE_TERMS, anglesFor, queryMatches, searchTerm } from '@/lib/seo/agent/keywords-core'
 import type { Candidate, GscRow, Level, OpportunityKind, PageAudit } from '@/lib/seo/agent/types'
 
 export const SITE = 'https://www.lohaggo.com'
@@ -64,31 +65,81 @@ function focusOf(config: SeoConfig, o: { service?: string | null; city?: string 
   )
 }
 
-/** Services × cities with supply and demand that no published article covers. */
-function serviceCityGaps(f: SeoFacts, config: SeoConfig): Candidate[] {
+/**
+ * The core of the SEO work: «plomero en Medellín», «cerrajero en Medellín». For each service with partners in an
+ * open city: (1) does its page name the trade person and the city, (2) does Google show it for those words, and
+ * (3) which supporting articles (price, urgency, how to choose, near me…) still do not exist. Each article is one
+ * long-tail search that links to the service page. Best first; the marketing agent publishes them one a day.
+ */
+function serviceCityKeywords(f: SeoFacts, config: SeoConfig): Candidate[] {
   const out: Candidate[] = []
   const svc = new Map(f.services.map((s) => [s.slug, s]))
   const city = new Map(f.cities.filter((c) => c.status === 'ACTIVE').map((c) => [c.slug, c]))
+  const gscServices = new Set<string>()
+  if (f.gsc) for (const s of f.services) if (f.gsc.rows.some((r) => queryMatches(r.query, s.slug, s.name, 'medellin'))) gscServices.add(s.slug)
   for (const row of f.supply) {
     const s = svc.get(row.serviceSlug)
     const c = city.get(row.citySlug)
     if (!s || !c || row.partners < 1) continue
-    const covered = f.articles.some((a) => norm(a.haystack).includes(norm(s.name)) && norm(a.haystack).includes(norm(c.name)))
-    if (covered) continue
-    const impact: Level = row.requests90d > 0 || s.popular ? 'high' : 'medium'
-    out.push({
-      kind: 'content_gap',
-      title: `${s.name} en ${c.name}: ningún artículo lo cubre`,
-      detail: `Hay ${row.partners} ${row.partners === 1 ? 'socio verificado' : 'socios verificados'} y ${row.requests90d} solicitudes en 90 días, pero el blog no tiene una guía de ${s.name.toLowerCase()} en ${c.name}.`,
-      targetUrl: `/servicios/${s.slug}`,
-      keyword: `${s.name.toLowerCase()} en ${c.name}`,
-      serviceSlug: s.slug, citySlug: c.slug, impact, effort: 'medium', source: 'rules',
-      evidence: { partners: row.partners, requests90d: row.requests90d },
-      dedupeKey: `gap:${s.slug}:${c.slug}`,
-      score: scoreOf({ impact, effort: 'medium', demand: row.requests90d * 3 + row.partners, focus: focusOf(config, { service: s.slug, city: c.slug }) }),
-    })
+    const term = searchTerm(s.slug, s.name)
+    const money = `/servicios/${s.slug}`
+    const demand = row.requests90d * 3 + row.partners
+    const focus = focusOf(config, { service: s.slug, city: c.slug })
+    const visible = gscServices.has(s.slug)
+
+    // (1) The page itself names what people type
+    const page = f.pages.find((p) => p.path === money)
+    if (page && TRADE_TERMS[s.slug]) {
+      const text = norm(`${page.title ?? ''} ${page.h1 ?? ''} ${page.description ?? ''}`)
+      if (!text.includes(norm(term)) || !text.includes(norm(c.name))) {
+        out.push({
+          kind: 'meta', title: `${money} no dice «${term} en ${c.name}» en su título, encabezado y descripción`,
+          detail: `La gente busca «${term} en ${c.name}», no «${s.name.toLowerCase()}». Poner esas palabras en el título, el h1 y la descripción de la página es el cambio de más impacto para esa búsqueda.`,
+          targetUrl: money, keyword: `${term} en ${c.name}`, serviceSlug: s.slug, citySlug: c.slug, impact: 'high', effort: 'low', source: 'rules',
+          evidence: { title: page.title, h1: page.h1 }, dedupeKey: `kw-onpage:${s.slug}:${c.slug}`, score: scoreOf({ impact: 'high', effort: 'low', demand: demand + 10, focus }),
+        })
+      }
+    }
+
+    // (2) Search Console: the money keyword does not show up at all
+    if (f.gsc && !visible && s.partners >= 3 && (row.requests90d > 0 || s.popular || focus)) {
+      out.push({
+        kind: 'refresh', title: `«${term} en ${c.name}» no aparece en Google`,
+        detail: `Con ${row.partners} socios y ${row.requests90d} solicitudes, la página ${money} no recibe impresiones por esa búsqueda en 28 días. Reforzarla (título con «${term}», preguntas frecuentes, enlaces desde artículos de apoyo).`,
+        targetUrl: money, keyword: `${term} en ${c.name}`, serviceSlug: s.slug, citySlug: c.slug, impact: 'high', effort: 'medium', source: 'gsc',
+        evidence: { partners: row.partners, requests90d: row.requests90d }, dedupeKey: `kw-invisible:${s.slug}:${c.slug}`, score: scoreOf({ impact: 'high', effort: 'medium', demand: demand + 12, focus }),
+      })
+    }
+
+    // (3) Supporting articles that do not exist yet
+    for (const angle of anglesFor(s.slug)) {
+      const covered = f.articles.some((a) => {
+        const h = norm(a.haystack)
+        return (h.includes(norm(term)) || h.includes(norm(s.name))) && h.includes(norm(c.name)) && angle.covers.test(a.haystack)
+      })
+      if (covered) continue
+      const impact: Level = angle.weight >= 0.9 && (row.requests90d > 0 || s.popular || visible) ? 'high' : 'medium'
+      const keyword = angle.keyword(term, c.name)
+      out.push({
+        kind: 'content_gap', title: `Artículo: «${keyword}»`,
+        detail: `Apoya a ${money}: ${angle.label.toLowerCase()} de ${term} en ${c.name}. ${row.partners} socios verificados y ${row.requests90d} solicitudes en 90 días. Enlaza a la página del servicio con la palabra clave exacta.`,
+        targetUrl: money, keyword, serviceSlug: s.slug, citySlug: c.slug, impact, effort: 'medium', source: 'rules',
+        evidence: { angle: angle.id, partners: row.partners, requests90d: row.requests90d }, dedupeKey: `kw:${s.slug}:${c.slug}:${angle.id}`,
+        score: scoreOf({ impact, effort: 'medium', demand: (demand + (visible ? 8 : 0)) * angle.weight, focus }),
+      })
+    }
   }
-  return out.sort((a, b) => b.score - a.score).slice(0, 15)
+  // A service must not take the whole backlog: the best three angles of each service enter, then the rest wait
+  const perService = new Map<string, number>()
+  return out
+    .sort((a, b) => b.score - a.score)
+    .filter((c) => {
+      if (c.kind !== 'content_gap') return true
+      const n = perService.get(c.serviceSlug ?? '') ?? 0
+      perService.set(c.serviceSlug ?? '', n + 1)
+      return n < 3
+    })
+    .slice(0, 80)
 }
 
 function zeroResultSearches(f: SeoFacts, config: SeoConfig): Candidate[] {
@@ -331,7 +382,7 @@ const EVERGREEN: Candidate[] = [
 /** Every candidate the rules find today, best first. Evergreen items enter once and stay until someone decides. */
 export function detectOpportunities(f: SeoFacts, config: SeoConfig): Candidate[] {
   const all = [
-    ...serviceCityGaps(f, config),
+    ...serviceCityKeywords(f, config),
     ...zeroResultSearches(f, config),
     ...botQuestions(f, config),
     ...fromSearchConsole(f, config),
