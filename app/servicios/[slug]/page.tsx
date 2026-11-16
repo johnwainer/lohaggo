@@ -891,7 +891,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
             <ServiceIcon slug={service.slug} emoji={service.icon} size="lg" />
             <div className="flex-1 w-full">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 md:mb-2">
-                <h1 className="text-2xl md:text-3xl font-bold">{service.name}</h1>
+                {/* The page's only h1 and the description live in the server-rendered hero (layout): repeating them here after hydration made this block the LCP and a second h1 */}
+                <p className="text-2xl md:text-3xl font-bold">{service.name}</p>
                 <span className="bg-primary-100 text-primary-700 text-xs md:text-sm font-medium px-3 py-1 rounded-full w-fit">
                   {service.category.name}
                 </span>
@@ -912,7 +913,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   </button>
                 )}
               </div>
-              <p className="text-gray-600 text-base md:text-lg mb-4 md:mb-6">{service.description}</p>
+              <div className="mb-4 md:mb-6" />
 
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 md:gap-6">
                 <div className="flex items-center gap-2">
