@@ -5,6 +5,7 @@
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { resolvePriceInfo, type PriceInfo } from '@/lib/seo/prices'
+import { buildPriceIndex, WINDOW_DAYS } from '@/lib/seo/price-index-core'
 
 const VERIFIED = { active: true, partner: { verified: true, isActive: true } }
 
@@ -121,4 +122,32 @@ export async function reviewedPartnersOfService(serviceId: string, take = 6) {
       user: { select: { name: true, image: true } },
     },
   })
+}
+
+async function loadPriceIndex() {
+  const since = new Date(Date.now() - 2 * WINDOW_DAYS * 24 * 3600 * 1000)
+  const [catalog, proposals] = await Promise.all([
+    loadCatalog(),
+    prisma.proposal.findMany({
+      where: { price: { gt: 0 }, createdAt: { gte: since } },
+      select: { price: true, partnerId: true, createdAt: true, serviceRequest: { select: { serviceId: true } } },
+      take: 50000,
+    }),
+  ])
+  const idx = buildPriceIndex(
+    proposals.map((p) => ({ price: p.price, partnerId: p.partnerId, createdAt: p.createdAt, serviceId: p.serviceRequest.serviceId })),
+    catalog.filter((s) => s.partners > 0).map((s) => ({ id: s.id, name: s.name, slug: s.slug, category: s.category.name })),
+  )
+  return { ...idx, updatedAt: new Date().toISOString() }
+}
+
+/** Índice de precios del hogar (90 días contra los 90 anteriores); cache de un día. */
+export const getPriceIndex = unstable_cache(loadPriceIndex, ['seo-price-index-v1'], { revalidate: 86400 })
+
+export async function getPriceIndexSafe() {
+  try {
+    return await getPriceIndex()
+  } catch {
+    return null
+  }
 }

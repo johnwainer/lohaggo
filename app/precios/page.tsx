@@ -66,6 +66,14 @@ export default async function PreciosPage() {
           {data && <> Actualizado el {fmtDate(data.updatedAt)}.</>}
         </p>
 
+        <Link href="/precios/indice" className="mt-5 flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border border-primary-100 bg-primary-50 px-5 py-4 hover:bg-primary-100/60">
+          <span>
+            <span className="block font-bold text-gray-900">Índice de precios del hogar</span>
+            <span className="block text-sm text-gray-600">Cómo cambiaron los precios en los últimos 90 días, servicio por servicio.</span>
+          </span>
+          <span aria-hidden className="text-primary-700">›</span>
+        </Link>
+
         {items.length > 0 ? (
           <ul className="mt-8 divide-y divide-gray-100 rounded-3xl border border-gray-100 bg-white shadow-sm">
             {items.map((s) => (

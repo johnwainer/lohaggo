@@ -64,6 +64,7 @@ export function buildLlmsTxt(i: LlmsInput): string {
   L.push('## Páginas clave')
   L.push(`- [Catálogo de servicios](${SITE_URL}/servicios)`)
   L.push(`- [Precios de referencia por servicio](${SITE_URL}/precios)`)
+  L.push(`- [Índice de precios del hogar en Medellín (mediana por servicio y variación en 90 días; CSV descargable)](${SITE_URL}/precios/indice)`)
   L.push(`- [Cómo funciona](${SITE_URL}/how-it-works)`)
   L.push(`- [Garantía](${SITE_URL}/garantia)`)
   L.push(`- [Preguntas frecuentes](${SITE_URL}/faq)`)
