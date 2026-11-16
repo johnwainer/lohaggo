@@ -5,6 +5,7 @@ import { cache } from 'react'
 import { getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
 import { jsonLdScript } from '@/lib/marketing/seo'
 import ReactDOM from 'react-dom'
+import { loadPublicService } from '@/lib/services/public-service'
 import { tradeTitle } from '@/lib/seo/agent/keywords-core'
 import { RelatedGuides, RELATED_TOPICS } from '@/components/public/RelatedGuides'
 import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } from '@/lib/public/serviceZones'
@@ -144,6 +145,8 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
   const trade = tradeTitle(slug)
   // The client page asks this endpoint after hydration (the content of the page waits for it): start the request with the HTML
   ReactDOM.preload(`/api/services/${slug}?city=medellin`, { as: 'fetch', crossOrigin: 'anonymous' })
+  // The same data goes inside the HTML: the page paints its content at hydration without waiting for a request
+  const embedded = await loadPublicService(slug, 'medellin').catch(() => null)
 
   const service = await prisma.service.findUnique({
     where: { slug },
@@ -277,6 +280,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
           </div>
         </div>
       </section>
+      {embedded?.ok && <script id="service-data" type="application/json" dangerouslySetInnerHTML={{ __html: JSON.stringify(embedded.data).replace(/</g, '\\u003c') }} />}
       {children}
       {/* Rich server-rendered content block — ensures Google never sees a thin page */}
       <section style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb', padding: '2.5rem 1.5rem' }}>

@@ -220,6 +220,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const fetchService = async () => {
     try {
       const citySlug = localStorage.getItem('selectedCity') || 'medellin'
+      // The server put the data of the default city in the HTML: paint with it now, then refresh from the API below
+      if (citySlug === 'medellin') {
+        try {
+          const raw = document.getElementById('service-data')?.textContent
+          const embedded = raw ? JSON.parse(raw) : null
+          if (embedded?.id && embedded.slug === slug) { setService(embedded); setLoading(false) }
+        } catch { /* the request below fills it */ }
+      }
       const res = await fetch(`/api/services/${slug}?city=${citySlug}`)
       if (!res.ok) { setLoading(false); return }
       const data = await res.json()
