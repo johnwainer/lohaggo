@@ -67,3 +67,38 @@ describe('search intent', () => {
     expect(names('de')).not.toContain('Depilación')
   })
 })
+
+describe('sinónimos de oficios y errores de tipeo', () => {
+  const full = [
+    svc('Mensajería', 'Servicios'), svc('Polarizado de vidrios', 'Auto'), svc('Animación infantil', 'Eventos'), svc('Decoración de eventos', 'Eventos'),
+    svc('Entrenamiento canino', 'Mascotas'), svc('Clases de música', 'Clases'), svc('Costura y arreglos', 'Hogar'), svc('Mecánica a domicilio', 'Auto'),
+    svc('Cambio de aceite', 'Auto'), svc('Asesoría contable', 'Asesoría'), svc('Arquitectura', 'Asesoría'), svc('Masajes', 'Salud'), svc('Plomería', 'Hogar'),
+    svc('Comida Saludable a Domicilio', 'Comida'), svc('Cuidado de mascotas', 'Mascotas'), svc('Reparación de computadoras', 'Tecnología'),
+  ]
+  const first = (q: string) => (rankByIntent(full, q) ?? []).map((s) => s.name)[0]
+
+  it.each([
+    ['mensajero', 'Mensajería'],
+    ['polarizar mi carro', 'Polarizado de vidrios'],
+    ['payaso para cumpleaños', 'Animación infantil'],
+    ['adiestrador de perros', 'Entrenamiento canino'],
+    ['clases de guitarra', 'Clases de música'],
+    ['modista', 'Costura y arreglos'],
+    ['arreglar ropa', 'Costura y arreglos'],
+    ['mecánico', 'Mecánica a domicilio'],
+    ['cambiar aceite', 'Cambio de aceite'],
+    ['contador', 'Asesoría contable'],
+    ['arquitecto', 'Arquitectura'],
+    ['gasfitero', 'Plomería'],
+    ['borrar virus', 'Reparación de computadoras'],
+  ])('«%s» lleva a %s', (q, expected) => expect(first(q)).toBe(expected))
+
+  it('tolera un error de tipeo en palabras largas', () => {
+    expect(first('madajes')).toBe('Masajes')
+    expect(first('plomeo')).toBe('Plomería')
+  })
+
+  it('no confunde palabras cortas parecidas', () => {
+    expect(detectIntentTargets('pared')).not.toEqual(detectIntentTargets('parte'))
+  })
+})

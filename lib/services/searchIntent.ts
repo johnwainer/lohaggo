@@ -116,6 +116,43 @@ export const INTENTS: Intent[] = [
     targets: ['albanil', 'construcc', 'obra', 'remodel'],
   },
   { words: ['piscina', 'piscinas', 'alberca', 'jacuzzi', 'sauna'], targets: ['piscina'] },
+  { words: ['mensajero', 'mensajeria', 'domiciliario', 'domicilios', 'paquete', 'paquetes', 'envio', 'envios'], targets: ['mensajer', 'lohaggo ya'] },
+  { words: ['polarizar', 'polarizado', 'polarizados'], targets: ['polariz'] },
+  {
+    phrases: ['fiesta infantil', 'fiestas infantiles', 'show infantil'],
+    words: ['globos', 'payaso', 'recreacionista', 'recreacion', 'animador', 'animacion', 'cumpleanos', 'pinata'],
+    targets: ['animacion', 'decoracion de eventos'],
+  },
+  { words: ['adiestrador', 'adiestramiento', 'obediencia', 'amaestrar', 'entrenador canino'], phrases: ['entrenar perro', 'educar perro'], targets: ['entrenamiento canino'] },
+  { words: ['guitarra', 'piano', 'violin', 'canto', 'bateria', 'ukelele', 'musica', 'musical'], targets: ['clases de musica', 'musica'] },
+  { words: ['ingles', 'frances', 'aleman', 'portugues', 'idioma', 'idiomas', 'italiano'], targets: ['idiomas'] },
+  { words: ['modista', 'sastre', 'costura', 'costurera', 'dobladillo', 'bastilla', 'cremallera', 'bordado'], phrases: ['arreglar ropa', 'arreglo ropa', 'arreglos ropa', 'ajustar ropa'], targets: ['costura'] },
+  { words: ['veterinario', 'veterinaria', 'vacuna', 'vacunas', 'desparasitar'], targets: ['veterinaria'] },
+  { words: ['psicologo', 'psicologa', 'psicologia', 'ansiedad', 'depresion', 'terapeuta'], targets: ['psicolog'] },
+  { words: ['enfermera', 'enfermero', 'enfermeria', 'inyeccion', 'inyecciones', 'curaciones'], targets: ['enfermeria', 'inyecciones'] },
+  { words: ['fotografo', 'fotografa', 'fotografia', 'fotos'], targets: ['fotograf'] },
+  { words: ['contador', 'contadora', 'contabilidad', 'contable', 'impuestos', 'dian', 'tributario'], targets: ['contable'] },
+  { words: ['abogado', 'abogada', 'legal'], targets: ['legal'] },
+  { words: ['arquitecto', 'arquitecta', 'arquitectura', 'planos'], targets: ['arquitect'] },
+  { words: ['fisioterapeuta', 'fisioterapia', 'fisio', 'rehabilitacion'], targets: ['fisioterapia'] },
+  { words: ['entrenador', 'entrenadora', 'gimnasio'], phrases: ['personal trainer'], targets: ['entrenador personal'] },
+  { words: ['nutricionista', 'nutricion', 'dieta'], targets: ['nutricion'] },
+  { words: ['mecanico', 'mecanica', 'frenos', 'embrague', 'suspension', 'bateria carro'], phrases: ['mecanico domicilio'], targets: ['mecanica', 'cambio de aceite'] },
+  { words: ['aceite', 'lubricante'], phrases: ['cambio aceite', 'cambiar aceite'], targets: ['cambio de aceite', 'mecanica'] },
+  { words: ['autolavado', 'lavadero'], phrases: ['lavar carro', 'lavar carros', 'lavado carro', 'lavado carros', 'lavar moto', 'lavado auto', 'lavar auto'], targets: ['lavado de autos'] },
+  { words: ['gasfitero', 'gasfiter'], targets: ['plomer'] },
+  { words: ['formatear', 'formateo', 'virus', 'antivirus', 'windows'], phrases: ['tarjeta video', 'pantalla azul', 'no prende'], targets: ['computadoras', 'soporte tecnico'] },
+  { words: ['playstation', 'ps4', 'ps5', 'xbox', 'nintendo', 'consola', 'consolas'], targets: ['consolas'] },
+  { words: ['persiana', 'persianas', 'cortina', 'cortinas', 'blackout'], targets: ['persianas', 'cortinas'] },
+  { words: ['drywall', 'cielorraso', 'superboard', 'dry wall'], phrases: ['cielo raso'], targets: ['cielo raso'] },
+  { words: ['solares', 'fotovoltaico', 'paneles'], targets: ['paneles solares'] },
+  { words: ['bicicleta', 'bicicletas', 'bici', 'ciclismo'], targets: ['bicicletas'] },
+  { words: ['catering', 'banquete', 'banquetes', 'pasaboca', 'pasabocas'], targets: ['catering'] },
+  { words: ['chef', 'cocinero', 'cocinera'], targets: ['chef'] },
+  { words: ['torta', 'tortas', 'pastel', 'pasteles', 'cupcakes', 'postre', 'postres', 'reposteria'], targets: ['reposter'] },
+  { words: ['sofa', 'sofas', 'colchon', 'colchones', 'tapizado', 'tapiceria', 'tapicero'], targets: ['tapiceria', 'tapizados'] },
+  { words: ['herrero', 'herreria', 'reja', 'rejas', 'porton', 'portones', 'baranda', 'barandas', 'soldador', 'soldadura'], targets: ['herreria', 'soldadura'] },
+  { words: ['paseador', 'paseo', 'pasear'], phrases: ['pasear perro', 'paseo perros', 'paseador perros'], targets: ['paseo de perros'] },
   {
     words: ['diligencia', 'diligencias', 'encargo', 'mandado', 'domicilio'],
     targets: ['lohaggo ya', 'favor'],
@@ -131,8 +168,20 @@ export function queryTokens(q: string): string[] {
   return normalizeText(q).split(' ').filter((t) => t && !STOPWORDS.has(t))
 }
 
+/** True when the two strings differ by at most one insertion, deletion or substitution. */
+function withinOneEdit(a: string, b: string) {
+  if (Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  while (i < a.length && i < b.length && a[i] === b[i]) i++
+  if (i === a.length || i === b.length) return true
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1)
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1)
+}
+
 function wordMatches(token: string, word: string) {
-  return token === word || (word.length >= 4 && token.startsWith(word) && token.length - word.length <= 3)
+  if (token === word || (word.length >= 4 && token.startsWith(word) && token.length - word.length <= 3)) return true
+  // A one-letter typo («madajes», «plomeo») only counts for longer words, so short ones never match by accident
+  return word.length >= 6 && token.length >= 6 && withinOneEdit(token, word)
 }
 
 /** Name-fragment targets the query points to, most relevant intent first. */
