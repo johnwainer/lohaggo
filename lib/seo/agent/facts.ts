@@ -6,6 +6,8 @@
  */
 import { prisma } from '@/lib/prisma'
 import { getPricesSafe, PRICE_PAGE_LIMIT } from '@/lib/seo/data'
+import { autoLinkMarkdown, buildRules } from '@/lib/seo/autolink-core'
+import { serviceZonePath } from '@/lib/public/serviceZones'
 import { partnerIsIndexable } from '@/lib/seo/indexing'
 import { stripMarkdown } from '@/lib/marketing/seo'
 import type { SeoFacts } from '@/lib/seo/agent/audit-core'
@@ -98,6 +100,9 @@ export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadlin
   const citySlugByEnum = new Map(cities.map((c) => [cityEnum(c.name), c.slug]))
   const demandByPair = new Map(requestsByCity.map((r) => [`${r.serviceId}:${r.city}`, r._count._all]))
 
+  // The blog shows each article with automatic links to the services it names: count them too, or the detector would ask for what the page already has
+  const autoRules = buildRules({ services: services.filter((s) => s._count.partners > 0).map((s) => ({ slug: s.slug, name: s.name.trim() })), priceSlugs: prices ? prices.items.slice(0, PRICE_PAGE_LIMIT).map((s) => s.slug) : [], zones: [], zonePath: serviceZonePath })
+
   const facts: SeoFacts = {
     now,
     services: services.map((s) => ({ slug: s.slug, name: s.name.trim(), category: s.category?.name ?? '', partners: s._count.partners, popular: s.popular, requests90d: demandBy.get(s.id) ?? 0, reviews: anyBy.get(s.id) ?? 0, goodReviews: goodBy.get(s.id) ?? 0 })),
@@ -112,7 +117,7 @@ export async function gatherFacts(config: SeoConfig, opts: { now?: Date; deadlin
       return {
         slug: v.slug!, title: v.post.title, publishedAt: v.webPublishedAt!, updatedAt: new Date(Math.max(v.updatedAt.getTime(), v.post.updatedAt.getTime())),
         words: text ? text.split(' ').length : 0, seoTitle: v.seoTitle, seoDescription: v.seoDescription, category: v.category, tags: v.tags,
-        links: internalLinks(v.body), haystack: [v.post.title, v.tags.join(' '), v.category ?? '', v.slug ?? '', v.seoTitle ?? ''].join(' '), bodyText: text, views: viewsBy.get(v.id) ?? 0,
+        links: internalLinks(autoLinkMarkdown(v.body, autoRules)), haystack: [v.post.title, v.tags.join(' '), v.category ?? '', v.slug ?? '', v.seoTitle ?? ''].join(' '), bodyText: text, views: viewsBy.get(v.id) ?? 0,
       }
     }),
     zeroSearches: zero.map((z) => ({ term: z.normalized, count: z._count._all })),

@@ -8,6 +8,8 @@ import ViewBeacon from '@/components/blog/ViewBeacon'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 import { getTopServicesSafe, type TopService } from '@/lib/public/topServices'
+import { getPricesSafe, PRICE_PAGE_LIMIT } from '@/lib/seo/data'
+import { autoLinkMarkdown, buildRules } from '@/lib/seo/autolink-core'
 import { normalizeText, rankByIntent } from '@/lib/services/searchIntent'
 import { blogWaMessage } from '@/lib/public/whatsapp'
 import { focusZones, isFocusService, serviceZonePath } from '@/lib/public/serviceZones'
@@ -73,7 +75,14 @@ export default async function ArticlePage({ params }: Props) {
   }
   const cover = a.coverUrl || a.post.media[0]?.url || null
   const description = a.seoDescription || a.excerpt || makeExcerpt(a.body, 158)
-  const [related, service] = await Promise.all([relatedArticles(a.id, a.category, a.tags), serviceForPost(a.tags, a.post.title)])
+  const [related, service, allServices, prices] = await Promise.all([relatedArticles(a.id, a.category, a.tags), serviceForPost(a.tags, a.post.title), getTopServicesSafe(200), getPricesSafe()])
+  const linkedBody = autoLinkMarkdown(a.body, buildRules({
+    services: allServices.map((s) => ({ slug: s.slug, name: s.name })),
+    ownServiceSlug: service?.slug ?? null,
+    priceSlugs: prices ? prices.items.slice(0, PRICE_PAGE_LIMIT).map((s) => s.slug) : [],
+    zones: service && isFocusService(service.slug) ? focusZones() : [],
+    zonePath: serviceZonePath,
+  }))
   const faq = extractFaq(a.body)
   const jsonLd = [
     ...(faq.length >= 2 ? [faqPageJsonLd(faq)] : []),
@@ -106,7 +115,7 @@ export default async function ArticlePage({ params }: Props) {
         )}
         <div
           className="mt-8 text-[17px] leading-8 text-gray-800 [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-gray-900 [&_h3]:mt-8 [&_h3]:mb-2 [&_h3]:text-xl [&_h3]:font-semibold [&_h4]:mt-6 [&_h4]:font-semibold [&_p]:my-4 [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary-700 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-600 [&_img]:my-6 [&_img]:rounded-2xl [&_code]:rounded [&_code]:bg-gray-100 [&_code]:px-1 [&_pre]:my-6 [&_pre]:overflow-x-auto [&_pre]:rounded-2xl [&_pre]:bg-gray-900 [&_pre]:p-4 [&_pre]:text-gray-100 [&_hr]:my-10"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(a.body) }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(linkedBody) }}
         />
         {a.tags.length > 0 && (
           <div className="mt-8 flex flex-wrap gap-2">
