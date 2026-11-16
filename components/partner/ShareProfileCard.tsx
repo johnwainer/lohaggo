@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Copy, Download, Loader2, MessageCircle, Share2 } from 'lucide-react'
+import Link from 'next/link'
+import { Check, Copy, Download, Loader2, MessageCircle, Share2, Sparkles } from 'lucide-react'
 import { partnerShareUrl, type ShareMedium } from '@/lib/partners/share-url'
 
-type Profile = { slug: string | null; isPublicProfile: boolean; verified: boolean }
+type Profile = { slug: string | null; isPublicProfile: boolean; verified: boolean; hasBio: boolean }
 
 const shareText = (url: string) => `¡Hola! Ahora puedes pedirme mis servicios por LoHaggo, con chat y confirmación de pago en la app. Mira mi perfil y escríbeme: ${url}`
 
@@ -23,7 +24,7 @@ export default function ShareProfileCard({ moment, className = '' }: { moment?: 
     let alive = true
     fetch('/api/partner/public-profile', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive && d?.partner) setProfile({ slug: d.partner.slug ?? null, isPublicProfile: d.partner.isPublicProfile !== false, verified: !!d.partner.verified }) })
+      .then((d) => { if (alive && d?.partner) setProfile({ slug: d.partner.slug ?? null, isPublicProfile: d.partner.isPublicProfile !== false, verified: !!d.partner.verified, hasBio: (d.partner.bio ?? '').trim().length >= 20 }) })
       .catch(() => {})
     return () => { alive = false }
   }, [])
@@ -88,6 +89,13 @@ export default function ShareProfileCard({ moment, className = '' }: { moment?: 
     <section aria-labelledby="share-profile-title" className={`rounded-3xl border-2 border-secondary-200 bg-gradient-to-br from-secondary-50 to-amber-50 p-4 sm:p-5 ${className}`}>
       <h2 id="share-profile-title" className="text-base font-bold text-secondary-900">{title}</h2>
       <p className="mt-1 text-sm text-secondary-900/90">{text}</p>
+
+      {!profile.hasBio && (
+        <Link href="/profile" className="mt-3 flex min-h-[44px] items-center gap-2 rounded-2xl bg-white/80 px-4 py-2 text-sm font-semibold text-secondary-900 hover:bg-white">
+          <Sparkles size={16} aria-hidden="true" className="shrink-0 text-secondary-700" />
+          <span>Tu perfil no tiene «Sobre mí». Te escribimos un borrador en un toque.</span>
+        </Link>
+      )}
 
       {!profile.slug ? (
         <button

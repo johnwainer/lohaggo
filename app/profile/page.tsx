@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { partnerShareUrl } from '@/lib/partners/share-url'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Phone, Landmark, Bell, Globe, Eye, EyeOff, Copy, Check, MessageCircle, ExternalLink, Upload, Trash2, RefreshCw, Link2, KeyRound, Lock } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Phone, Landmark, Bell, Globe, Eye, EyeOff, Copy, Check, MessageCircle, ExternalLink, Upload, Trash2, RefreshCw, Link2, KeyRound, Lock, Sparkles } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
@@ -55,6 +55,9 @@ export default function ProfilePage() {
   const [pubSlug, setPubSlug] = useState('')
   const [pubHeadline, setPubHeadline] = useState('')
   const [pubBio, setPubBio] = useState('')
+  const [bioNotes, setBioNotes] = useState('')
+  const [bioDrafting, setBioDrafting] = useState(false)
+  const [bioDraftMsg, setBioDraftMsg] = useState<{ type: 'ok' | 'error'; msg: string } | null>(null)
   const [pubIsPublic, setPubIsPublic] = useState(true)
   const [pubPhotos, setPubPhotos] = useState<{ id: string; url: string }[]>([])
   const [pubCopied, setPubCopied] = useState(false)
@@ -258,6 +261,23 @@ export default function ProfilePage() {
       setTimeout(() => setPubFeedback(null), 3000)
     } finally {
       setPubSaving(false)
+    }
+  }
+
+  const draftBioWithAI = async () => {
+    setBioDrafting(true)
+    setBioDraftMsg(null)
+    try {
+      const res = await fetch('/api/partner/public-profile/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: bioNotes }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setBioDraftMsg({ type: 'error', msg: data.error ?? 'No pudimos escribirlo ahora. Inténtalo de nuevo.' }); return }
+      setPubHeadline(String(data.headline ?? '').slice(0, 120))
+      setPubBio(String(data.bio ?? '').slice(0, 800))
+      setBioDraftMsg({ type: 'ok', msg: 'Listo. Léelo, cámbialo si algo no es cierto y pulsa «Guardar» para publicarlo.' })
+    } catch {
+      setBioDraftMsg({ type: 'error', msg: 'No pudimos escribirlo ahora. Inténtalo de nuevo.' })
+    } finally {
+      setBioDrafting(false)
     }
   }
 
@@ -859,6 +879,29 @@ export default function ProfilePage() {
 
                     {/* Form fields */}
                     <div className="flex-1 space-y-4">
+                      <div className="rounded-2xl border border-primary-100 bg-primary-50/60 p-4 space-y-2">
+                        <p className="text-sm font-semibold text-gray-900">¿No sabes qué escribir? Te ayudamos</p>
+                        <p className="text-xs text-gray-600">Escribimos un borrador con tus servicios y tu historial en LoHaggo. Tú lo lees, lo cambias y decides si lo publicas.</p>
+                        <label htmlFor="bio-notes" className="sr-only">Algo que quieras que diga</label>
+                        <textarea
+                          id="bio-notes"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[64px]"
+                          placeholder="Opcional: años de experiencia, especialidad, herramientas… Ej: llevo 8 años en plomería residencial"
+                          value={bioNotes}
+                          maxLength={400}
+                          onChange={(e) => setBioNotes(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={draftBioWithAI}
+                          disabled={bioDrafting}
+                          className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-primary-600 px-5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+                        >
+                          <Sparkles className="h-4 w-4" aria-hidden="true" />
+                          {bioDrafting ? 'Escribiendo…' : pubBio ? 'Escribir otra versión' : 'Escribir con ayuda'}
+                        </button>
+                        {bioDraftMsg && <p role="status" className={`text-xs ${bioDraftMsg.type === 'ok' ? 'text-green-700' : 'text-red-600'}`}>{bioDraftMsg.msg}</p>}
+                      </div>
                       <div className="space-y-1">
                         <label htmlFor="pub-headline" className="text-sm font-medium text-gray-700">Titular</label>
                         <input

@@ -384,7 +384,7 @@ function localAndBrand(f: SeoFacts): Candidate[] {
   if (f.thinPartnerProfiles >= 5) {
     out.push({
       kind: 'local', title: `${f.thinPartnerProfiles} perfiles de socios no se indexan (sin reseñas, biografía o foto)`,
-      detail: 'Cada perfil completo es una página que posiciona por «plomero en Laureles». Pedir a los socios biografía y foto (campaña de reactivación) y reseñas tras cada servicio.',
+      detail: 'Cada perfil completo es una página que posiciona por «plomero en Laureles». Los socios ya pueden pedir un borrador de biografía en su perfil («Escribir con ayuda»): invitarlos a usarlo y a subir foto, y pedir reseñas tras cada servicio.',
       targetUrl: '/admin/partners', impact: 'medium', effort: 'medium', source: 'rules', evidence: { profiles: f.thinPartnerProfiles },
       dedupeKey: 'local:thin-profiles', score: scoreOf({ impact: 'medium', effort: 'medium', demand: f.thinPartnerProfiles }),
     })
