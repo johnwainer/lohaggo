@@ -81,10 +81,10 @@ export function deliveryUrl(channel: MarketingChannel, url: string, media: Media
   return withTransform(url, `${fix}c_limit,w_1600,f_auto,q_auto`)
 }
 
-/** 1200×630 crop for Open Graph / Twitter cards. */
+/** 1200×630 for Open Graph / Twitter cards: wide photos fill it, tall ones (AI images come 2:3) stay whole on a predominant-colour background instead of a zoomed crop. */
 export function ogImageUrl(url: string | null | undefined) {
   if (!url) return null
-  return isCloudinaryUrl(url) ? withTransform(url, 'c_fill,g_auto,w_1200,h_630,f_jpg,q_85', 'jpg') : url
+  return isCloudinaryUrl(url) ? withTransform(url, 'c_pad,w_1200,h_630,b_auto:predominant,f_jpg,q_85', 'jpg') : url
 }
 
 // ─── Text on screen (stories and reels) ──────────────────────────────────────
